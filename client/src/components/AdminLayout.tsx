@@ -1,0 +1,90 @@
+import { Link, useLocation } from "wouter";
+import { cn } from "@/lib/utils";
+import { LayoutDashboard, MapPin, Layers, LogOut, Menu } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { useState } from "react";
+
+export function AdminLayout({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const { logout } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  const navItems = [
+    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/admin/projects", label: "Projects", icon: MapPin },
+    { href: "/admin/drops", label: "Drops", icon: Layers },
+  ];
+
+  const NavContent = () => (
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-8">
+        <h1 className="text-2xl font-serif font-bold text-primary">Memory Admin</h1>
+      </div>
+      <nav className="flex-1 px-4 space-y-2">
+        {navItems.map((item) => {
+          const isActive = location.startsWith(item.href);
+          return (
+            <Link key={item.href} href={item.href} className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+              isActive 
+                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}>
+              <item.icon className={cn("w-5 h-5", isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary")} />
+              <span className="font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="p-4 border-t border-border">
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={() => logout()}
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Logout
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:block w-64 border-r border-border bg-card">
+        <NavContent />
+      </aside>
+
+      {/* Mobile Header */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="lg:hidden h-16 border-b border-border bg-card flex items-center px-4 justify-between">
+          <span className="font-serif font-bold text-primary text-xl">Memory</span>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="w-5 h-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-64">
+              <NavContent />
+            </SheetContent>
+          </Sheet>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-accent/30">
+          <div className="max-w-6xl mx-auto animate-fade-in">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
