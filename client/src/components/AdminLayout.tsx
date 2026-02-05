@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import { LayoutDashboard, MapPin, Layers, LogOut, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { LanguageSelector } from "@/components/language-selector";
+import { useI18n } from "@/lib/i18n/context";
 import {
   Sheet,
   SheetContent,
@@ -14,17 +16,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
 
   const navItems = [
-    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/projects", label: "Projects", icon: MapPin },
-    { href: "/admin/drops", label: "Drops", icon: Layers },
+    { href: "/admin/dashboard", label: t.nav.dashboard, icon: LayoutDashboard },
+    { href: "/admin/projects", label: t.nav.projects, icon: MapPin },
+    { href: "/admin/drops", label: t.nav.drops, icon: Layers },
   ];
 
   const NavContent = () => (
     <div className="flex flex-col h-full">
       <div className="px-6 py-8">
-        <h1 className="text-2xl font-serif font-bold text-primary">Memory Admin</h1>
+        <h1 className="text-2xl font-serif font-bold text-primary">Memories</h1>
       </div>
       <nav className="flex-1 px-4 space-y-2">
         {navItems.map((item) => {
@@ -42,14 +45,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-2">
+        <div className="px-2">
+          <LanguageSelector />
+        </div>
         <Button 
           variant="ghost" 
           className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10"
           onClick={() => logout()}
+          data-testid="button-logout"
         >
           <LogOut className="w-4 h-4 mr-2" />
-          Logout
+          {t.nav.logout}
         </Button>
       </div>
     </div>
@@ -65,17 +72,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="lg:hidden h-16 border-b border-border bg-card flex items-center px-4 justify-between">
-          <span className="font-serif font-bold text-primary text-xl">Memory</span>
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="w-5 h-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-64">
-              <NavContent />
-            </SheetContent>
-          </Sheet>
+          <span className="font-serif font-bold text-primary text-xl">Memories</span>
+          <div className="flex items-center gap-2">
+            <LanguageSelector />
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="button-mobile-menu">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 w-64">
+                <NavContent />
+              </SheetContent>
+            </Sheet>
+          </div>
         </header>
 
         {/* Main Content */}

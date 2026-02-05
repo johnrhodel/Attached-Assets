@@ -7,27 +7,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClaimCard } from "@/components/ClaimCard";
+import { LanguageSelector } from "@/components/language-selector";
 import { Loader2, CheckCircle2, Wallet, Mail, ArrowRight, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function Claim() {
   const [, params] = useRoute("/claim/:locationId");
   const locationId = Number(params?.locationId);
+  const { t } = useI18n();
   
   const { data: drop, isLoading, error } = useActiveDrop(locationId);
   const { mutateAsync: createSession } = useCreateClaimSession();
   
-  // State for the claim flow
   const [claimToken, setClaimToken] = useState<string | null>(null);
   const [view, setView] = useState<"landing" | "method" | "wallet" | "email" | "success">("landing");
 
-  // If no drop found
   if (isLoading) return <div className="h-screen w-full flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
   if (!drop || error) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-background p-4 text-center">
-      <h1 className="text-2xl font-serif font-bold mb-2">No Active Drop Found</h1>
-      <p className="text-muted-foreground">There is no memory available to claim at this location right now.</p>
+      <LanguageSelector />
+      <h1 className="text-2xl font-serif font-bold mb-2">{t.claim.noActiveDrop}</h1>
+      <p className="text-muted-foreground">{t.claim.noActiveDrop}</p>
     </div>
   );
 
@@ -42,7 +44,12 @@ export default function Claim() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#f8f8fa] flex flex-col items-center p-4 md:p-8 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-[#f8f8fa] dark:bg-background flex flex-col items-center p-4 md:p-8 relative overflow-hidden">
+      {/* Language Selector */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSelector />
+      </div>
+
       {/* Dynamic Background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-[100px]" />
@@ -51,7 +58,7 @@ export default function Claim() {
 
       <div className="z-10 w-full max-w-md mx-auto flex-1 flex flex-col justify-center pb-12">
         <header className="text-center mb-8">
-          <h3 className="text-sm uppercase tracking-widest text-muted-foreground font-medium mb-2">Memory Location</h3>
+          <h3 className="text-sm uppercase tracking-widest text-muted-foreground font-medium mb-2">{t.claim.title}</h3>
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground">{drop.title}</h1>
         </header>
 
@@ -69,15 +76,15 @@ export default function Claim() {
                   <img src={drop.imageUrl} alt={drop.title} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-8 text-white">
                     <p className="text-lg font-medium opacity-90">{drop.month} {drop.year}</p>
-                    <p className="text-sm opacity-75 mt-1">{drop.mintedCount} / {drop.supply} claimed</p>
+                    <p className="text-sm opacity-75 mt-1">{drop.mintedCount} / {drop.supply} {t.claim.supplyRemaining}</p>
                   </div>
                 </div>
                 <div className="p-8 bg-card text-center">
                   <p className="text-muted-foreground mb-6">
-                    You are at a verified location. Claim this commemorative digital memory to your collection.
+                    {t.claim.subtitle}
                   </p>
-                  <Button size="lg" className="w-full h-14 text-lg font-semibold shadow-lg shadow-primary/25 rounded-xl" onClick={startClaim}>
-                    Claim Memory <ArrowRight className="ml-2 w-5 h-5" />
+                  <Button size="lg" className="w-full h-14 text-lg font-semibold shadow-lg shadow-primary/25 rounded-xl" onClick={startClaim} data-testid="button-claim-start">
+                    {t.claim.claimNow} <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </div>
               </ClaimCard>
@@ -85,19 +92,20 @@ export default function Claim() {
           )}
 
           {view === "method" && (
-            <ClaimCard title="Choose Method" description="How would you like to receive your memory?">
+            <ClaimCard title={t.claim.selectMethod}>
               <div className="grid gap-4">
                 <Button 
                   variant="outline" 
                   className="h-auto py-6 justify-start px-6 rounded-xl border-2 hover:border-primary hover:bg-primary/5 transition-all group"
                   onClick={() => setView("email")}
+                  data-testid="button-method-email"
                 >
                   <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
                     <Mail className="w-5 h-5" />
                   </div>
                   <div className="text-left">
-                    <div className="font-semibold text-foreground text-lg">Use Email</div>
-                    <div className="text-sm text-muted-foreground">I don't have a wallet yet</div>
+                    <div className="font-semibold text-foreground text-lg">{t.claim.email}</div>
+                    <div className="text-sm text-muted-foreground">{t.email.devNote}</div>
                   </div>
                 </Button>
 
@@ -105,12 +113,13 @@ export default function Claim() {
                   variant="outline" 
                   className="h-auto py-6 justify-start px-6 rounded-xl border-2 hover:border-primary hover:bg-primary/5 transition-all group"
                   onClick={() => setView("wallet")}
+                  data-testid="button-method-wallet"
                 >
                   <div className="h-10 w-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
                     <Wallet className="w-5 h-5" />
                   </div>
                   <div className="text-left">
-                    <div className="font-semibold text-foreground text-lg">Connect Wallet</div>
+                    <div className="font-semibold text-foreground text-lg">{t.claim.wallet}</div>
                     <div className="text-sm text-muted-foreground">MetaMask, Phantom, Freighter</div>
                   </div>
                 </Button>
@@ -135,15 +144,15 @@ export default function Claim() {
               <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
                 <CheckCircle2 className="w-12 h-12" />
               </div>
-              <h2 className="text-3xl font-serif font-bold mb-4">Memory Claimed!</h2>
+              <h2 className="text-3xl font-serif font-bold mb-4">{t.claim.mintSuccess}</h2>
               <p className="text-muted-foreground mb-8 max-w-xs mx-auto">
-                This moment has been permanently added to your collection.
+                {t.claim.subtitle}
               </p>
-              <div className="p-4 bg-white rounded-2xl shadow-sm border mb-8 max-w-xs mx-auto">
+              <div className="p-4 bg-white dark:bg-card rounded-2xl shadow-sm border mb-8 max-w-xs mx-auto">
                 <img src={drop.imageUrl} alt="Memory" className="w-full aspect-square object-cover rounded-xl mb-3" />
                 <p className="font-medium text-sm">{drop.title}</p>
               </div>
-              <Button onClick={() => window.location.reload()} variant="outline">Back to Start</Button>
+              <Button onClick={() => window.location.reload()} variant="outline" data-testid="button-claim-another">{t.common.back}</Button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -152,9 +161,8 @@ export default function Claim() {
   );
 }
 
-// === SUB-COMPONENTS for flows ===
-
 function EmailFlow({ claimToken, drop, onSuccess, onBack }: any) {
+  const { t } = useI18n();
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -167,7 +175,6 @@ function EmailFlow({ claimToken, drop, onSuccess, onBack }: any) {
   const handleVerifyAndMint = () => {
     verify.mutate({ email, code }, {
       onSuccess: () => {
-        // Automatically mint to default chain (EVM for demo) after verifying
         mine.mutate({ email, code, chain: "evm", claimToken }, {
           onSuccess: onSuccess
         });
@@ -176,41 +183,43 @@ function EmailFlow({ claimToken, drop, onSuccess, onBack }: any) {
   };
 
   return (
-    <ClaimCard title={step === "email" ? "Enter Email" : "Verify Code"} description="We'll create a secure vault for you.">
+    <ClaimCard title={step === "email" ? t.email.enterEmail : t.email.enterCode}>
       {step === "email" ? (
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Email Address</Label>
+            <Label>{t.admin.email}</Label>
             <Input 
               type="email" 
-              placeholder="you@example.com" 
+              placeholder={t.email.emailPlaceholder}
               value={email} 
               onChange={e => setEmail(e.target.value)} 
               className="h-12 text-lg"
+              data-testid="input-email"
             />
           </div>
-          <Button className="w-full h-12" onClick={handleSendCode} disabled={!email || start.isPending}>
-            {start.isPending ? <Loader2 className="animate-spin" /> : "Continue"}
+          <Button className="w-full h-12" onClick={handleSendCode} disabled={!email || start.isPending} data-testid="button-send-code">
+            {start.isPending ? <Loader2 className="animate-spin" /> : t.email.sendCode}
           </Button>
-          <Button variant="ghost" className="w-full" onClick={onBack}>Back</Button>
+          <Button variant="ghost" className="w-full" onClick={onBack} data-testid="button-back">{t.common.back}</Button>
         </div>
       ) : (
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Verification Code</Label>
+            <Label>{t.email.enterCode}</Label>
             <Input 
               type="text" 
-              placeholder="123456" 
+              placeholder={t.email.codePlaceholder}
               value={code} 
               onChange={e => setCode(e.target.value)} 
               className="h-12 text-lg text-center tracking-widest"
+              data-testid="input-code"
             />
-            <p className="text-xs text-center text-muted-foreground">Check your console in dev mode</p>
+            <p className="text-xs text-center text-muted-foreground">{t.email.devNote}</p>
           </div>
-          <Button className="w-full h-12" onClick={handleVerifyAndMint} disabled={!code || verify.isPending || mine.isPending}>
-            {(verify.isPending || mine.isPending) ? <Loader2 className="animate-spin" /> : "Verify & Mint"}
+          <Button className="w-full h-12" onClick={handleVerifyAndMint} disabled={!code || verify.isPending || mine.isPending} data-testid="button-verify-mint">
+            {(verify.isPending || mine.isPending) ? <Loader2 className="animate-spin" /> : t.email.verifyCode}
           </Button>
-          <Button variant="ghost" className="w-full" onClick={() => setStep("email")}>Change Email</Button>
+          <Button variant="ghost" className="w-full" onClick={() => setStep("email")}>{t.common.back}</Button>
         </div>
       )}
     </ClaimCard>
@@ -218,11 +227,10 @@ function EmailFlow({ claimToken, drop, onSuccess, onBack }: any) {
 }
 
 function WalletFlow({ claimToken, drop, onSuccess, onBack }: any) {
+  const { t } = useI18n();
   const { mutate, isPending } = useConfirmMint();
   
-  // Mock wallet connection for MVP
   const handleMockMint = (chain: "evm" | "solana" | "stellar") => {
-    // In a real app, this would trigger wallet signature
     setTimeout(() => {
       mutate({ 
         claimToken, 
@@ -233,27 +241,27 @@ function WalletFlow({ claimToken, drop, onSuccess, onBack }: any) {
   };
 
   return (
-    <ClaimCard title="Connect Wallet" description="Choose your preferred network.">
+    <ClaimCard title={t.claim.wallet} description={t.claim.selectChain}>
       <div className="grid gap-3">
         {drop.enabledChains.includes("evm") && (
-          <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("evm")} disabled={isPending}>
-            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-500 rounded-full"/> Ethereum / Polygon</span>
+          <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("evm")} disabled={isPending} data-testid="button-chain-evm">
+            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-500 rounded-full"/> {t.chains.evm}</span>
             {isPending && <Loader2 className="animate-spin w-4 h-4" />}
           </Button>
         )}
         {drop.enabledChains.includes("solana") && (
-          <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("solana")} disabled={isPending}>
-            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-purple-500 rounded-full"/> Solana</span>
+          <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("solana")} disabled={isPending} data-testid="button-chain-solana">
+            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-purple-500 rounded-full"/> {t.chains.solana}</span>
             {isPending && <Loader2 className="animate-spin w-4 h-4" />}
           </Button>
         )}
         {drop.enabledChains.includes("stellar") && (
-          <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("stellar")} disabled={isPending}>
-            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-black rounded-full"/> Stellar</span>
+          <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("stellar")} disabled={isPending} data-testid="button-chain-stellar">
+            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-black rounded-full"/> {t.chains.stellar}</span>
             {isPending && <Loader2 className="animate-spin w-4 h-4" />}
           </Button>
         )}
-        <Button variant="ghost" className="mt-2" onClick={onBack}>Back</Button>
+        <Button variant="ghost" className="mt-2" onClick={onBack} data-testid="button-wallet-back">{t.common.back}</Button>
       </div>
     </ClaimCard>
   );
