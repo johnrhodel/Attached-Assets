@@ -7,43 +7,52 @@ interface I18nContextType {
   t: TranslationKeys;
 }
 
-const I18nContext = createContext<I18nContextType | undefined>(undefined);
-
 const STORAGE_KEY = 'memories-language';
 
 function getInitialLanguage(): Language {
   if (typeof window === 'undefined') return 'en';
   
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored && (stored === 'en' || stored === 'pt' || stored === 'es')) {
-    return stored;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored && (stored === 'en' || stored === 'pt' || stored === 'es')) {
+      return stored;
+    }
+    
+    const browserLang = navigator.language.slice(0, 2).toLowerCase();
+    if (browserLang === 'pt') return 'pt';
+    if (browserLang === 'es') return 'es';
+  } catch {
+    // localStorage might not be available
   }
-  
-  const browserLang = navigator.language.slice(0, 2).toLowerCase();
-  if (browserLang === 'pt') return 'pt';
-  if (browserLang === 'es') return 'es';
   return 'en';
 }
 
+const defaultContext: I18nContextType = {
+  language: 'en',
+  setLanguage: () => {},
+  t: translations.en,
+};
+
+const I18nContext = createContext<I18nContextType>(defaultContext);
+
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('en');
-  const [mounted, setMounted] = useState(false);
+  const [language, setLanguageState] = useState<Language>(getInitialLanguage);
 
   useEffect(() => {
+    // Re-check on mount in case localStorage was updated
     setLanguageState(getInitialLanguage());
-    setMounted(true);
   }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem(STORAGE_KEY, lang);
+    try {
+      localStorage.setItem(STORAGE_KEY, lang);
+    } catch {
+      // localStorage might not be available
+    }
   };
 
   const t = translations[language];
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
 
   return (
     <I18nContext.Provider value={{ language, setLanguage, t }}>
@@ -53,9 +62,5 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 }
 
 export function useI18n() {
-  const context = useContext(I18nContext);
-  if (!context) {
-    throw new Error('useI18n must be used within an I18nProvider');
-  }
-  return context;
+  return useContext(I18nContext);
 }
