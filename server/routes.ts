@@ -381,7 +381,21 @@ export async function registerRoutes(
   });
 
   app.post(api.walletless.mine.path, async (req, res) => {
-    const { email, chain, claimToken } = req.body;
+    const { email, code, chain, claimToken } = req.body;
+
+    if (!code) {
+      return res.status(400).json({ message: "Verification code is required" });
+    }
+
+    if (verificationCodes.get(email) !== code) {
+      return res.status(400).json({ message: "Invalid verification code" });
+    }
+
+    verificationCodes.delete(email);
+    const userToVerify = await storage.getWalletlessUser(email);
+    if (userToVerify) {
+      await storage.markWalletlessUserVerified(userToVerify.id);
+    }
 
     const user = await storage.getWalletlessUser(email);
     if (!user) return res.status(400).json({ message: "User not found" });
@@ -459,6 +473,7 @@ export async function registerRoutes(
         txHash,
         address: recipientAddress,
         explorerUrl,
+        chain,
       });
     } catch (err: any) {
       console.error(`[WALLETLESS_MINT] ${chain} error:`, err.message);

@@ -247,6 +247,8 @@ export const api = {
         200: z.object({
           txHash: z.string(),
           address: z.string(),
+          explorerUrl: z.string().optional(),
+          chain: z.string().optional(),
         })
       }
     }
