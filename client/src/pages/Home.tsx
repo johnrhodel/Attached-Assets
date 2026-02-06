@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LanguageSelector } from "@/components/language-selector";
@@ -11,13 +12,35 @@ import {
   Code2, 
   BarChart3, 
   Shield,
-  ChevronRight
+  ChevronRight,
+  Linkedin
 } from "lucide-react";
+
+import heroConcert from "../assets/images/hero-concert.jpg";
+import heroTourist from "../assets/images/hero-tourist.jpg";
+import heroSelfie from "../assets/images/hero-selfie.jpg";
+import featureTravel from "../assets/images/feature-travel.jpg";
+import featureQrCode from "../assets/images/feature-qrcode.jpg";
+import founderPhoto from "@assets/John_Rhodel_(3)_1770414803489.jpeg";
+
+const heroImages = [
+  { src: heroConcert, alt: "Concert crowd enjoying live music" },
+  { src: heroTourist, alt: "Tourists at scenic landmark" },
+  { src: heroSelfie, alt: "Friends capturing a moment together" },
+];
 
 const featureIcons = [Layers, QrCode, Mail, Code2, BarChart3, Shield];
 
 export default function Home() {
   const { t } = useI18n();
+  const [currentImage, setCurrentImage] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % heroImages.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const features = [
     { icon: featureIcons[0], title: t.landing.feature_multi_chain, desc: t.landing.feature_multi_chain_desc },
@@ -31,54 +54,102 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="w-full px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
+      <header className="absolute top-0 left-0 right-0 z-30 w-full px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-            <Layers className="w-4 h-4 text-primary-foreground" />
+          <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center">
+            <Layers className="w-4 h-4 text-white" />
           </div>
-          <span className="font-serif font-bold text-xl text-foreground" data-testid="text-brand-name">Mintoria</span>
+          <span className="font-serif font-bold text-xl text-white drop-shadow-md" data-testid="text-brand-name">Mintoria</span>
         </div>
         <div className="flex items-center gap-3">
           <LanguageSelector />
           <Link href="/admin/login">
-            <Button variant="ghost" size="sm" data-testid="link-admin-login">
+            <Button variant="outline" size="sm" className="bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="link-admin-login">
               {t.landing.admin_portal}
             </Button>
           </Link>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="flex-1 flex flex-col items-center justify-center px-6 py-16 md:py-24 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[-30%] right-[-20%] w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px]" />
-          <div className="absolute bottom-[-30%] left-[-20%] w-[800px] h-[800px] bg-blue-400/5 rounded-full blur-[120px]" />
-        </div>
+      {/* Hero Section with Image Carousel */}
+      <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center overflow-hidden">
+        {heroImages.map((img, index) => (
+          <div
+            key={index}
+            className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
+            style={{ opacity: currentImage === index ? 1 : 0 }}
+          >
+            <img
+              src={img.src}
+              alt={img.alt}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ))}
 
-        <div className="z-10 text-center max-w-3xl animate-fade-in">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-8" data-testid="badge-tagline">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70 z-10" />
+
+        <div className="relative z-20 text-center max-w-3xl px-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-sm text-white/90 text-sm font-medium mb-8" data-testid="badge-tagline">
             <Layers className="w-3.5 h-3.5" />
-            NFT Minting Platform
+            {t.landing.hero_tagline}
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-serif font-bold tracking-tight text-foreground mb-6" data-testid="text-hero-title">
+          <h1 className="text-5xl md:text-7xl font-serif font-bold tracking-tight text-white mb-6 drop-shadow-lg" data-testid="text-hero-title">
             {t.landing.hero_title}
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground mb-12 leading-relaxed max-w-2xl mx-auto" data-testid="text-hero-subtitle">
+          <p className="text-lg md:text-xl text-white/80 mb-12 leading-relaxed max-w-2xl mx-auto" data-testid="text-hero-subtitle">
             {t.landing.hero_subtitle}
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
             <Link href="/claim/1">
-              <Button size="lg" className="h-14 px-8 text-lg" data-testid="button-try-demo">
+              <Button size="lg" data-testid="button-try-demo">
                 {t.landing.try_demo} <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
             <Link href="/admin/login">
-              <Button size="lg" variant="outline" className="h-14 px-8 text-lg" data-testid="button-admin-portal">
+              <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-sm border-white/30 text-white" data-testid="button-admin-portal">
                 {t.landing.admin_portal} <ChevronRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
+          </div>
+
+          <div className="flex justify-center gap-2 mt-10">
+            {heroImages.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentImage(index)}
+                className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${
+                  currentImage === index ? 'bg-white' : 'bg-white/40'
+                }`}
+                data-testid={`button-hero-dot-${index}`}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Image Showcase Strip */}
+      <section className="w-full bg-background py-12 md:py-16">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="relative rounded-md overflow-hidden h-64">
+              <img src={featureTravel} alt="Tourist destination" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4 text-white">
+                <h3 className="font-serif font-bold text-lg">{t.landing.feature_qr}</h3>
+                <p className="text-sm text-white/80">{t.landing.feature_qr_desc}</p>
+              </div>
+            </div>
+            <div className="relative rounded-md overflow-hidden h-64">
+              <img src={featureQrCode} alt="QR code scanning" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4 text-white">
+                <h3 className="font-serif font-bold text-lg">{t.landing.feature_embed}</h3>
+                <p className="text-sm text-white/80">{t.landing.feature_embed_desc}</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -90,14 +161,14 @@ export default function Home() {
             {t.landing.features_title}
           </h2>
           <p className="text-muted-foreground text-center mb-12 max-w-xl mx-auto">
-            {t.landing.hero_subtitle}
+            {t.landing.hero_tagline}
           </p>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, i) => {
               const Icon = feature.icon;
               return (
-                <Card key={i} className="border-border/50 shadow-sm hover:shadow-md transition-shadow" data-testid={`card-feature-${i}`}>
+                <Card key={i} className="border-border/50 shadow-sm" data-testid={`card-feature-${i}`}>
                   <CardContent className="pt-6">
                     <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center mb-4">
                       <Icon className="w-5 h-5 text-primary" />
@@ -112,15 +183,52 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Team Section */}
+      <section className="w-full px-6 py-16 md:py-24" data-testid="section-team">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4" data-testid="text-team-title">
+            {t.landing.team_title}
+          </h2>
+          <p className="text-muted-foreground mb-12 max-w-xl mx-auto">
+            {t.landing.team_subtitle}
+          </p>
+
+          <div className="flex justify-center">
+            <div className="flex flex-col items-center max-w-xs" data-testid="card-team-founder">
+              <div className="w-32 h-32 rounded-full overflow-hidden mb-4 ring-4 ring-primary/20">
+                <img
+                  src={founderPhoto}
+                  alt="John Rhodel Bartolome"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <h3 className="font-serif font-bold text-xl mb-1" data-testid="text-founder-name">John Rhodel Bartolome</h3>
+              <p className="text-sm text-primary font-medium mb-3" data-testid="text-founder-role">{t.landing.team_founder}</p>
+              <a
+                href="https://www.linkedin.com/in/johnrhodel/"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="link-founder-linkedin"
+              >
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Linkedin className="w-4 h-4" />
+                  {t.landing.team_connect}
+                </Button>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
-      <section className="w-full px-6 py-16 md:py-24">
+      <section className="w-full px-6 py-16 md:py-24 bg-accent/30">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-serif font-bold mb-6">
             {t.landing.try_demo}
           </h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
             <Link href="/claim/1">
-              <Button size="lg" className="h-14 px-10 text-lg" data-testid="button-cta-demo">
+              <Button size="lg" data-testid="button-cta-demo">
                 {t.landing.try_demo} <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>

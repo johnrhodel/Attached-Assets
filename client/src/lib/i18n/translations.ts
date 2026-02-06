@@ -104,7 +104,8 @@ export const translations = {
     },
     landing: {
       hero_title: 'Mintoria',
-      hero_subtitle: 'Create commemorative digital collectibles for physical locations. Bridge the gap between experience and ownership.',
+      hero_tagline: 'Your memories eternalized with technology',
+      hero_subtitle: 'Turn real moments into unique digital collectibles. Concerts, trips, events — every experience becomes an NFT you can keep forever.',
       admin_portal: 'Admin Portal',
       try_demo: 'Try Demo',
       features_title: 'Everything you need',
@@ -121,6 +122,10 @@ export const translations = {
       feature_security: 'Anti-Fraud Protection',
       feature_security_desc: 'One-time claim tokens, rate limiting, and supply caps',
       copyright: 'Mintoria. All rights reserved.',
+      team_title: 'Meet the Team',
+      team_subtitle: 'The people behind Mintoria',
+      team_founder: 'Founder',
+      team_connect: 'Connect on LinkedIn',
     },
   },
   pt: {
@@ -226,7 +231,8 @@ export const translations = {
     },
     landing: {
       hero_title: 'Mintoria',
-      hero_subtitle: 'Crie colecionáveis digitais comemorativos para locais físicos. Conecte experiência e propriedade.',
+      hero_tagline: 'Suas memórias eternizadas com tecnologia',
+      hero_subtitle: 'Transforme momentos reais em colecionáveis digitais únicos. Shows, viagens, eventos — cada experiência vira um NFT que você guarda para sempre.',
       admin_portal: 'Portal Admin',
       try_demo: 'Testar Demo',
       features_title: 'Tudo que você precisa',
@@ -243,6 +249,10 @@ export const translations = {
       feature_security: 'Proteção Anti-Fraude',
       feature_security_desc: 'Tokens únicos, limite de taxa e teto de supply',
       copyright: 'Mintoria. All rights reserved.',
+      team_title: 'Conheça o Time',
+      team_subtitle: 'As pessoas por trás do Mintoria',
+      team_founder: 'Fundador',
+      team_connect: 'Conectar no LinkedIn',
     },
   },
   es: {
@@ -348,7 +358,8 @@ export const translations = {
     },
     landing: {
       hero_title: 'Mintoria',
-      hero_subtitle: 'Crea coleccionables digitales conmemorativos para ubicaciones físicas. Conecta experiencia y propiedad.',
+      hero_tagline: 'Tus recuerdos eternizados con tecnología',
+      hero_subtitle: 'Convierte momentos reales en coleccionables digitales únicos. Conciertos, viajes, eventos — cada experiencia se convierte en un NFT que puedes guardar para siempre.',
       admin_portal: 'Portal Admin',
       try_demo: 'Probar Demo',
       features_title: 'Todo lo que necesitas',
@@ -365,6 +376,10 @@ export const translations = {
       feature_security: 'Protección Anti-Fraude',
       feature_security_desc: 'Tokens únicos, limitación de tasa y topes de suministro',
       copyright: 'Mintoria. All rights reserved.',
+      team_title: 'Conoce al Equipo',
+      team_subtitle: 'Las personas detrás de Mintoria',
+      team_founder: 'Fundador',
+      team_connect: 'Conectar en LinkedIn',
     },
   },
 } as const;
