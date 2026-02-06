@@ -1,17 +1,19 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRoute } from "wouter";
 import { useActiveDrop } from "@/hooks/use-drops";
 import { useCreateClaimSession, useWalletless, useConfirmMint } from "@/hooks/use-claim";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClaimCard } from "@/components/ClaimCard";
 import { LanguageSelector } from "@/components/language-selector";
-import { Loader2, CheckCircle2, Wallet, Mail, ArrowRight, Sparkles } from "lucide-react";
+import { WalletSuggestions } from "@/components/WalletSuggestions";
+import { Loader2, CheckCircle2, Wallet, Mail, ArrowRight, Download, Layers } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n/context";
+import { Link } from "wouter";
+
+type ClaimView = "landing" | "method" | "wallet" | "email" | "walletSuggestions" | "success";
 
 export default function Claim() {
   const [, params] = useRoute("/claim/:locationId");
@@ -22,14 +24,24 @@ export default function Claim() {
   const { mutateAsync: createSession } = useCreateClaimSession();
   
   const [claimToken, setClaimToken] = useState<string | null>(null);
-  const [view, setView] = useState<"landing" | "method" | "wallet" | "email" | "success">("landing");
+  const [view, setView] = useState<ClaimView>("landing");
 
-  if (isLoading) return <div className="h-screen w-full flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+  if (isLoading) return (
+    <div className="h-screen w-full flex items-center justify-center bg-background">
+      <Loader2 className="animate-spin text-primary w-8 h-8" />
+    </div>
+  );
+  
   if (!drop || error) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-background p-4 text-center">
-      <LanguageSelector />
+      <div className="absolute top-4 right-4"><LanguageSelector /></div>
+      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+        <Layers className="w-6 h-6 text-primary" />
+      </div>
       <h1 className="text-2xl font-serif font-bold mb-2">{t.claim.noActiveDrop}</h1>
-      <p className="text-muted-foreground">{t.claim.noActiveDrop}</p>
+      <Link href="/">
+        <Button variant="outline" className="mt-4" data-testid="button-back-home">{t.common.back}</Button>
+      </Link>
     </div>
   );
 
@@ -44,47 +56,41 @@ export default function Claim() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#f8f8fa] dark:bg-background flex flex-col items-center p-4 md:p-8 relative overflow-hidden">
-      {/* Language Selector */}
-      <div className="absolute top-4 right-4 z-20">
+    <div className="min-h-screen w-full bg-background flex flex-col items-center p-4 md:p-8 relative overflow-hidden">
+      {/* Header */}
+      <div className="w-full max-w-md flex items-center justify-between mb-6 z-20">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
+            <Layers className="w-3 h-3 text-primary-foreground" />
+          </div>
+          <span className="font-serif font-bold text-sm text-foreground">Mintoria</span>
+        </div>
         <LanguageSelector />
       </div>
 
-      {/* Dynamic Background */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[100px]" />
+      {/* Background */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-400/5 rounded-full blur-[120px]" />
       </div>
 
       <div className="z-10 w-full max-w-md mx-auto flex-1 flex flex-col justify-center pb-12">
-        <header className="text-center mb-8">
-          <h3 className="text-sm uppercase tracking-widest text-muted-foreground font-medium mb-2">{t.claim.title}</h3>
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground">{drop.title}</h1>
-        </header>
-
         <AnimatePresence mode="wait">
           {view === "landing" && (
-            <motion.div
-              key="landing"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="w-full"
-            >
+            <motion.div key="landing" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, y: -20 }} className="w-full">
               <ClaimCard className="p-0 overflow-hidden border-0 shadow-2xl">
                 <div className="aspect-[4/3] w-full relative">
                   <img src={drop.imageUrl} alt={drop.title} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-8 text-white">
-                    <p className="text-lg font-medium opacity-90">{drop.month} {drop.year}</p>
-                    <p className="text-sm opacity-75 mt-1">{drop.mintedCount} / {drop.supply} {t.claim.supplyRemaining}</p>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 text-white">
+                    <p className="text-sm font-medium opacity-75 mb-1">{drop.month} {drop.year}</p>
+                    <h1 className="text-2xl font-serif font-bold">{drop.title}</h1>
+                    <p className="text-sm opacity-60 mt-1">{drop.mintedCount} / {drop.supply} {t.claim.supplyRemaining}</p>
                   </div>
                 </div>
-                <div className="p-8 bg-card text-center">
-                  <p className="text-muted-foreground mb-6">
-                    {t.claim.subtitle}
-                  </p>
-                  <Button size="lg" className="w-full h-14 text-lg font-semibold shadow-lg shadow-primary/25 rounded-xl" onClick={startClaim} data-testid="button-claim-start">
-                    {t.claim.claimNow} <ArrowRight className="ml-2 w-5 h-5" />
+                <div className="p-6 bg-card text-center">
+                  <p className="text-muted-foreground text-sm mb-5">{t.claim.subtitle}</p>
+                  <Button size="lg" className="w-full text-base font-semibold" onClick={startClaim} data-testid="button-claim-start">
+                    {t.claim.claimNow} <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </div>
               </ClaimCard>
@@ -92,64 +98,80 @@ export default function Claim() {
           )}
 
           {view === "method" && (
-            <ClaimCard title={t.claim.selectMethod}>
-              <div className="grid gap-4">
-                <Button 
-                  variant="outline" 
-                  className="h-auto py-6 justify-start px-6 rounded-xl border-2 hover:border-primary hover:bg-primary/5 transition-all group"
-                  onClick={() => setView("email")}
-                  data-testid="button-method-email"
-                >
-                  <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                    <Mail className="w-5 h-5" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-semibold text-foreground text-lg">{t.claim.email}</div>
-                    <div className="text-sm text-muted-foreground">{t.email.devNote}</div>
-                  </div>
-                </Button>
+            <motion.div key="method" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <ClaimCard title={t.claim.selectMethod}>
+                <div className="grid gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="h-auto py-5 justify-start px-5 rounded-md border group"
+                    onClick={() => setView("email")}
+                    data-testid="button-method-email"
+                  >
+                    <div className="h-9 w-9 rounded-md bg-blue-500/10 text-blue-600 flex items-center justify-center mr-4">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-semibold text-foreground">{t.claim.email}</div>
+                      <div className="text-xs text-muted-foreground">{t.email.devNote}</div>
+                    </div>
+                  </Button>
 
-                <Button 
-                  variant="outline" 
-                  className="h-auto py-6 justify-start px-6 rounded-xl border-2 hover:border-primary hover:bg-primary/5 transition-all group"
-                  onClick={() => setView("wallet")}
-                  data-testid="button-method-wallet"
-                >
-                  <div className="h-10 w-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                    <Wallet className="w-5 h-5" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-semibold text-foreground text-lg">{t.claim.wallet}</div>
-                    <div className="text-sm text-muted-foreground">MetaMask, Phantom, Freighter</div>
-                  </div>
-                </Button>
-              </div>
-            </ClaimCard>
+                  <Button 
+                    variant="outline" 
+                    className="h-auto py-5 justify-start px-5 rounded-md border group"
+                    onClick={() => setView("wallet")}
+                    data-testid="button-method-wallet"
+                  >
+                    <div className="h-9 w-9 rounded-md bg-purple-500/10 text-purple-600 flex items-center justify-center mr-4">
+                      <Wallet className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-semibold text-foreground">{t.claim.wallet}</div>
+                      <div className="text-xs text-muted-foreground">MetaMask, Phantom, Freighter</div>
+                    </div>
+                  </Button>
+
+                  <Button 
+                    variant="ghost" 
+                    className="h-auto py-3 justify-start px-5 text-muted-foreground"
+                    onClick={() => setView("walletSuggestions")}
+                    data-testid="button-need-wallet"
+                  >
+                    <Download className="w-4 h-4 mr-3" />
+                    {t.claim.noWallet}
+                  </Button>
+                </div>
+              </ClaimCard>
+            </motion.div>
           )}
 
           {view === "email" && claimToken && (
-            <EmailFlow claimToken={claimToken} drop={drop} onSuccess={() => setView("success")} onBack={() => setView("method")} />
+            <motion.div key="email" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <EmailFlow claimToken={claimToken} drop={drop} onSuccess={() => setView("success")} onBack={() => setView("method")} />
+            </motion.div>
           )}
 
           {view === "wallet" && claimToken && (
-            <WalletFlow claimToken={claimToken} drop={drop} onSuccess={() => setView("success")} onBack={() => setView("method")} />
+            <motion.div key="wallet" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <WalletFlow claimToken={claimToken} drop={drop} onSuccess={() => setView("success")} onBack={() => setView("method")} />
+            </motion.div>
+          )}
+
+          {view === "walletSuggestions" && (
+            <motion.div key="walletSuggestions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <WalletSuggestions onBack={() => setView("method")} />
+            </motion.div>
           )}
 
           {view === "success" && (
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-center"
-            >
-              <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
-                <CheckCircle2 className="w-12 h-12" />
+            <motion.div key="success" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
+              <div className="w-20 h-20 bg-green-500/10 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-10 h-10" />
               </div>
-              <h2 className="text-3xl font-serif font-bold mb-4">{t.claim.mintSuccess}</h2>
-              <p className="text-muted-foreground mb-8 max-w-xs mx-auto">
-                {t.claim.subtitle}
-              </p>
-              <div className="p-4 bg-white dark:bg-card rounded-2xl shadow-sm border mb-8 max-w-xs mx-auto">
-                <img src={drop.imageUrl} alt="Memory" className="w-full aspect-square object-cover rounded-xl mb-3" />
+              <h2 className="text-3xl font-serif font-bold mb-3" data-testid="text-mint-success">{t.claim.mintSuccess}</h2>
+              <p className="text-muted-foreground mb-8 max-w-xs mx-auto text-sm">{t.claim.subtitle}</p>
+              <div className="p-4 bg-card rounded-xl shadow-sm border mb-8 max-w-xs mx-auto">
+                <img src={drop.imageUrl} alt="NFT" className="w-full aspect-square object-cover rounded-md mb-3" />
                 <p className="font-medium text-sm">{drop.title}</p>
               </div>
               <Button onClick={() => window.location.reload()} variant="outline" data-testid="button-claim-another">{t.common.back}</Button>
@@ -175,9 +197,7 @@ function EmailFlow({ claimToken, drop, onSuccess, onBack }: any) {
   const handleVerifyAndMint = () => {
     verify.mutate({ email, code }, {
       onSuccess: () => {
-        mine.mutate({ email, code, chain: "evm", claimToken }, {
-          onSuccess: onSuccess
-        });
+        mine.mutate({ email, code, chain: "evm", claimToken }, { onSuccess });
       }
     });
   };
@@ -200,7 +220,7 @@ function EmailFlow({ claimToken, drop, onSuccess, onBack }: any) {
           <Button className="w-full h-12" onClick={handleSendCode} disabled={!email || start.isPending} data-testid="button-send-code">
             {start.isPending ? <Loader2 className="animate-spin" /> : t.email.sendCode}
           </Button>
-          <Button variant="ghost" className="w-full" onClick={onBack} data-testid="button-back">{t.common.back}</Button>
+          <Button variant="ghost" className="w-full" onClick={onBack} data-testid="button-email-back">{t.common.back}</Button>
         </div>
       ) : (
         <div className="space-y-4">
@@ -232,11 +252,7 @@ function WalletFlow({ claimToken, drop, onSuccess, onBack }: any) {
   
   const handleMockMint = (chain: "evm" | "solana" | "stellar") => {
     setTimeout(() => {
-      mutate({ 
-        claimToken, 
-        txHash: "0xmockhash123456789", 
-        chain 
-      }, { onSuccess });
+      mutate({ claimToken, txHash: "0xmockhash123456789", chain }, { onSuccess });
     }, 1500);
   };
 
@@ -257,7 +273,7 @@ function WalletFlow({ claimToken, drop, onSuccess, onBack }: any) {
         )}
         {drop.enabledChains.includes("stellar") && (
           <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("stellar")} disabled={isPending} data-testid="button-chain-stellar">
-            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-black rounded-full"/> {t.chains.stellar}</span>
+            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-black dark:bg-white rounded-full"/> {t.chains.stellar}</span>
             {isPending && <Loader2 className="animate-spin w-4 h-4" />}
           </Button>
         )}

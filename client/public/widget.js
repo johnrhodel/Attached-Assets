@@ -1,86 +1,60 @@
 (function() {
-  // Memories Widget Script
+  // Mintoria Widget Script
   // Usage: <script src="https://.../widget.js" data-project-id="1" data-location-id="1"></script>
   
-  const script = document.currentScript;
-  const projectId = script.getAttribute('data-project-id');
-  const locationId = script.getAttribute('data-location-id');
+  var script = document.currentScript;
+  var locationId = script.getAttribute('data-location-id');
   
   if (!locationId) {
-    console.error('Memories Widget: location-id is required');
+    console.error('Mintoria Widget: data-location-id is required');
     return;
   }
 
-  const BASE_URL = new URL(script.src).origin;
-  const iframeUrl = `${BASE_URL}/embed?locationId=${locationId}`;
+  var BASE_URL = new URL(script.src).origin;
+  var iframeUrl = BASE_URL + '/embed/' + locationId;
 
-  // Create Modal Container
-  const container = document.createElement('div');
-  container.id = 'memories-widget-container';
-  container.style.position = 'fixed';
-  container.style.top = '0';
-  container.style.left = '0';
-  container.style.width = '100%';
-  container.style.height = '100%';
-  container.style.zIndex = '9999';
-  container.style.backgroundColor = 'rgba(0,0,0,0.5)';
-  container.style.display = 'none'; // Hidden by default
-  container.style.alignItems = 'center';
-  container.style.justifyContent = 'center';
+  var container = document.createElement('div');
+  container.id = 'mintoria-widget-container';
+  container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
 
-  // Create Iframe
-  const iframe = document.createElement('iframe');
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:relative;width:90%;max-width:400px;height:auto;max-height:80vh;';
+
+  var iframe = document.createElement('iframe');
   iframe.src = iframeUrl;
-  iframe.style.width = '90%';
-  iframe.style.maxWidth = '400px';
-  iframe.style.height = '80%';
-  iframe.style.maxHeight = '700px';
-  iframe.style.border = 'none';
-  iframe.style.borderRadius = '12px';
-  iframe.style.backgroundColor = 'white';
+  iframe.style.cssText = 'width:100%;height:600px;max-height:80vh;border:none;border-radius:12px;background:white;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);';
 
-  // Close Button
-  const closeBtn = document.createElement('button');
-  closeBtn.innerText = '×';
-  closeBtn.style.position = 'absolute';
-  closeBtn.style.top = '10px';
-  closeBtn.style.right = '10px';
-  closeBtn.style.background = 'white';
-  closeBtn.style.border = 'none';
-  closeBtn.style.borderRadius = '50%';
-  closeBtn.style.width = '30px';
-  closeBtn.style.height = '30px';
-  closeBtn.style.cursor = 'pointer';
-  closeBtn.onclick = () => {
+  var closeBtn = document.createElement('button');
+  closeBtn.innerHTML = '&times;';
+  closeBtn.style.cssText = 'position:absolute;top:-12px;right:-12px;background:#fff;border:1px solid #e5e7eb;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:1;';
+  closeBtn.onclick = function() {
     container.style.display = 'none';
   };
 
-  container.appendChild(iframe);
-  iframe.onload = () => {
-    // iframe.contentWindow.postMessage({ type: 'INIT', projectId, locationId }, '*');
-  };
-  
-  // Only append close button if we want it outside the iframe. 
-  // Often better to handle closing from within, but for a generic script, overlay close is safer.
-  // container.appendChild(closeBtn); 
+  wrapper.appendChild(closeBtn);
+  wrapper.appendChild(iframe);
+  container.appendChild(wrapper);
 
-  // Click outside to close
-  container.onclick = (e) => {
+  container.onclick = function(e) {
     if (e.target === container) {
       container.style.display = 'none';
     }
   };
 
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      container.style.display = 'none';
+    }
+  });
+
   document.body.appendChild(container);
 
-  // Expose global method to open
-  window.Memories = {
-    open: () => {
+  window.Mintoria = {
+    open: function() {
       container.style.display = 'flex';
+    },
+    close: function() {
+      container.style.display = 'none';
     }
   };
-
-  // Optional: Auto-inject a trigger button if requested?
-  // For now, we assume the host site calls window.Memories.open() or we provide a button.
-  
 })();

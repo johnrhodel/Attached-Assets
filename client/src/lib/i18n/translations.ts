@@ -2,7 +2,6 @@ export type Language = 'en' | 'pt' | 'es';
 
 export const translations = {
   en: {
-    // Common
     common: {
       loading: 'Loading...',
       error: 'Error',
@@ -20,7 +19,6 @@ export const translations = {
       or: 'or',
       and: 'and',
     },
-    // Navigation
     nav: {
       home: 'Home',
       dashboard: 'Dashboard',
@@ -30,18 +28,17 @@ export const translations = {
       logout: 'Logout',
       login: 'Login',
     },
-    // Claim Page
     claim: {
-      title: 'Claim Your Memory',
+      title: 'Claim Your NFT',
       subtitle: 'Mint a commemorative NFT from this location',
       selectChain: 'Select Blockchain',
       selectMethod: 'How would you like to receive your NFT?',
       wallet: 'Connect Wallet',
       email: 'Use Email (No Wallet)',
       noWallet: 'Need a Wallet?',
-      claimNow: 'Claim Now',
+      claimNow: 'Claim NFT',
       minting: 'Minting...',
-      mintSuccess: 'NFT Minted Successfully!',
+      mintSuccess: 'NFT Claimed!',
       mintFailed: 'Minting Failed',
       viewOnExplorer: 'View on Explorer',
       claimAnother: 'Claim Another',
@@ -49,7 +46,6 @@ export const translations = {
       expired: 'This claim session has expired',
       noActiveDrop: 'No active drop available',
     },
-    // Email Flow
     email: {
       enterEmail: 'Enter your email',
       emailPlaceholder: 'you@example.com',
@@ -61,7 +57,6 @@ export const translations = {
       codeInvalid: 'Invalid code',
       devNote: '(Dev Mode: Check server console for code)',
     },
-    // Wallet Suggestions
     walletSuggestions: {
       title: 'Get a Wallet',
       subtitle: 'You need a wallet to receive your NFT. Here are some options:',
@@ -70,13 +65,12 @@ export const translations = {
       stellarWallets: 'For Stellar',
       downloadNow: 'Download',
     },
-    // Admin
     admin: {
-      login: 'Admin Login',
+      login: 'Mintoria Admin',
       email: 'Email',
       password: 'Password',
       loginButton: 'Login',
-      welcome: 'Welcome to Memories Admin',
+      welcome: 'Welcome to Mintoria Admin',
       createProject: 'Create Project',
       createLocation: 'Create Location',
       createDrop: 'Create Drop',
@@ -97,22 +91,39 @@ export const translations = {
       recentMints: 'Recent Mints',
       activeDrops: 'Active Drops',
     },
-    // Chains
     chains: {
       evm: 'Ethereum / Polygon / Base',
       solana: 'Solana',
       stellar: 'Stellar',
     },
-    // Language
     language: {
       select: 'Language',
       en: 'English',
       pt: 'Português',
       es: 'Español',
     },
+    landing: {
+      hero_title: 'Mintoria',
+      hero_subtitle: 'Create commemorative digital collectibles for physical locations. Bridge the gap between experience and ownership.',
+      admin_portal: 'Admin Portal',
+      try_demo: 'Try Demo',
+      features_title: 'Everything you need',
+      feature_multi_chain: 'Multi-Chain Support',
+      feature_multi_chain_desc: 'Support for Ethereum, Solana, and Stellar ecosystems',
+      feature_qr: 'QR Code Claims',
+      feature_qr_desc: 'Visitors scan and claim NFTs instantly at any location',
+      feature_walletless: 'No Wallet Needed',
+      feature_walletless_desc: 'Email-based minting for users without crypto wallets',
+      feature_embed: 'Easy Integration',
+      feature_embed_desc: 'Embed widget or iframe on any website in minutes',
+      feature_admin: 'Admin Dashboard',
+      feature_admin_desc: 'Manage projects, locations, and drops with analytics',
+      feature_security: 'Anti-Fraud Protection',
+      feature_security_desc: 'One-time claim tokens, rate limiting, and supply caps',
+      copyright: 'Mintoria. All rights reserved.',
+    },
   },
   pt: {
-    // Common
     common: {
       loading: 'Carregando...',
       error: 'Erro',
@@ -130,7 +141,6 @@ export const translations = {
       or: 'ou',
       and: 'e',
     },
-    // Navigation
     nav: {
       home: 'Início',
       dashboard: 'Painel',
@@ -140,18 +150,17 @@ export const translations = {
       logout: 'Sair',
       login: 'Entrar',
     },
-    // Claim Page
     claim: {
-      title: 'Reivindique Sua Memória',
+      title: 'Reivindique Seu NFT',
       subtitle: 'Mint um NFT comemorativo deste local',
       selectChain: 'Selecione a Blockchain',
       selectMethod: 'Como você gostaria de receber seu NFT?',
       wallet: 'Conectar Carteira',
       email: 'Usar Email (Sem Carteira)',
       noWallet: 'Precisa de uma Carteira?',
-      claimNow: 'Reivindique Agora',
+      claimNow: 'Reivindique NFT',
       minting: 'Mintando...',
-      mintSuccess: 'NFT Mintado com Sucesso!',
+      mintSuccess: 'NFT Reivindicado!',
       mintFailed: 'Falha no Mint',
       viewOnExplorer: 'Ver no Explorer',
       claimAnother: 'Reivindique Outro',
@@ -159,7 +168,6 @@ export const translations = {
       expired: 'Esta sessão de reivindicação expirou',
       noActiveDrop: 'Nenhum drop ativo disponível',
     },
-    // Email Flow
     email: {
       enterEmail: 'Digite seu email',
       emailPlaceholder: 'voce@exemplo.com',
@@ -171,7 +179,6 @@ export const translations = {
       codeInvalid: 'Código inválido',
       devNote: '(Modo Dev: Verifique o console do servidor para o código)',
     },
-    // Wallet Suggestions
     walletSuggestions: {
       title: 'Obtenha uma Carteira',
       subtitle: 'Você precisa de uma carteira para receber seu NFT. Aqui estão algumas opções:',
@@ -180,13 +187,12 @@ export const translations = {
       stellarWallets: 'Para Stellar',
       downloadNow: 'Baixar',
     },
-    // Admin
     admin: {
-      login: 'Login Admin',
+      login: 'Mintoria Admin',
       email: 'Email',
       password: 'Senha',
       loginButton: 'Entrar',
-      welcome: 'Bem-vindo ao Admin Memories',
+      welcome: 'Bem-vindo ao Mintoria Admin',
       createProject: 'Criar Projeto',
       createLocation: 'Criar Local',
       createDrop: 'Criar Drop',
@@ -207,22 +213,39 @@ export const translations = {
       recentMints: 'Mints Recentes',
       activeDrops: 'Drops Ativos',
     },
-    // Chains
     chains: {
       evm: 'Ethereum / Polygon / Base',
       solana: 'Solana',
       stellar: 'Stellar',
     },
-    // Language
     language: {
       select: 'Idioma',
       en: 'English',
       pt: 'Português',
       es: 'Español',
     },
+    landing: {
+      hero_title: 'Mintoria',
+      hero_subtitle: 'Crie colecionáveis digitais comemorativos para locais físicos. Conecte experiência e propriedade.',
+      admin_portal: 'Portal Admin',
+      try_demo: 'Testar Demo',
+      features_title: 'Tudo que você precisa',
+      feature_multi_chain: 'Suporte Multi-Chain',
+      feature_multi_chain_desc: 'Suporte para ecossistemas Ethereum, Solana e Stellar',
+      feature_qr: 'Reivindicação por QR Code',
+      feature_qr_desc: 'Visitantes escaneiam e reivindicam NFTs instantaneamente',
+      feature_walletless: 'Sem Carteira? Sem Problema',
+      feature_walletless_desc: 'Mint via email para usuários sem carteira cripto',
+      feature_embed: 'Integração Fácil',
+      feature_embed_desc: 'Widget ou iframe em qualquer site em minutos',
+      feature_admin: 'Painel Admin',
+      feature_admin_desc: 'Gerencie projetos, locais e drops com análises',
+      feature_security: 'Proteção Anti-Fraude',
+      feature_security_desc: 'Tokens únicos, limite de taxa e teto de supply',
+      copyright: 'Mintoria. All rights reserved.',
+    },
   },
   es: {
-    // Common
     common: {
       loading: 'Cargando...',
       error: 'Error',
@@ -240,7 +263,6 @@ export const translations = {
       or: 'o',
       and: 'y',
     },
-    // Navigation
     nav: {
       home: 'Inicio',
       dashboard: 'Panel',
@@ -250,18 +272,17 @@ export const translations = {
       logout: 'Salir',
       login: 'Iniciar Sesión',
     },
-    // Claim Page
     claim: {
-      title: 'Reclama Tu Recuerdo',
+      title: 'Reclama Tu NFT',
       subtitle: 'Acuña un NFT conmemorativo de esta ubicación',
       selectChain: 'Selecciona Blockchain',
       selectMethod: '¿Cómo te gustaría recibir tu NFT?',
       wallet: 'Conectar Billetera',
       email: 'Usar Email (Sin Billetera)',
       noWallet: '¿Necesitas una Billetera?',
-      claimNow: 'Reclamar Ahora',
+      claimNow: 'Reclama NFT',
       minting: 'Acuñando...',
-      mintSuccess: '¡NFT Acuñado con Éxito!',
+      mintSuccess: 'NFT Reclamado!',
       mintFailed: 'Fallo al Acuñar',
       viewOnExplorer: 'Ver en Explorer',
       claimAnother: 'Reclamar Otro',
@@ -269,7 +290,6 @@ export const translations = {
       expired: 'Esta sesión de reclamo ha expirado',
       noActiveDrop: 'No hay drop activo disponible',
     },
-    // Email Flow
     email: {
       enterEmail: 'Ingresa tu email',
       emailPlaceholder: 'tu@ejemplo.com',
@@ -281,7 +301,6 @@ export const translations = {
       codeInvalid: 'Código inválido',
       devNote: '(Modo Dev: Revisa la consola del servidor para el código)',
     },
-    // Wallet Suggestions
     walletSuggestions: {
       title: 'Obtén una Billetera',
       subtitle: 'Necesitas una billetera para recibir tu NFT. Aquí hay algunas opciones:',
@@ -290,13 +309,12 @@ export const translations = {
       stellarWallets: 'Para Stellar',
       downloadNow: 'Descargar',
     },
-    // Admin
     admin: {
-      login: 'Inicio de Sesión Admin',
+      login: 'Mintoria Admin',
       email: 'Email',
       password: 'Contraseña',
       loginButton: 'Iniciar Sesión',
-      welcome: 'Bienvenido a Memories Admin',
+      welcome: 'Bienvenido a Mintoria Admin',
       createProject: 'Crear Proyecto',
       createLocation: 'Crear Ubicación',
       createDrop: 'Crear Drop',
@@ -317,20 +335,42 @@ export const translations = {
       recentMints: 'Acuñaciones Recientes',
       activeDrops: 'Drops Activos',
     },
-    // Chains
     chains: {
       evm: 'Ethereum / Polygon / Base',
       solana: 'Solana',
       stellar: 'Stellar',
     },
-    // Language
     language: {
       select: 'Idioma',
       en: 'English',
       pt: 'Português',
       es: 'Español',
     },
+    landing: {
+      hero_title: 'Mintoria',
+      hero_subtitle: 'Crea coleccionables digitales conmemorativos para ubicaciones físicas. Conecta experiencia y propiedad.',
+      admin_portal: 'Portal Admin',
+      try_demo: 'Probar Demo',
+      features_title: 'Todo lo que necesitas',
+      feature_multi_chain: 'Soporte Multi-Chain',
+      feature_multi_chain_desc: 'Soporte para ecosistemas Ethereum, Solana y Stellar',
+      feature_qr: 'Reclamos por QR Code',
+      feature_qr_desc: 'Visitantes escanean y reclaman NFTs al instante',
+      feature_walletless: 'Sin Billetera? Sin Problema',
+      feature_walletless_desc: 'Mint por email para usuarios sin billetera cripto',
+      feature_embed: 'Integración Fácil',
+      feature_embed_desc: 'Widget o iframe en cualquier sitio en minutos',
+      feature_admin: 'Panel Admin',
+      feature_admin_desc: 'Gestione proyectos, ubicaciones y drops con análisis',
+      feature_security: 'Protección Anti-Fraude',
+      feature_security_desc: 'Tokens únicos, limitación de tasa y topes de suministro',
+      copyright: 'Mintoria. All rights reserved.',
+    },
   },
 } as const;
 
-export type TranslationKeys = typeof translations.en;
+type DeepStringify<T> = {
+  [K in keyof T]: T[K] extends string ? string : DeepStringify<T[K]>;
+};
+
+export type TranslationKeys = DeepStringify<typeof translations.en>;

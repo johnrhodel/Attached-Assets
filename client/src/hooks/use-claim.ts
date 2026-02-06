@@ -102,7 +102,7 @@ export function useConfirmMint() {
       return api.mint.confirm.responses[200].parse(await res.json());
     },
     onSuccess: () => {
-      toast({ title: "Success!", description: "Memory claimed successfully." });
+      toast({ title: "Success!", description: "NFT claimed successfully." });
     }
   });
 }

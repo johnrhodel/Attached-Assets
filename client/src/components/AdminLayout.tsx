@@ -27,7 +27,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const NavContent = () => (
     <div className="flex flex-col h-full">
       <div className="px-6 py-8">
-        <h1 className="text-2xl font-serif font-bold text-primary">Memories</h1>
+        <h1 className="text-2xl font-serif font-bold text-primary">Mintoria</h1>
       </div>
       <nav className="flex-1 px-4 space-y-2">
         {navItems.map((item) => {
@@ -72,7 +72,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="lg:hidden h-16 border-b border-border bg-card flex items-center px-4 justify-between">
-          <span className="font-serif font-bold text-primary text-xl">Memories</span>
+          <span className="font-serif font-bold text-primary text-xl">Mintoria</span>
           <div className="flex items-center gap-2">
             <LanguageSelector />
             <Sheet open={open} onOpenChange={setOpen}>

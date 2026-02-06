@@ -1,14 +1,14 @@
-# Memories - Commemorative NFT Platform
+# Mintoria - Commemorative NFT Minting Platform
 
 ## Overview
 
-Memories is a plug-and-play platform for minting commemorative NFTs when visitors arrive at tourist locations or events. Visitors claim NFTs quickly via QR code on mobile devices. The platform supports multiple blockchain ecosystems (EVM, Solana, Stellar) and provides admin capabilities for creating monthly "drops" at various locations.
+Mintoria is a plug-and-play platform for minting commemorative NFTs when visitors arrive at tourist locations or events. Visitors claim NFTs quickly via QR code on mobile devices. The platform supports multiple blockchain ecosystems (EVM, Solana, Stellar) and provides admin capabilities for creating monthly "drops" at various locations.
 
 The application supports internationalization with English, Spanish, and Portuguese languages. It offers both wallet-based and walletless (email-based custodial) minting flows, plus embeddable widget integration for third-party sites.
 
 ## User Preferences
 
-Preferred communication style: Simple, everyday language.
+Preferred communication style: Simple, everyday language. User speaks Portuguese.
 
 ## System Architecture
 
@@ -20,6 +20,7 @@ Preferred communication style: Simple, everyday language.
 - **Animations**: Framer Motion for smooth transitions
 - **Build Tool**: Vite with hot module replacement
 - **Internationalization**: Custom i18n system with React Context
+- **Color Scheme**: Blue-based professional palette (primary: blue 221 83%)
 
 The frontend follows a page-based structure under `client/src/pages/` with reusable components in `client/src/components/`. Custom hooks in `client/src/hooks/` encapsulate data fetching and authentication logic.
 
@@ -48,6 +49,7 @@ Key entities: Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, 
 
 ### Authentication & Authorization
 - Cookie-based session authentication for admin users
+- Default admin credentials: admin@memories.xyz / admin (auto-created in dev mode)
 - Claim sessions use cryptographically hashed tokens for one-time NFT minting
 - Walletless flow uses encrypted custodial keys (AES-256-CBC) with email verification codes
 
@@ -59,7 +61,16 @@ Key entities: Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, 
 ### Embed Integration
 Two integration modes for third-party sites:
 1. **iFrame embed**: Direct embedding via `/embed/:locationId` route
-2. **Script widget**: `widget.js` injects a modal iframe on external pages
+2. **Script widget**: `widget.js` injects a modal iframe on external pages. Use `window.Mintoria.open()` to trigger.
+
+### Key Pages
+- `/` - Landing page with features and CTA
+- `/claim/:locationId` - Visitor claim page (public)
+- `/embed/:locationId` - Embeddable claim widget
+- `/admin/login` - Admin login
+- `/admin/dashboard` - Admin dashboard
+- `/admin/projects` - Project and location management
+- `/admin/drops` - Drop creation and publishing
 
 ## External Dependencies
 

@@ -9,11 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Loader2, Calendar, Image as ImageIcon, Zap } from "lucide-react";
+import { Loader2, Calendar, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function Drops() {
+  const { t } = useI18n();
   const { data: projects } = useProjects();
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
@@ -26,16 +27,16 @@ export default function Drops() {
     <AdminLayout>
       <div className="space-y-8">
         <div>
-          <h2 className="text-3xl font-serif font-bold text-foreground">Drops Manager</h2>
-          <p className="text-muted-foreground mt-2">Create and manage NFT drops for specific locations.</p>
+          <h2 className="text-3xl font-serif font-bold text-foreground">{t.nav.drops}</h2>
+          <p className="text-muted-foreground mt-2">{t.admin.welcome}</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 bg-card p-6 rounded-xl shadow-sm border">
           <div className="w-full sm:w-[250px] space-y-2">
-            <Label>Select Project</Label>
+            <Label>{t.nav.projects}</Label>
             <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose project..." />
+              <SelectTrigger data-testid="select-project">
+                <SelectValue placeholder={t.nav.projects} />
               </SelectTrigger>
               <SelectContent>
                 {projects?.map(p => (
@@ -46,10 +47,10 @@ export default function Drops() {
           </div>
 
           <div className="w-full sm:w-[250px] space-y-2">
-            <Label>Select Location</Label>
+            <Label>{t.nav.locations}</Label>
             <Select value={selectedLocation} onValueChange={setSelectedLocation} disabled={!selectedProject}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose location..." />
+              <SelectTrigger data-testid="select-location">
+                <SelectValue placeholder={t.nav.locations} />
               </SelectTrigger>
               <SelectContent>
                 {locations?.map(l => (
@@ -70,46 +71,11 @@ export default function Drops() {
               <div className="col-span-full flex justify-center p-12"><Loader2 className="animate-spin" /></div>
             ) : drops?.length === 0 ? (
               <div className="col-span-full text-center p-12 text-muted-foreground border-2 border-dashed rounded-xl">
-                No drops found for this location. Create one!
+                {t.claim.noActiveDrop}
               </div>
             ) : (
               drops?.map((drop) => (
-                <Card key={drop.id} className="overflow-hidden group hover:shadow-lg transition-all duration-300 border-border/60">
-                  <div className="aspect-video bg-accent relative overflow-hidden">
-                    {/* Placeholder for image - using unsplash for demo */}
-                    {/* scenery landscape nature */}
-                    <img 
-                      src={drop.imageUrl || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop"} 
-                      alt={drop.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute top-2 right-2">
-                      <Badge variant={drop.status === 'published' ? 'default' : 'secondary'} className="shadow-md">
-                        {drop.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  <CardHeader className="space-y-1">
-                    <CardTitle className="text-lg">{drop.title}</CardTitle>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Calendar className="w-3 h-3" /> {drop.month} {drop.year}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between text-sm mb-4">
-                      <span className="text-muted-foreground">Supply:</span>
-                      <span className="font-mono font-medium">{drop.mintedCount} / {drop.supply}</span>
-                    </div>
-                    {drop.status === 'draft' && (
-                      <Button 
-                        className="w-full" 
-                        onClick={() => publishDrop({ id: drop.id, locationId: Number(selectedLocation) })}
-                      >
-                        Publish Drop
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
+                <DropCard key={drop.id} drop={drop} locationId={Number(selectedLocation)} onPublish={publishDrop} />
               ))
             )}
           </div>
@@ -119,13 +85,55 @@ export default function Drops() {
   );
 }
 
+function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: number, onPublish: any }) {
+  const { t } = useI18n();
+  return (
+    <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 border-border/60" data-testid={`card-drop-${drop.id}`}>
+      <div className="aspect-video bg-accent relative overflow-hidden">
+        <img 
+          src={drop.imageUrl || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop"} 
+          alt={drop.title}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        <div className="absolute top-2 right-2">
+          <Badge variant={drop.status === 'published' ? 'default' : 'secondary'} className="shadow-md">
+            {drop.status === 'published' ? t.admin.published : t.admin.draft}
+          </Badge>
+        </div>
+      </div>
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-lg">{drop.title}</CardTitle>
+        <div className="text-sm text-muted-foreground flex items-center gap-2">
+          <Calendar className="w-3 h-3" /> {drop.month} {drop.year}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between text-sm mb-4">
+          <span className="text-muted-foreground">{t.admin.supply}:</span>
+          <span className="font-mono font-medium">{drop.mintedCount} / {drop.supply}</span>
+        </div>
+        {drop.status === 'draft' && (
+          <Button 
+            className="w-full" 
+            onClick={() => onPublish({ id: drop.id, locationId })}
+            data-testid={`button-publish-drop-${drop.id}`}
+          >
+            {t.admin.publish}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function CreateDropDialog({ locationId, disabled }: { locationId: number, disabled: boolean }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const { mutate, isPending } = useCreateDrop();
   const [formData, setFormData] = useState({
     title: "",
     month: "February",
-    year: 2024,
+    year: 2026,
     imageUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop",
     metadataUrl: "https://example.com/metadata.json",
     supply: 1000,
@@ -150,20 +158,20 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button disabled={disabled} className="gap-2"><Zap className="w-4 h-4" /> New Drop</Button>
+        <Button disabled={disabled} className="gap-2" data-testid="button-new-drop"><Zap className="w-4 h-4" /> {t.admin.createDrop}</Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Create New Drop</DialogTitle>
+          <DialogTitle>{t.admin.createDrop}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
           <div className="space-y-2 col-span-2">
-            <Label>Title</Label>
-            <Input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
+            <Label>{t.admin.dropTitle}</Label>
+            <Input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required data-testid="input-drop-title" />
           </div>
           
           <div className="space-y-2">
-            <Label>Month</Label>
+            <Label>{t.admin.month}</Label>
             <Select value={formData.month} onValueChange={m => setFormData({...formData, month: m})}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -175,23 +183,23 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
           </div>
 
           <div className="space-y-2">
-            <Label>Year</Label>
-            <Input type="number" value={formData.year} onChange={e => setFormData({...formData, year: Number(e.target.value)})} required />
+            <Label>{t.admin.year}</Label>
+            <Input type="number" value={formData.year} onChange={e => setFormData({...formData, year: Number(e.target.value)})} required data-testid="input-drop-year" />
           </div>
 
           <div className="space-y-2 col-span-2">
-            <Label>Image URL (Demo)</Label>
-            <Input value={formData.imageUrl} onChange={e => setFormData({...formData, imageUrl: e.target.value})} required />
+            <Label>{t.admin.imageUrl}</Label>
+            <Input value={formData.imageUrl} onChange={e => setFormData({...formData, imageUrl: e.target.value})} required data-testid="input-drop-image" />
           </div>
           
           <div className="space-y-2">
-            <Label>Total Supply</Label>
-            <Input type="number" value={formData.supply} onChange={e => setFormData({...formData, supply: Number(e.target.value)})} required />
+            <Label>{t.admin.supply}</Label>
+            <Input type="number" value={formData.supply} onChange={e => setFormData({...formData, supply: Number(e.target.value)})} required data-testid="input-drop-supply" />
           </div>
 
           <div className="space-y-2 col-span-2">
-            <Label className="mb-2 block">Enabled Chains</Label>
-            <div className="flex gap-4">
+            <Label className="mb-2 block">{t.admin.chains}</Label>
+            <div className="flex gap-4 flex-wrap">
               {['evm', 'solana', 'stellar'].map(chain => (
                 <div key={chain} className="flex items-center space-x-2">
                   <Checkbox 
@@ -199,7 +207,7 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
                     checked={formData.enabledChains.includes(chain)}
                     onCheckedChange={() => toggleChain(chain)}
                   />
-                  <label htmlFor={chain} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize">
+                  <label htmlFor={chain} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 uppercase">
                     {chain}
                   </label>
                 </div>
@@ -207,8 +215,8 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
             </div>
           </div>
 
-          <Button type="submit" className="col-span-2 mt-4" disabled={isPending}>
-            {isPending ? "Creating..." : "Create Drop"}
+          <Button type="submit" className="col-span-2 mt-4" disabled={isPending} data-testid="button-submit-drop">
+            {isPending ? <Loader2 className="animate-spin" /> : t.admin.createDrop}
           </Button>
         </form>
       </DialogContent>

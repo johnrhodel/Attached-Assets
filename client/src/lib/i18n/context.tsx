@@ -7,7 +7,7 @@ interface I18nContextType {
   t: TranslationKeys;
 }
 
-const STORAGE_KEY = 'memories-language';
+const STORAGE_KEY = 'mintoria-language';
 
 function getInitialLanguage(): Language {
   if (typeof window === 'undefined') return 'en';

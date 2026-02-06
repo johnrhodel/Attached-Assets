@@ -9,10 +9,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Globe } from 'lucide-react';
 
-const languages: { code: Language; flag: string; name: string }[] = [
-  { code: 'en', flag: '🇺🇸', name: 'English' },
-  { code: 'pt', flag: '🇧🇷', name: 'Português' },
-  { code: 'es', flag: '🇪🇸', name: 'Español' },
+const languages: { code: Language; abbr: string; name: string }[] = [
+  { code: 'en', abbr: 'EN', name: 'English' },
+  { code: 'pt', abbr: 'PT', name: 'Português' },
+  { code: 'es', abbr: 'ES', name: 'Español' },
 ];
 
 export function LanguageSelector() {
@@ -34,7 +34,7 @@ export function LanguageSelector() {
             onClick={() => setLanguage(lang.code)}
             data-testid={`menu-item-language-${lang.code}`}
           >
-            <span className="mr-2">{lang.flag}</span>
+            <span className="mr-2 font-mono text-xs font-bold">{lang.abbr}</span>
             {lang.name}
           </DropdownMenuItem>
         ))}
