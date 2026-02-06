@@ -4,7 +4,7 @@
 
 Mintoria is a plug-and-play platform for minting commemorative NFTs when visitors arrive at tourist locations or events. Visitors claim NFTs quickly via QR code on mobile devices. The platform supports multiple blockchain ecosystems (EVM, Solana, Stellar) and provides admin capabilities for creating monthly "drops" at various locations.
 
-The application supports internationalization with English, Spanish, and Portuguese languages. It offers both wallet-based and walletless (email-based custodial) minting flows, plus embeddable widget integration for third-party sites.
+The application supports internationalization with English, Spanish, and Portuguese languages. It offers both wallet-based and walletless (email-based custodial) minting flows, plus embeddable widget integration for third-party sites. It is a PWA that can be installed on mobile devices.
 
 ## User Preferences
 
@@ -21,6 +21,7 @@ Preferred communication style: Simple, everyday language. User speaks Portuguese
 - **Build Tool**: Vite with hot module replacement
 - **Internationalization**: Custom i18n system with React Context
 - **Color Scheme**: Blue-based professional palette (primary: blue 221 83%)
+- **PWA**: Installable via manifest.json + service worker (sw.js)
 
 The frontend follows a page-based structure under `client/src/pages/` with reusable components in `client/src/components/`. Custom hooks in `client/src/hooks/` encapsulate data fetching and authentication logic.
 
@@ -38,7 +39,7 @@ Translation files are in `client/src/lib/i18n/translations.ts`. The `LanguageSel
 - **Session Management**: Express-session with MemoryStore (development) or PostgreSQL store (production)
 - **API Design**: RESTful endpoints defined in `shared/routes.ts` with Zod schema validation
 
-The server handles claim session management, anti-fraud token generation, and partial transaction signing for blockchain interactions.
+The server handles claim session management, anti-fraud token generation, real blockchain minting, and custodial wallet management.
 
 ### Data Storage
 - **Database**: PostgreSQL via Drizzle ORM
@@ -53,10 +54,41 @@ Key entities: Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, 
 - Claim sessions use cryptographically hashed tokens for one-time NFT minting
 - Walletless flow uses encrypted custodial keys (AES-256-CBC) with email verification codes
 
-### Blockchain Integration
-- **EVM**: Planned support for Ethereum, Polygon, Arbitrum, Base via ERC-1155 contracts with EIP-712 signature permits
-- **Solana**: Metaplex Umi integration for minting assets with partial server-side signing
-- **Stellar**: Soroban smart contracts with Freighter wallet integration
+### Blockchain Integration (LIVE)
+All three blockchain integrations are implemented with real chain interactions:
+
+- **Solana** (`server/services/solana.ts`): 
+  - Metaplex Umi + mpl-core for NFT minting
+  - Server keypair auto-generated or loaded from SOLANA_SERVER_SECRET_KEY
+  - Auto-airdrop on devnet for server funding
+  - Uses @solana/web3.js + @metaplex-foundation packages
+  
+- **EVM** (`server/services/evm.ts`):
+  - ethers.js v6 for wallet management and contract interaction
+  - EIP-712 typed data signing for mint permits
+  - Supports Sepolia, Polygon Amoy, Arbitrum, Base testnets
+  - Server wallet loaded from EVM_SERVER_PRIVATE_KEY or auto-generated
+  - ERC-1155 contract integration when EVM_CONTRACT_ADDRESS is set
+  
+- **Stellar** (`server/services/stellar.ts`):
+  - stellar-sdk for Horizon API and transaction building
+  - manageData operations for on-chain NFT metadata storage
+  - Auto-funding via Friendbot on testnet
+  - Server keypair loaded from STELLAR_SERVER_SECRET_KEY or auto-generated
+
+### Custodial Wallet System
+When users choose the email/walletless flow:
+1. Real keypairs are generated for each chain (Solana/EVM/Stellar)
+2. Private keys are encrypted with AES-256-CBC and stored in `walletless_keys` table
+3. Public addresses are visible and can receive NFTs
+4. Server mints NFTs to the custodial wallet on the user's behalf
+5. Wallet generation uses: `server/services/wallet.ts`
+
+### PWA (Progressive Web App)
+- `client/public/manifest.json` - App manifest for install prompt
+- `client/public/sw.js` - Service worker for offline caching
+- Apple and Android meta tags in `client/index.html`
+- Network-first caching strategy with offline fallback
 
 ### Embed Integration
 Two integration modes for third-party sites:
@@ -72,6 +104,27 @@ Two integration modes for third-party sites:
 - `/admin/projects` - Project and location management
 - `/admin/drops` - Drop creation and publishing
 
+### API Endpoints
+- `GET /api/blockchain/status` - Returns server wallet addresses, balances, and chain info for all three blockchains
+
+## Environment Variables
+
+### Required
+- `DATABASE_URL` - PostgreSQL connection string
+- `SESSION_SECRET` - Express session secret
+
+### Blockchain (Optional - auto-generated if not set)
+- `SOLANA_SERVER_SECRET_KEY` - Base58-encoded Solana server keypair secret
+- `SOLANA_NETWORK` - "devnet" (default) or "mainnet-beta"
+- `SOLANA_RPC_URL` - Custom RPC endpoint
+- `EVM_SERVER_PRIVATE_KEY` - Hex-encoded Ethereum private key
+- `EVM_RPC_URL` - RPC endpoint (default: Sepolia drpc.org)
+- `EVM_CHAIN_ID` - Chain ID (default: 11155111 Sepolia)
+- `EVM_CONTRACT_ADDRESS` - Deployed ERC-1155 contract address
+- `STELLAR_SERVER_SECRET_KEY` - Stellar secret key
+- `STELLAR_NETWORK` - "testnet" (default) or "mainnet"
+- `WALLET_ENCRYPTION_SECRET` - Key for encrypting custodial wallet secrets
+
 ## External Dependencies
 
 ### Database
@@ -79,9 +132,12 @@ Two integration modes for third-party sites:
 - Drizzle ORM for type-safe database operations
 
 ### Blockchain SDKs
-- `@solana/web3.js` for Solana devnet interactions
-- EVM libraries (viem/ethers) planned for contract interactions
-- Stellar SDK planned for Soroban contract deployment
+- `@solana/web3.js` for Solana interactions
+- `@metaplex-foundation/umi` + `@metaplex-foundation/mpl-core` for Solana NFT minting
+- `ethers` (v6) for EVM wallet management and contract interaction
+- `stellar-sdk` for Stellar/Soroban interactions
+- `bs58` for Base58 encoding/decoding
+- `viem` for additional EVM utilities
 
 ### UI Component Libraries
 - Full shadcn/ui component set (Radix UI primitives)

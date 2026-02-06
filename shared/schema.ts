@@ -140,3 +140,5 @@ export type InsertLocation = z.infer<typeof insertLocationSchema>;
 export type InsertDrop = z.infer<typeof insertDropSchema>;
 export type InsertClaimSession = z.infer<typeof insertClaimSessionSchema>;
 export type InsertMint = z.infer<typeof insertMintSchema>;
+export type InsertWalletlessUser = z.infer<typeof insertWalletlessUserSchema>;
+export type InsertWalletlessKey = z.infer<typeof insertWalletlessKeySchema>;

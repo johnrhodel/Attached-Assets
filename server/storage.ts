@@ -1,7 +1,8 @@
 import { 
   users, projects, locations, drops, claimSessions, mints, walletlessUsers, walletlessKeys,
   type User, type Project, type Location, type Drop, type ClaimSession, type Mint, type WalletlessUser, type WalletlessKey,
-  type InsertUser, type InsertProject, type InsertLocation, type InsertDrop, type InsertClaimSession, type InsertMint, type InsertWalletlessUser, type InsertWalletlessKey
+  type InsertUser, type InsertProject, type InsertLocation, type InsertDrop, type InsertClaimSession, type InsertMint,
+  type InsertWalletlessUser, type InsertWalletlessKey,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -42,6 +43,7 @@ export interface IStorage {
   // Walletless
   getWalletlessUser(email: string): Promise<WalletlessUser | undefined>;
   createWalletlessUser(user: InsertWalletlessUser): Promise<WalletlessUser>;
+  markWalletlessUserVerified(userId: number): Promise<void>;
   getWalletlessKey(userId: number, chain: string): Promise<WalletlessKey | undefined>;
   createWalletlessKey(key: InsertWalletlessKey): Promise<WalletlessKey>;
 }
@@ -153,6 +155,11 @@ export class DatabaseStorage implements IStorage {
   async createWalletlessUser(item: InsertWalletlessUser): Promise<WalletlessUser> {
     const [user] = await db.insert(walletlessUsers).values(item).returning();
     return user;
+  }
+  async markWalletlessUserVerified(userId: number): Promise<void> {
+    await db.update(walletlessUsers)
+      .set({ verifiedAt: new Date() })
+      .where(eq(walletlessUsers.id, userId));
   }
   async getWalletlessKey(userId: number, chain: string): Promise<WalletlessKey | undefined> {
     const [key] = await db.select().from(walletlessKeys).where(
