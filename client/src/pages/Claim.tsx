@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { ClaimCard } from "@/components/ClaimCard";
 import { LanguageSelector } from "@/components/language-selector";
 import { WalletSuggestions } from "@/components/WalletSuggestions";
-import { Loader2, CheckCircle2, Wallet, Mail, ArrowRight, Download, Layers } from "lucide-react";
+import { Loader2, CheckCircle2, Wallet, Mail, ArrowRight, Download, Layers, ImageDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/context";
 import { Link } from "wouter";
+import claimBg from "../assets/images/claim-bg.jpg";
 
 type ClaimView = "landing" | "method" | "wallet" | "email" | "walletSuggestions" | "success";
 
@@ -33,15 +34,19 @@ export default function Claim() {
   );
   
   if (!drop || error) return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-background p-4 text-center">
-      <div className="absolute top-4 right-4"><LanguageSelector /></div>
-      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-        <Layers className="w-6 h-6 text-primary" />
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-background p-4 text-center relative">
+      <img src={claimBg} alt="Scenic travel destination" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute top-4 right-4 z-20"><LanguageSelector /></div>
+      <div className="relative z-10">
+        <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 mx-auto">
+          <Layers className="w-6 h-6 text-white" />
+        </div>
+        <h1 className="text-2xl font-serif font-bold mb-2 text-white" data-testid="text-no-active-drop">{t.claim.noActiveDrop}</h1>
+        <Link href="/">
+          <Button variant="outline" className="mt-4 bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-back-home">{t.common.back}</Button>
+        </Link>
       </div>
-      <h1 className="text-2xl font-serif font-bold mb-2">{t.claim.noActiveDrop}</h1>
-      <Link href="/">
-        <Button variant="outline" className="mt-4" data-testid="button-back-home">{t.common.back}</Button>
-      </Link>
     </div>
   );
 
@@ -56,25 +61,21 @@ export default function Claim() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background flex flex-col items-center p-4 md:p-8 relative overflow-hidden">
-      {/* Header */}
-      <div className="w-full max-w-md flex items-center justify-between mb-6 z-20">
+    <div className="min-h-screen w-full relative flex flex-col items-center overflow-hidden">
+      <img src={claimBg} alt="Scenic travel destination" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
+
+      <div className="relative z-20 w-full max-w-md flex items-center justify-between p-4 md:p-6">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
-            <Layers className="w-3 h-3 text-primary-foreground" />
+          <div className="w-6 h-6 bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center">
+            <Layers className="w-3 h-3 text-white" />
           </div>
-          <span className="font-serif font-bold text-sm text-foreground">Mintoria</span>
+          <span className="font-serif font-bold text-sm text-white">Mintoria</span>
         </div>
         <LanguageSelector />
       </div>
 
-      {/* Background */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-400/5 rounded-full blur-[120px]" />
-      </div>
-
-      <div className="z-10 w-full max-w-md mx-auto flex-1 flex flex-col justify-center pb-12">
+      <div className="relative z-10 w-full max-w-md mx-auto flex-1 flex flex-col justify-center p-4 md:p-8 pb-12">
         <AnimatePresence mode="wait">
           {view === "landing" && (
             <motion.div key="landing" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, y: -20 }} className="w-full">
@@ -165,22 +166,44 @@ export default function Claim() {
 
           {view === "success" && (
             <motion.div key="success" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
-              <div className="w-20 h-20 bg-green-500/10 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 className="w-10 h-10" />
               </div>
-              <h2 className="text-3xl font-serif font-bold mb-3" data-testid="text-mint-success">{t.claim.mintSuccess}</h2>
-              <p className="text-muted-foreground mb-8 max-w-xs mx-auto text-sm">{t.claim.subtitle}</p>
-              <div className="p-4 bg-card rounded-xl shadow-sm border mb-8 max-w-xs mx-auto">
-                <img src={drop.imageUrl} alt="NFT" className="w-full aspect-square object-cover rounded-md mb-3" />
+              <h2 className="text-3xl font-serif font-bold mb-3 text-white" data-testid="text-mint-success">{t.claim.mintSuccess}</h2>
+              <p className="text-white/70 mb-8 max-w-xs mx-auto text-sm" data-testid="text-mint-success-desc">{t.claim.mintSuccessDesc}</p>
+              <div className="p-4 bg-card rounded-xl shadow-sm border mb-4 max-w-xs mx-auto">
+                <img src={drop.imageUrl} alt={`${drop.title} - NFT artwork`} className="w-full aspect-square object-cover rounded-md mb-3" />
                 <p className="font-medium text-sm">{drop.title}</p>
               </div>
-              <Button onClick={() => window.location.reload()} variant="outline" data-testid="button-claim-another">{t.common.back}</Button>
+              <div className="flex flex-col gap-3 max-w-xs mx-auto">
+                <Button 
+                  size="lg"
+                  className="w-full text-base font-semibold"
+                  onClick={() => handleDownloadImage(drop.imageUrl, drop.title)}
+                  data-testid="button-download-image"
+                >
+                  <ImageDown className="w-5 h-5 mr-2" />
+                  {t.claim.downloadImage}
+                </Button>
+                <p className="text-white/50 text-xs" data-testid="text-download-desc">{t.claim.downloadImageDesc}</p>
+                <Button onClick={() => window.location.reload()} variant="outline" className="bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-claim-another">{t.common.back}</Button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </div>
   );
+}
+
+function handleDownloadImage(imageUrl: string, title: string) {
+  const link = document.createElement("a");
+  link.href = imageUrl;
+  link.download = `${title.replace(/\s+/g, "-").toLowerCase()}-mintoria.png`;
+  link.target = "_blank";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 function EmailFlow({ claimToken, drop, onSuccess, onBack }: any) {
