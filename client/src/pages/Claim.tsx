@@ -34,13 +34,13 @@ export default function Claim() {
   );
   
   if (!drop || error) return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-background p-4 text-center relative">
+    <div className="h-screen w-full flex flex-col items-center justify-center p-4 text-center relative">
       <img src={claimBg} alt="Scenic travel destination" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-black/60" />
       <div className="absolute top-4 right-4 z-20"><LanguageSelector /></div>
-      <div className="relative z-10">
-        <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 mx-auto">
-          <Layers className="w-6 h-6 text-white" />
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center mb-5">
+          <Layers className="w-7 h-7 text-white" />
         </div>
         <h1 className="text-2xl font-serif font-bold mb-2 text-white" data-testid="text-no-active-drop">{t.claim.noActiveDrop}</h1>
         <Link href="/">
@@ -65,32 +65,32 @@ export default function Claim() {
       <img src={claimBg} alt="Scenic travel destination" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
 
-      <div className="relative z-20 w-full max-w-md flex items-center justify-between p-4 md:p-6">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center">
-            <Layers className="w-3 h-3 text-white" />
+      <div className="relative z-20 w-full max-w-sm sm:max-w-md flex items-center justify-between gap-3 flex-wrap px-4 py-4 sm:px-6 sm:py-5 mx-auto">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="w-7 h-7 bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center">
+            <Layers className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-serif font-bold text-sm text-white">Mintoria</span>
+          <span className="font-serif font-bold text-base text-white">Mintoria</span>
         </div>
         <LanguageSelector />
       </div>
 
-      <div className="relative z-10 w-full max-w-md mx-auto flex-1 flex flex-col justify-center p-4 md:p-8 pb-12">
+      <div className="relative z-10 w-full max-w-sm sm:max-w-md mx-auto flex-1 flex flex-col justify-center px-4 sm:px-0 pb-8">
         <AnimatePresence mode="wait">
           {view === "landing" && (
             <motion.div key="landing" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, y: -20 }} className="w-full">
               <ClaimCard className="p-0 overflow-hidden border-0 shadow-2xl">
                 <div className="aspect-[4/3] w-full relative">
                   <img src={drop.imageUrl} alt={drop.title} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 text-white">
-                    <p className="text-sm font-medium opacity-75 mb-1">{drop.month} {drop.year}</p>
-                    <h1 className="text-2xl font-serif font-bold">{drop.title}</h1>
-                    <p className="text-sm opacity-60 mt-1">{drop.mintedCount} / {drop.supply} {t.claim.supplyRemaining}</p>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5 sm:p-6 text-white">
+                    <p className="text-xs sm:text-sm font-medium opacity-75 mb-1">{drop.month} {drop.year}</p>
+                    <h1 className="text-xl sm:text-2xl font-serif font-bold">{drop.title}</h1>
+                    <p className="text-xs sm:text-sm opacity-60 mt-1">{drop.mintedCount} / {drop.supply} {t.claim.supplyRemaining}</p>
                   </div>
                 </div>
-                <div className="p-6 bg-card text-center">
-                  <p className="text-muted-foreground text-sm mb-5">{t.claim.subtitle}</p>
-                  <Button size="lg" className="w-full text-base font-semibold" onClick={startClaim} data-testid="button-claim-start">
+                <div className="p-5 sm:p-6 bg-card text-center">
+                  <p className="text-muted-foreground text-sm mb-4 sm:mb-5">{t.claim.subtitle}</p>
+                  <Button size="lg" className="w-full font-semibold" onClick={startClaim} data-testid="button-claim-start">
                     {t.claim.claimNow} <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </div>
@@ -102,43 +102,44 @@ export default function Claim() {
             <motion.div key="method" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
               <ClaimCard title={t.claim.selectMethod}>
                 <div className="grid gap-3">
-                  <Button 
-                    variant="outline" 
-                    className="h-auto py-5 justify-start px-5 rounded-md border group"
+                  <div
+                    className="flex items-center gap-3 p-4 rounded-md border border-border cursor-pointer hover-elevate"
                     onClick={() => setView("email")}
+                    role="button"
+                    tabIndex={0}
                     data-testid="button-method-email"
                   >
-                    <div className="h-9 w-9 rounded-md bg-blue-500/10 text-blue-600 flex items-center justify-center mr-4">
-                      <Mail className="w-4 h-4" />
+                    <div className="w-10 h-10 shrink-0 rounded-md bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                      <Mail className="w-5 h-5" />
                     </div>
-                    <div className="text-left">
-                      <div className="font-semibold text-foreground">{t.claim.email}</div>
-                      <div className="text-xs text-muted-foreground">{t.email.devNote}</div>
+                    <div className="text-left min-w-0">
+                      <div className="font-semibold text-foreground text-sm">{t.claim.email}</div>
+                      <div className="text-xs text-muted-foreground truncate">{t.email.devNote}</div>
                     </div>
-                  </Button>
+                  </div>
 
-                  <Button 
-                    variant="outline" 
-                    className="h-auto py-5 justify-start px-5 rounded-md border group"
+                  <div
+                    className="flex items-center gap-3 p-4 rounded-md border border-border cursor-pointer hover-elevate"
                     onClick={() => setView("wallet")}
+                    role="button"
+                    tabIndex={0}
                     data-testid="button-method-wallet"
                   >
-                    <div className="h-9 w-9 rounded-md bg-purple-500/10 text-purple-600 flex items-center justify-center mr-4">
-                      <Wallet className="w-4 h-4" />
+                    <div className="w-10 h-10 shrink-0 rounded-md bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                      <Wallet className="w-5 h-5" />
                     </div>
-                    <div className="text-left">
-                      <div className="font-semibold text-foreground">{t.claim.wallet}</div>
-                      <div className="text-xs text-muted-foreground">MetaMask, Phantom, Freighter</div>
+                    <div className="text-left min-w-0">
+                      <div className="font-semibold text-foreground text-sm">{t.claim.wallet}</div>
+                      <div className="text-xs text-muted-foreground truncate">MetaMask, Phantom, Freighter</div>
                     </div>
-                  </Button>
+                  </div>
 
                   <Button 
                     variant="ghost" 
-                    className="h-auto py-3 justify-start px-5 text-muted-foreground"
                     onClick={() => setView("walletSuggestions")}
                     data-testid="button-need-wallet"
                   >
-                    <Download className="w-4 h-4 mr-3" />
+                    <Download className="w-4 h-4 mr-2" />
                     {t.claim.noWallet}
                   </Button>
                 </div>
@@ -165,20 +166,20 @@ export default function Claim() {
           )}
 
           {view === "success" && (
-            <motion.div key="success" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
-              <div className="w-20 h-20 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="w-10 h-10" />
+            <motion.div key="success" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center w-full">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-5">
+                <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
               </div>
-              <h2 className="text-3xl font-serif font-bold mb-3 text-white" data-testid="text-mint-success">{t.claim.mintSuccess}</h2>
-              <p className="text-white/70 mb-8 max-w-xs mx-auto text-sm" data-testid="text-mint-success-desc">{t.claim.mintSuccessDesc}</p>
-              <div className="p-4 bg-card rounded-xl shadow-sm border mb-4 max-w-xs mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-serif font-bold mb-2 text-white" data-testid="text-mint-success">{t.claim.mintSuccess}</h2>
+              <p className="text-white/70 mb-6 max-w-xs mx-auto text-sm" data-testid="text-mint-success-desc">{t.claim.mintSuccessDesc}</p>
+              <div className="p-3 sm:p-4 bg-card rounded-xl shadow-sm border mb-5 max-w-xs mx-auto">
                 <img src={drop.imageUrl} alt={`${drop.title} - NFT artwork`} className="w-full aspect-square object-cover rounded-md mb-3" />
                 <p className="font-medium text-sm">{drop.title}</p>
               </div>
               <div className="flex flex-col gap-3 max-w-xs mx-auto">
                 <Button 
                   size="lg"
-                  className="w-full text-base font-semibold"
+                  className="w-full font-semibold"
                   onClick={() => handleDownloadImage(drop.imageUrl, drop.title)}
                   data-testid="button-download-image"
                 >
@@ -236,11 +237,10 @@ function EmailFlow({ claimToken, drop, onSuccess, onBack }: any) {
               placeholder={t.email.emailPlaceholder}
               value={email} 
               onChange={e => setEmail(e.target.value)} 
-              className="h-12 text-lg"
               data-testid="input-email"
             />
           </div>
-          <Button className="w-full h-12" onClick={handleSendCode} disabled={!email || start.isPending} data-testid="button-send-code">
+          <Button className="w-full" onClick={handleSendCode} disabled={!email || start.isPending} data-testid="button-send-code">
             {start.isPending ? <Loader2 className="animate-spin" /> : t.email.sendCode}
           </Button>
           <Button variant="ghost" className="w-full" onClick={onBack} data-testid="button-email-back">{t.common.back}</Button>
@@ -254,12 +254,12 @@ function EmailFlow({ claimToken, drop, onSuccess, onBack }: any) {
               placeholder={t.email.codePlaceholder}
               value={code} 
               onChange={e => setCode(e.target.value)} 
-              className="h-12 text-lg text-center tracking-widest"
+              className="text-center tracking-widest"
               data-testid="input-code"
             />
             <p className="text-xs text-center text-muted-foreground">{t.email.devNote}</p>
           </div>
-          <Button className="w-full h-12" onClick={handleVerifyAndMint} disabled={!code || verify.isPending || mine.isPending} data-testid="button-verify-mint">
+          <Button className="w-full" onClick={handleVerifyAndMint} disabled={!code || verify.isPending || mine.isPending} data-testid="button-verify-mint">
             {(verify.isPending || mine.isPending) ? <Loader2 className="animate-spin" /> : t.email.verifyCode}
           </Button>
           <Button variant="ghost" className="w-full" onClick={() => setStep("email")}>{t.common.back}</Button>
@@ -283,24 +283,42 @@ function WalletFlow({ claimToken, drop, onSuccess, onBack }: any) {
     <ClaimCard title={t.claim.wallet} description={t.claim.selectChain}>
       <div className="grid gap-3">
         {drop.enabledChains.includes("evm") && (
-          <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("evm")} disabled={isPending} data-testid="button-chain-evm">
-            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-500 rounded-full"/> {t.chains.evm}</span>
-            {isPending && <Loader2 className="animate-spin w-4 h-4" />}
-          </Button>
+          <div
+            className="flex items-center justify-between gap-3 p-4 rounded-md border border-border cursor-pointer hover-elevate"
+            onClick={() => !isPending && handleMockMint("evm")}
+            role="button"
+            tabIndex={0}
+            data-testid="button-chain-evm"
+          >
+            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-500 rounded-full"/> <span className="text-sm font-medium">{t.chains.evm}</span></span>
+            {isPending && <Loader2 className="animate-spin w-4 h-4 text-muted-foreground" />}
+          </div>
         )}
         {drop.enabledChains.includes("solana") && (
-          <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("solana")} disabled={isPending} data-testid="button-chain-solana">
-            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-purple-500 rounded-full"/> {t.chains.solana}</span>
-            {isPending && <Loader2 className="animate-spin w-4 h-4" />}
-          </Button>
+          <div
+            className="flex items-center justify-between gap-3 p-4 rounded-md border border-border cursor-pointer hover-elevate"
+            onClick={() => !isPending && handleMockMint("solana")}
+            role="button"
+            tabIndex={0}
+            data-testid="button-chain-solana"
+          >
+            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-purple-500 rounded-full"/> <span className="text-sm font-medium">{t.chains.solana}</span></span>
+            {isPending && <Loader2 className="animate-spin w-4 h-4 text-muted-foreground" />}
+          </div>
         )}
         {drop.enabledChains.includes("stellar") && (
-          <Button variant="outline" className="h-14 justify-between" onClick={() => handleMockMint("stellar")} disabled={isPending} data-testid="button-chain-stellar">
-            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-black dark:bg-white rounded-full"/> {t.chains.stellar}</span>
-            {isPending && <Loader2 className="animate-spin w-4 h-4" />}
-          </Button>
+          <div
+            className="flex items-center justify-between gap-3 p-4 rounded-md border border-border cursor-pointer hover-elevate"
+            onClick={() => !isPending && handleMockMint("stellar")}
+            role="button"
+            tabIndex={0}
+            data-testid="button-chain-stellar"
+          >
+            <span className="flex items-center gap-2"><div className="w-3 h-3 bg-black dark:bg-white rounded-full"/> <span className="text-sm font-medium">{t.chains.stellar}</span></span>
+            {isPending && <Loader2 className="animate-spin w-4 h-4 text-muted-foreground" />}
+          </div>
         )}
-        <Button variant="ghost" className="mt-2" onClick={onBack} data-testid="button-wallet-back">{t.common.back}</Button>
+        <Button variant="ghost" className="mt-1" onClick={onBack} data-testid="button-wallet-back">{t.common.back}</Button>
       </div>
     </ClaimCard>
   );

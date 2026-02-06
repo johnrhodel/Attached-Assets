@@ -34,36 +34,36 @@ export function WalletSuggestions({ onBack }: { onBack: () => void }) {
   const { t } = useI18n();
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-4">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-serif font-bold mb-2">{t.walletSuggestions.title}</h2>
-        <p className="text-sm text-muted-foreground">{t.walletSuggestions.subtitle}</p>
+    <div className="w-full max-w-sm sm:max-w-md mx-auto space-y-3">
+      <div className="text-center mb-4">
+        <h2 className="text-xl sm:text-2xl font-serif font-bold mb-2 text-foreground">{t.walletSuggestions.title}</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">{t.walletSuggestions.subtitle}</p>
       </div>
 
       {walletGroups.map((group) => (
         <Card key={group.key} className="border-border/50" data-testid={`card-wallet-group-${group.key}`}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">
+          <CardHeader className="pb-2 px-4 sm:px-6 pt-4">
+            <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground">
               {t.walletSuggestions[group.key]}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-1 px-4 sm:px-6 pb-4">
             {group.wallets.map((wallet) => (
               <a
                 key={wallet.name}
                 href={wallet.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between p-3 rounded-md hover:bg-accent/50 transition-colors group"
+                className="flex items-center justify-between gap-2 p-2.5 rounded-md hover-elevate"
                 data-testid={`link-wallet-${wallet.name.toLowerCase().replace(/\s/g, '-')}`}
               >
-                <div>
+                <div className="min-w-0">
                   <div className="font-medium text-sm">{wallet.name}</div>
-                  <div className="text-xs text-muted-foreground">{wallet.desc}</div>
+                  <div className="text-xs text-muted-foreground truncate">{wallet.desc}</div>
                 </div>
-                <Button variant="ghost" size="sm" className="gap-1 text-xs opacity-60 group-hover:opacity-100 transition-opacity">
+                <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                   {t.walletSuggestions.downloadNow} <ExternalLink className="w-3 h-3" />
-                </Button>
+                </span>
               </a>
             ))}
           </CardContent>
