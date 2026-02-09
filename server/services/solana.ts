@@ -64,11 +64,24 @@ export async function ensureServerFunded(): Promise<boolean> {
 
     if (balance < 0.01 * LAMPORTS_PER_SOL) {
       if (SOLANA_NETWORK === "devnet") {
-        console.log("[SOLANA] Requesting devnet airdrop...");
-        const sig = await connection.requestAirdrop(kp.publicKey, 2 * LAMPORTS_PER_SOL);
-        await connection.confirmTransaction(sig, "confirmed");
-        console.log("[SOLANA] Airdrop received: 2 SOL");
-        return true;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            console.log(`[SOLANA] Requesting devnet airdrop (attempt ${attempt}/3)...`);
+            const sig = await connection.requestAirdrop(kp.publicKey, 2 * LAMPORTS_PER_SOL);
+            await connection.confirmTransaction(sig, "confirmed");
+            console.log("[SOLANA] Airdrop received: 2 SOL");
+            return true;
+          } catch (err) {
+            console.warn(`[SOLANA] Airdrop attempt ${attempt} failed:`, (err as Error).message);
+            if (attempt < 3) {
+              const delay = Math.pow(2, attempt) * 1000;
+              console.log(`[SOLANA] Retrying in ${delay / 1000}s...`);
+              await new Promise(r => setTimeout(r, delay));
+            }
+          }
+        }
+        console.error("[SOLANA] All airdrop attempts failed");
+        return false;
       } else {
         console.warn("[SOLANA] Server wallet has insufficient funds on mainnet");
         return false;

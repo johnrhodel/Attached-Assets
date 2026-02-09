@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRoute } from "wouter";
 import { useActiveDrop } from "@/hooks/use-drops";
 import { useCreateClaimSession, useWalletless, useConfirmMint } from "@/hooks/use-claim";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClaimCard } from "@/components/ClaimCard";
@@ -11,6 +12,54 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/context";
 import { Link } from "wouter";
 import claimBg from "../assets/images/claim-bg.jpg";
+
+function useBlockchainStatus() {
+  return useQuery({
+    queryKey: ["/api/blockchain/status"],
+    staleTime: 30000,
+  });
+}
+
+function getHealthyChain(status: any, enabledChains: string[]): "solana" | "evm" | "stellar" {
+  const priority: Array<"stellar" | "evm" | "solana"> = ["stellar", "evm", "solana"];
+  for (const chain of priority) {
+    if (enabledChains.includes(chain) && status?.[chain]?.healthy) {
+      return chain;
+    }
+  }
+  return enabledChains.includes("evm") ? "evm" : enabledChains.includes("stellar") ? "stellar" : "solana";
+}
+
+function ConfettiEffect() {
+  const [particles, setParticles] = useState<Array<{id: number; x: number; y: number; color: string; delay: number; size: number}>>([]);
+  
+  useEffect(() => {
+    const colors = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4"];
+    const items = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: -(Math.random() * 20),
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 0.5,
+      size: Math.random() * 8 + 4,
+    }));
+    setParticles(items);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      {particles.map(p => (
+        <motion.div
+          key={p.id}
+          initial={{ x: `${p.x}vw`, y: `${p.y}vh`, opacity: 1, rotate: 0 }}
+          animate={{ y: "110vh", opacity: 0, rotate: Math.random() * 720 - 360 }}
+          transition={{ duration: 2.5 + Math.random(), delay: p.delay, ease: "easeIn" }}
+          style={{ position: "absolute", width: p.size, height: p.size, backgroundColor: p.color, borderRadius: Math.random() > 0.5 ? "50%" : "2px" }}
+        />
+      ))}
+    </div>
+  );
+}
 
 type ClaimView = "landing" | "method" | "wallet" | "email" | "minting" | "success";
 
@@ -200,6 +249,7 @@ export default function Claim() {
 
           {view === "success" && mintResult && (
             <motion.div key="success" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center w-full">
+              <ConfettiEffect />
               <SuccessScreen drop={drop} mintResult={mintResult} />
             </motion.div>
           )}
@@ -342,6 +392,7 @@ function EmailFlow({ claimToken, drop, onMinting, onSuccess, onBack, onRetry }: 
   const [code, setCode] = useState("");
   const [mintError, setMintError] = useState<string | null>(null);
   const { start, mine } = useWalletless();
+  const { data: blockchainStatus } = useBlockchainStatus();
 
   const handleSendCode = () => {
     start.mutate(email, { onSuccess: () => setStep("code") });
@@ -350,7 +401,7 @@ function EmailFlow({ claimToken, drop, onMinting, onSuccess, onBack, onRetry }: 
   const handleVerifyAndMint = () => {
     setMintError(null);
     onMinting();
-    const preferredChain = drop.enabledChains?.includes("solana") ? "solana" : drop.enabledChains?.includes("evm") ? "evm" : "stellar";
+    const preferredChain = getHealthyChain(blockchainStatus, drop.enabledChains || ["solana", "evm", "stellar"]);
     mine.mutate(
       { email, code, chain: preferredChain, claimToken },
       { 

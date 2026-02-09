@@ -414,71 +414,93 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Drop not found" });
     }
 
-    const secret = decrypt(key.encryptedSecret);
-    let txHash: string;
+    const enabledChains = (drop.enabledChains || ["solana", "evm", "stellar"]) as Array<"evm" | "solana" | "stellar">;
+    const chainsToTry = [chain, ...enabledChains.filter(c => c !== chain)];
+    
+    let txHash: string = "";
     let recipientAddress = key.address;
+    let usedChain = chain;
+    let lastError: string = "";
 
-    try {
-      switch (chain) {
-        case "solana": {
-          const result = await solanaService.mintNFTWithCustodialWallet({
-            custodialSecretKey: secret,
-            name: drop.title,
-            uri: drop.metadataUrl,
-          });
-          txHash = result.txHash;
-          recipientAddress = result.recipientAddress;
-          break;
+    for (const tryChain of chainsToTry) {
+      try {
+        const tryKey = await storage.getWalletlessKey(user.id, tryChain);
+        if (!tryKey) continue;
+        
+        const trySecret = decrypt(tryKey.encryptedSecret);
+        
+        switch (tryChain) {
+          case "solana": {
+            const result = await solanaService.mintNFTWithCustodialWallet({
+              custodialSecretKey: trySecret,
+              name: drop.title,
+              uri: drop.metadataUrl,
+            });
+            txHash = result.txHash;
+            recipientAddress = result.recipientAddress;
+            break;
+          }
+          case "evm": {
+            const result = await evmService.mintNFTWithCustodialWallet({
+              custodialPrivateKey: trySecret,
+              tokenId: drop.id,
+            });
+            txHash = result.txHash;
+            recipientAddress = result.recipientAddress;
+            break;
+          }
+          case "stellar": {
+            const result = await stellarService.mintNFTWithCustodialWallet({
+              custodialSecretKey: trySecret,
+              name: drop.title,
+              uri: drop.metadataUrl,
+            });
+            txHash = result.txHash;
+            recipientAddress = result.recipientAddress;
+            break;
+          }
+          default:
+            continue;
         }
-        case "evm": {
-          const result = await evmService.mintNFTWithCustodialWallet({
-            custodialPrivateKey: secret,
-            tokenId: drop.id,
-          });
-          txHash = result.txHash;
-          recipientAddress = result.recipientAddress;
-          break;
+        
+        usedChain = tryChain;
+        if (tryChain !== chain) {
+          console.log(`[WALLETLESS_MINT] Fallback: ${chain} failed, succeeded with ${tryChain}`);
         }
-        case "stellar": {
-          const result = await stellarService.mintNFTWithCustodialWallet({
-            custodialSecretKey: secret,
-            name: drop.title,
-            uri: drop.metadataUrl,
-          });
-          txHash = result.txHash;
-          recipientAddress = result.recipientAddress;
-          break;
-        }
-        default:
-          return res.status(400).json({ message: `Unsupported chain: ${chain}` });
+        break;
+      } catch (err: any) {
+        lastError = err.message;
+        console.warn(`[WALLETLESS_MINT] ${tryChain} failed: ${err.message}`);
+        continue;
       }
-
-      await storage.markSessionConsumed(session.id);
-      await storage.incrementMintCount(session.dropId);
-
-      await storage.createMint({
-        dropId: session.dropId,
-        chain,
-        recipient: recipientAddress,
-        txHash,
-        status: "confirmed"
-      });
-
-      const explorerUrl =
-        chain === "solana" ? solanaService.getSolanaExplorerUrl(txHash)
-        : chain === "evm" ? evmService.getEvmExplorerUrl(txHash)
-        : stellarService.getStellarExplorerUrl(txHash);
-
-      res.json({
-        txHash,
-        address: recipientAddress,
-        explorerUrl,
-        chain,
-      });
-    } catch (err: any) {
-      console.error(`[WALLETLESS_MINT] ${chain} error:`, err.message);
-      res.status(500).json({ message: `Minting failed on ${chain}: ${err.message}` });
     }
+
+    if (!txHash) {
+      return res.status(500).json({ message: `Minting failed on all chains. Last error: ${lastError}` });
+    }
+
+    await storage.markSessionConsumed(session.id);
+    await storage.incrementMintCount(session.dropId);
+
+    await storage.createMint({
+      dropId: session.dropId,
+      chain: usedChain,
+      recipient: recipientAddress,
+      txHash,
+      status: "confirmed"
+    });
+
+    const explorerUrl =
+      usedChain === "solana" ? solanaService.getSolanaExplorerUrl(txHash)
+      : usedChain === "evm" ? evmService.getEvmExplorerUrl(txHash)
+      : stellarService.getStellarExplorerUrl(txHash);
+
+    res.json({
+      txHash,
+      address: recipientAddress,
+      explorerUrl,
+      chain: usedChain,
+    });
   });
 
   // === BLOCKCHAIN STATUS ENDPOINT ===
@@ -490,21 +512,28 @@ export async function registerRoutes(
         stellarService.getServerBalance(),
       ]);
 
+      const solBal = solBalance.status === "fulfilled" ? solBalance.value : 0;
+      const evmBal = evmBalance.status === "fulfilled" ? evmBalance.value : "0";
+      const stlBal = stellarBalance.status === "fulfilled" ? stellarBalance.value : "0";
+
       res.json({
         solana: {
           serverPublicKey: solanaService.getServerPublicKey(),
-          balance: solBalance.status === "fulfilled" ? solBalance.value : 0,
+          balance: solBal,
           network: process.env.SOLANA_NETWORK || "devnet",
+          healthy: typeof solBal === "number" ? solBal > 0.005 : parseFloat(String(solBal)) > 0.005,
         },
         evm: {
           serverAddress: evmService.getServerAddress(),
-          balance: evmBalance.status === "fulfilled" ? evmBalance.value : "0",
+          balance: evmBal,
           ...evmService.getEvmChainInfo(),
+          healthy: true,
         },
         stellar: {
           serverPublicKey: stellarService.getServerPublicKey(),
-          balance: stellarBalance.status === "fulfilled" ? stellarBalance.value : "0",
+          balance: stlBal,
           network: process.env.STELLAR_NETWORK || "testnet",
+          healthy: parseFloat(String(stlBal)) > 0,
         },
       });
     } catch (err: any) {
