@@ -1,4 +1,5 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const EMAIL_FROM = process.env.EMAIL_FROM || "Mintoria <onboarding@resend.dev>";
 
 let resendClient: any = null;
 
@@ -25,7 +26,7 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 
   try {
     await client.emails.send({
-      from: "Mintoria <noreply@mintoria.com>",
+      from: EMAIL_FROM,
       to: email,
       subject: `Your Mintoria verification code: ${code}`,
       html: `
@@ -66,7 +67,7 @@ export async function sendMintConfirmationEmail(email: string, params: { dropTit
 
   try {
     await client.emails.send({
-      from: "Mintoria <noreply@mintoria.com>",
+      from: EMAIL_FROM,
       to: email,
       subject: `Your NFT "${params.dropTitle}" has been minted!`,
       html: `

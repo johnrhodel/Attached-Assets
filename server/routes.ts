@@ -334,6 +334,9 @@ export async function registerRoutes(
 
     await sendVerificationEmail(email, code);
     verificationCodes.set(email, code);
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[DEV] Verification code for ${email}: ${code}`);
+    }
 
     let user = await storage.getWalletlessUser(email);
     if (!user) {
@@ -416,7 +419,8 @@ export async function registerRoutes(
     }
 
     const enabledChains = (drop.enabledChains || ["solana", "evm", "stellar"]) as Array<"evm" | "solana" | "stellar">;
-    const chainsToTry = [chain, ...enabledChains.filter(c => c !== chain)];
+    const healthyFirst = enabledChains.filter(c => c !== chain);
+    const chainsToTry = [chain, ...healthyFirst];
     
     let txHash: string = "";
     let recipientAddress = key.address;
@@ -535,7 +539,7 @@ export async function registerRoutes(
           serverAddress: evmService.getServerAddress(),
           balance: evmBal,
           ...evmService.getEvmChainInfo(),
-          healthy: true,
+          healthy: parseFloat(String(evmBal)) > 0.001,
         },
         stellar: {
           serverPublicKey: stellarService.getServerPublicKey(),

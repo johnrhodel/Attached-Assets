@@ -77,6 +77,7 @@ export default function Claim() {
   
   const { data: drop, isLoading, error } = useActiveDrop(locationId);
   const { mutateAsync: createSession } = useCreateClaimSession();
+  const { data: blockchainStatus } = useBlockchainStatus();
   
   const [claimToken, setClaimToken] = useState<string | null>(null);
   const [view, setView] = useState<ClaimView>("landing");
@@ -221,6 +222,7 @@ export default function Claim() {
               <EmailFlow 
                 claimToken={claimToken} 
                 drop={drop} 
+                blockchainStatus={blockchainStatus}
                 onMinting={() => setView("minting")}
                 onSuccess={handleMintSuccess} 
                 onBack={() => setView("method")} 
@@ -240,6 +242,7 @@ export default function Claim() {
               <WalletFlow 
                 claimToken={claimToken} 
                 drop={drop} 
+                blockchainStatus={blockchainStatus}
                 onMinting={() => setView("minting")}
                 onSuccess={handleMintSuccess} 
                 onBack={() => setView("method")} 
@@ -385,14 +388,13 @@ function handleDownloadImage(imageUrl: string, title: string) {
   document.body.removeChild(link);
 }
 
-function EmailFlow({ claimToken, drop, onMinting, onSuccess, onBack, onRetry }: { claimToken: string; drop: any; onMinting: () => void; onSuccess: (result: MintResult) => void; onBack: () => void; onRetry: () => void }) {
+function EmailFlow({ claimToken, drop, blockchainStatus, onMinting, onSuccess, onBack, onRetry }: { claimToken: string; drop: any; blockchainStatus: any; onMinting: () => void; onSuccess: (result: MintResult) => void; onBack: () => void; onRetry: () => void }) {
   const { t } = useI18n();
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [mintError, setMintError] = useState<string | null>(null);
   const { start, mine } = useWalletless();
-  const { data: blockchainStatus } = useBlockchainStatus();
 
   const handleSendCode = () => {
     start.mutate(email, { onSuccess: () => setStep("code") });
@@ -474,7 +476,7 @@ function EmailFlow({ claimToken, drop, onMinting, onSuccess, onBack, onRetry }: 
   );
 }
 
-function WalletFlow({ claimToken, drop, onMinting, onSuccess, onBack }: { claimToken: string; drop: any; onMinting: () => void; onSuccess: (result: MintResult) => void; onBack: () => void }) {
+function WalletFlow({ claimToken, drop, blockchainStatus, onMinting, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onMinting: () => void; onSuccess: (result: MintResult) => void; onBack: () => void }) {
   const { t } = useI18n();
   const { mutate, isPending } = useConfirmMint();
   
@@ -496,12 +498,25 @@ function WalletFlow({ claimToken, drop, onMinting, onSuccess, onBack }: { claimT
       );
     }, 1500);
   };
-
   const chainOptions = [
-    { id: "solana" as const, name: t.chains.solana, color: "bg-purple-500", recommended: true },
+    { id: "solana" as const, name: t.chains.solana, color: "bg-purple-500", recommended: false },
     { id: "evm" as const, name: t.chains.evm, color: "bg-blue-500", recommended: false },
     { id: "stellar" as const, name: t.chains.stellar, color: "bg-foreground", recommended: false },
-  ];
+  ].map(c => ({
+    ...c,
+    healthy: blockchainStatus?.[c.id]?.healthy ?? false,
+    recommended: blockchainStatus?.[c.id]?.healthy ?? false,
+  }));
+
+  if (!blockchainStatus) {
+    return (
+      <ClaimCard title={t.claim.wallet} description={t.claim.selectChain}>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="animate-spin w-6 h-6 text-muted-foreground" />
+        </div>
+      </ClaimCard>
+    );
+  }
 
   return (
     <ClaimCard title={t.claim.wallet} description={t.claim.selectChain}>
@@ -509,19 +524,22 @@ function WalletFlow({ claimToken, drop, onMinting, onSuccess, onBack }: { claimT
         {chainOptions.filter(c => drop.enabledChains.includes(c.id)).map(chain => (
           <div
             key={chain.id}
-            className="flex items-center justify-between gap-3 p-4 rounded-md border border-border cursor-pointer hover-elevate"
-            onClick={() => !isPending && handleMint(chain.id)}
+            className={`flex items-center justify-between gap-3 p-4 rounded-md border border-border ${chain.healthy ? 'cursor-pointer hover-elevate' : 'opacity-40 cursor-not-allowed'}`}
+            onClick={() => chain.healthy && !isPending && handleMint(chain.id)}
             role="button"
-            tabIndex={0}
+            tabIndex={chain.healthy ? 0 : -1}
             data-testid={`button-chain-${chain.id}`}
           >
             <span className="flex items-center gap-2">
-              <div className={`w-3 h-3 ${chain.color} rounded-full`}/>
+              <div className={`w-3 h-3 ${chain.healthy ? chain.color : 'bg-muted-foreground'} rounded-full`}/>
               <span className="text-sm font-medium">{chain.name}</span>
             </span>
             <div className="flex items-center gap-2">
-              {chain.recommended && (
+              {chain.healthy && chain.recommended && (
                 <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded-full">{t.claim.recommended}</span>
+              )}
+              {!chain.healthy && (
+                <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full">Offline</span>
               )}
               {isPending && <Loader2 className="animate-spin w-4 h-4 text-muted-foreground" />}
             </div>
