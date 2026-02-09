@@ -16,18 +16,24 @@ export interface IStorage {
   // Projects
   getProjects(): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: number, data: Partial<InsertProject>): Promise<Project>;
+  deleteProject(id: number): Promise<void>;
 
   // Locations
   getLocations(projectId: number): Promise<Location[]>;
   getLocation(id: number): Promise<Location | undefined>;
   getLocationBySlug(slug: string): Promise<Location | undefined>;
   createLocation(location: InsertLocation): Promise<Location>;
+  updateLocation(id: number, data: Partial<InsertLocation>): Promise<void>;
+  deleteLocation(id: number): Promise<void>;
 
   // Drops
   getDrops(locationId: number): Promise<Drop[]>;
   getDrop(id: number): Promise<Drop | undefined>;
   getActiveDrop(locationId: number): Promise<Drop | undefined>;
   createDrop(drop: InsertDrop): Promise<Drop>;
+  updateDrop(id: number, data: Partial<InsertDrop>): Promise<void>;
+  deleteDrop(id: number): Promise<void>;
   updateDropStatus(id: number, status: string): Promise<Drop>;
   incrementMintCount(id: number): Promise<void>;
 
@@ -79,6 +85,17 @@ export class DatabaseStorage implements IStorage {
     const [project] = await db.insert(projects).values(item).returning();
     return project;
   }
+  async updateProject(id: number, data: Partial<InsertProject>): Promise<Project> {
+    const [project] = await db.update(projects).set(data).where(eq(projects.id, id)).returning();
+    return project;
+  }
+  async deleteProject(id: number): Promise<void> {
+    const locs = await db.select().from(locations).where(eq(locations.projectId, id));
+    for (const loc of locs) {
+      await this.deleteLocation(loc.id);
+    }
+    await db.delete(projects).where(eq(projects.id, id));
+  }
 
   // Locations
   async getLocations(projectId: number): Promise<Location[]> {
@@ -95,6 +112,16 @@ export class DatabaseStorage implements IStorage {
   async createLocation(item: InsertLocation): Promise<Location> {
     const [loc] = await db.insert(locations).values(item).returning();
     return loc;
+  }
+  async updateLocation(id: number, data: Partial<InsertLocation>): Promise<void> {
+    await db.update(locations).set(data).where(eq(locations.id, id));
+  }
+  async deleteLocation(id: number): Promise<void> {
+    const drps = await db.select().from(drops).where(eq(drops.locationId, id));
+    for (const drp of drps) {
+      await this.deleteDrop(drp.id);
+    }
+    await db.delete(locations).where(eq(locations.id, id));
   }
 
   // Drops
@@ -117,6 +144,14 @@ export class DatabaseStorage implements IStorage {
   async createDrop(item: InsertDrop): Promise<Drop> {
     const [drop] = await db.insert(drops).values(item).returning();
     return drop;
+  }
+  async updateDrop(id: number, data: Partial<InsertDrop>): Promise<void> {
+    await db.update(drops).set(data).where(eq(drops.id, id));
+  }
+  async deleteDrop(id: number): Promise<void> {
+    await db.delete(claimSessions).where(eq(claimSessions.dropId, id));
+    await db.delete(mints).where(eq(mints.dropId, id));
+    await db.delete(drops).where(eq(drops.id, id));
   }
   async updateDropStatus(id: number, status: string): Promise<Drop> {
     const [drop] = await db.update(drops)

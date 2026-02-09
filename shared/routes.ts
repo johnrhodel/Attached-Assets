@@ -64,6 +64,21 @@ export const api = {
         201: z.custom<typeof projects.$inferSelect>(),
       },
     },
+    update: {
+      method: "PUT" as const,
+      path: "/api/projects/:id",
+      input: insertProjectSchema.partial(),
+      responses: {
+        200: z.custom<typeof projects.$inferSelect>(),
+      },
+    },
+    delete: {
+      method: "DELETE" as const,
+      path: "/api/projects/:id",
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
   },
   locations: {
     list: {
@@ -88,7 +103,22 @@ export const api = {
         200: z.custom<typeof locations.$inferSelect>(),
         404: z.object({ message: z.string() }),
       },
-    }
+    },
+    update: {
+      method: "PUT" as const,
+      path: "/api/projects/:projectId/locations/:id",
+      input: insertLocationSchema.omit({ projectId: true }).partial(),
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
+    delete: {
+      method: "DELETE" as const,
+      path: "/api/projects/:projectId/locations/:id",
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
   },
   drops: {
     list: {
@@ -120,7 +150,22 @@ export const api = {
       responses: {
         200: z.custom<typeof drops.$inferSelect>(),
       }
-    }
+    },
+    update: {
+      method: "PUT" as const,
+      path: "/api/drops/:id",
+      input: insertDropSchema.partial(),
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
+    delete: {
+      method: "DELETE" as const,
+      path: "/api/drops/:id",
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
   },
   claims: {
     createSession: {

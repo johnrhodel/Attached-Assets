@@ -54,6 +54,44 @@ export function usePublishDrop() {
   });
 }
 
+export function useUpdateDrop() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, locationId, ...data }: { id: number; locationId: number } & Partial<InsertDrop>) => {
+      const url = buildUrl(api.drops.update.path, { id });
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update drop");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.drops.list.path, variables.locationId] });
+      toast({ title: "Drop updated" });
+    },
+  });
+}
+
+export function useDeleteDrop() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, locationId }: { id: number; locationId: number }) => {
+      const url = buildUrl(api.drops.delete.path, { id });
+      const res = await fetch(url, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete drop");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.drops.list.path, variables.locationId] });
+      toast({ title: "Drop deleted" });
+    },
+  });
+}
+
 // For public claim page
 export function useActiveDrop(locationId: number) {
   return useQuery({

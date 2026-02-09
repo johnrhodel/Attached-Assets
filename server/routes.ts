@@ -7,9 +7,15 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import { randomBytes, createHash, createCipheriv, createDecipheriv } from "crypto";
 import { scryptSync } from "crypto";
+import { writeFileSync, mkdirSync, existsSync } from "fs";
+import path from "path";
+import express from "express";
 
 import * as stellarService from "./services/stellar";
 import { generateWalletForChain } from "./services/wallet";
+import { walletlessUsers, walletlessKeys } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import { sendVerificationEmail, sendMintConfirmationEmail } from "./services/email";
 
 const SessionStore = MemoryStore(session);
@@ -52,6 +58,45 @@ export async function registerRoutes(
     saveUninitialized: false,
     secret: process.env.SESSION_SECRET || "dev_secret",
   }));
+
+  const uploadsDir = path.join(process.cwd(), "server", "public", "uploads");
+  if (!existsSync(uploadsDir)) {
+    mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use("/uploads", express.static(uploadsDir));
+
+  // === IMAGE UPLOAD ===
+  app.post("/api/upload/image", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const { data, filename } = req.body;
+      if (!data || !filename) {
+        return res.status(400).json({ message: "Missing image data" });
+      }
+
+      const ext = path.extname(filename).toLowerCase();
+      const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      if (!allowedExts.includes(ext)) {
+        return res.status(400).json({ message: "Invalid file type" });
+      }
+
+      const base64Data = data.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      if (buffer.length > 5 * 1024 * 1024) {
+        return res.status(400).json({ message: "File too large (max 5MB)" });
+      }
+
+      const uniqueName = randomBytes(16).toString('hex') + ext;
+      const filePath = path.join(uploadsDir, uniqueName);
+      writeFileSync(filePath, buffer);
+
+      res.json({ url: `/uploads/${uniqueName}` });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
 
   // === AUTH ROUTES ===
   app.post(api.auth.login.path, async (req, res) => {
@@ -139,6 +184,48 @@ export async function registerRoutes(
     const drop = await storage.getActiveDrop(Number(req.params.locationId));
     if (!drop) return res.status(404).json({ message: "No active drop found" });
     res.json(drop);
+  });
+
+  app.put(api.projects.update.path, async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const project = await storage.updateProject(Number(req.params.id), req.body);
+    res.json(project);
+  });
+
+  app.delete(api.projects.delete.path, async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    await storage.deleteProject(Number(req.params.id));
+    res.json({ message: "Project deleted" });
+  });
+
+  app.put(api.locations.update.path, async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    await storage.updateLocation(Number(req.params.id), req.body);
+    res.json({ message: "Location updated" });
+  });
+
+  app.delete(api.locations.delete.path, async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    await storage.deleteLocation(Number(req.params.id));
+    res.json({ message: "Location deleted" });
+  });
+
+  app.put(api.drops.update.path, async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    await storage.updateDrop(Number(req.params.id), req.body);
+    res.json({ message: "Drop updated" });
+  });
+
+  app.delete(api.drops.delete.path, async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    await storage.deleteDrop(Number(req.params.id));
+    res.json({ message: "Drop deleted" });
   });
 
   app.post(api.drops.publish.path, async (req, res) => {
@@ -448,6 +535,33 @@ export async function registerRoutes(
         mintsByMonth[monthKey] = (mintsByMonth[monthKey] || 0) + 1;
       });
 
+      const mintsByLocationData: Record<string, number> = {};
+      for (const mint of allMints) {
+        const drop = allDrops.find(d => d.id === mint.dropId);
+        if (drop) {
+          const loc = allLocations.find(l => l.id === drop.locationId);
+          const locName = loc?.name || `Location ${drop.locationId}`;
+          mintsByLocationData[locName] = (mintsByLocationData[locName] || 0) + 1;
+        }
+      }
+
+      const walletlessUsersList = await db.select().from(walletlessUsers);
+      const topUsers = [];
+      for (const wu of walletlessUsersList) {
+        const keys = await db.select().from(walletlessKeys).where(eq(walletlessKeys.walletlessUserId, wu.id));
+        const addresses = keys.map(k => k.address);
+        const userMints = allMints.filter(m => addresses.includes(m.recipient));
+        if (userMints.length > 0) {
+          topUsers.push({
+            email: wu.email,
+            mintCount: userMints.length,
+            lastMint: userMints[0]?.createdAt,
+            verified: !!wu.verifiedAt,
+          });
+        }
+      }
+      topUsers.sort((a, b) => b.mintCount - a.mintCount);
+
       const recentMints = await storage.getRecentMints(10);
 
       res.json({
@@ -457,6 +571,8 @@ export async function registerRoutes(
         uniqueUsers: uniqueRecipients,
         mintsByChain,
         mintsByMonth,
+        mintsByLocation: mintsByLocationData,
+        topUsers,
         recentMints,
       });
     } catch (err: any) {
