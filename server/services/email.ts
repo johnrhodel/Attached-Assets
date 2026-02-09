@@ -1,5 +1,5 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const EMAIL_FROM = process.env.EMAIL_FROM || "Mintoria <onboarding@resend.dev>";
+const EMAIL_FROM = process.env.EMAIL_FROM || "Mintoria <noreply@mintoria.xyz>";
 
 let resendClient: any = null;
 
