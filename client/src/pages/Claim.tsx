@@ -142,9 +142,9 @@ export default function Claim() {
         <AnimatePresence mode="wait">
           {view === "landing" && (
             <motion.div key="landing" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, y: -20 }} className="w-full">
-              <ClaimCard className="p-0 overflow-hidden border-0 shadow-2xl">
-                <div className="aspect-[4/3] w-full relative">
-                  <img src={drop.imageUrl} alt={drop.title} className="w-full h-full object-cover" />
+              <ClaimCard className="p-0 overflow-hidden border-0 shadow-2xl" noPadding>
+                <div className="w-full relative">
+                  <img src={drop.imageUrl} alt={drop.title} className="w-full h-auto object-contain" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5 sm:p-6 text-white">
                     <p className="text-xs sm:text-sm font-medium opacity-75 mb-1">{drop.month} {drop.year}</p>
                     <h1 className="text-xl sm:text-2xl font-serif font-bold">{drop.title}</h1>

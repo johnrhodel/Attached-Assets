@@ -7,9 +7,10 @@ interface ClaimCardProps {
   className?: string;
   title?: string;
   description?: string;
+  noPadding?: boolean;
 }
 
-export function ClaimCard({ children, className, title, description }: ClaimCardProps) {
+export function ClaimCard({ children, className, title, description, noPadding }: ClaimCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -26,9 +27,11 @@ export function ClaimCard({ children, className, title, description }: ClaimCard
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
       )}
-      <div className="px-5 sm:px-8 pb-6 sm:pb-8">
-        {children}
-      </div>
+      {noPadding ? children : (
+        <div className="px-5 sm:px-8 pb-6 sm:pb-8">
+          {children}
+        </div>
+      )}
     </motion.div>
   );
 }
