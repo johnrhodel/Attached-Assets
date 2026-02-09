@@ -220,7 +220,7 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
     metadataUrl: "https://example.com/metadata.json",
     supply: 1000,
     status: "draft",
-    enabledChains: ["evm"],
+    enabledChains: ["stellar"],
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -282,18 +282,16 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
           <div className="space-y-2 col-span-2">
             <Label className="mb-2 block">{t.admin.chains}</Label>
             <div className="flex gap-4 flex-wrap">
-              {['evm', 'solana', 'stellar'].map(chain => (
-                <div key={chain} className="flex items-center space-x-2">
-                  <Checkbox 
-                    id={chain} 
-                    checked={formData.enabledChains.includes(chain)}
-                    onCheckedChange={() => toggleChain(chain)}
-                  />
-                  <label htmlFor={chain} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 uppercase">
-                    {chain}
-                  </label>
-                </div>
-              ))}
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="stellar" 
+                  checked={true}
+                  disabled
+                />
+                <label htmlFor="stellar" className="text-sm font-medium leading-none uppercase">
+                  Stellar
+                </label>
+              </div>
             </div>
           </div>
 

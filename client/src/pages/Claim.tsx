@@ -20,14 +20,8 @@ function useBlockchainStatus() {
   });
 }
 
-function getHealthyChain(status: any, enabledChains: string[]): "solana" | "evm" | "stellar" {
-  const priority: Array<"stellar" | "evm" | "solana"> = ["stellar", "evm", "solana"];
-  for (const chain of priority) {
-    if (enabledChains.includes(chain) && status?.[chain]?.healthy) {
-      return chain;
-    }
-  }
-  return enabledChains.includes("evm") ? "evm" : enabledChains.includes("stellar") ? "stellar" : "solana";
+function getHealthyChain(): "stellar" {
+  return "stellar";
 }
 
 function ConfettiEffect() {
@@ -394,11 +388,10 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
   const handleVerifyAndMint = () => {
     setMintError(null);
     setStep("minting");
-    const preferredChain = getHealthyChain(blockchainStatus, drop.enabledChains || ["solana", "evm", "stellar"]);
     mine.mutate(
-      { email, code, chain: preferredChain, claimToken },
+      { email, code, chain: "stellar", claimToken },
       { 
-        onSuccess: (data) => onSuccess({ ...data, chain: data.chain || preferredChain }),
+        onSuccess: (data) => onSuccess({ ...data, chain: data.chain || "stellar" }),
         onError: (err: any) => {
           setMintError(err.message || t.claim.mintFailed);
           setCode("");
@@ -476,17 +469,17 @@ function WalletFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: {
   const { mutate, isPending } = useConfirmMint();
   const [isMinting, setIsMinting] = useState(false);
   
-  const handleMint = (chain: "evm" | "solana" | "stellar") => {
+  const handleMint = () => {
     setIsMinting(true);
     setTimeout(() => {
       mutate(
-        { claimToken, txHash: `0x${Date.now().toString(16)}`, chain },
+        { claimToken, txHash: `0x${Date.now().toString(16)}`, chain: "stellar" },
         {
           onSuccess: (data: any) => {
             onSuccess({
               txHash: data.txHash || `0x${Date.now().toString(16)}`,
               address: data.recipient || "wallet-connected",
-              chain,
+              chain: "stellar",
             });
           },
           onError: () => { setIsMinting(false); onBack(); }
@@ -498,53 +491,33 @@ function WalletFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: {
   if (isMinting) {
     return <MintingAnimation dropTitle={drop.title} />;
   }
-  const chainOptions = [
-    { id: "solana" as const, name: t.chains.solana, color: "bg-purple-500", recommended: false },
-    { id: "evm" as const, name: t.chains.evm, color: "bg-blue-500", recommended: false },
-    { id: "stellar" as const, name: t.chains.stellar, color: "bg-foreground", recommended: false },
-  ].map(c => ({
-    ...c,
-    healthy: blockchainStatus?.[c.id]?.healthy ?? false,
-    recommended: blockchainStatus?.[c.id]?.healthy ?? false,
-  }));
 
-  if (!blockchainStatus) {
-    return (
-      <ClaimCard title={t.claim.wallet} description={t.claim.selectChain}>
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="animate-spin w-6 h-6 text-muted-foreground" />
-        </div>
-      </ClaimCard>
-    );
-  }
+  const stellarHealthy = blockchainStatus?.stellar?.healthy ?? false;
 
   return (
-    <ClaimCard title={t.claim.wallet} description={t.claim.selectChain}>
+    <ClaimCard title={t.claim.wallet}>
       <div className="grid gap-3">
-        {chainOptions.filter(c => drop.enabledChains.includes(c.id)).map(chain => (
-          <div
-            key={chain.id}
-            className={`flex items-center justify-between gap-3 p-4 rounded-md border border-border ${chain.healthy ? 'cursor-pointer hover-elevate' : 'opacity-40 cursor-not-allowed'}`}
-            onClick={() => chain.healthy && !isPending && handleMint(chain.id)}
-            role="button"
-            tabIndex={chain.healthy ? 0 : -1}
-            data-testid={`button-chain-${chain.id}`}
-          >
-            <span className="flex items-center gap-2">
-              <div className={`w-3 h-3 ${chain.healthy ? chain.color : 'bg-muted-foreground'} rounded-full`}/>
-              <span className="text-sm font-medium">{chain.name}</span>
-            </span>
-            <div className="flex items-center gap-2">
-              {chain.healthy && chain.recommended && (
-                <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded-full">{t.claim.recommended}</span>
-              )}
-              {!chain.healthy && (
-                <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full">Offline</span>
-              )}
-              {isPending && <Loader2 className="animate-spin w-4 h-4 text-muted-foreground" />}
-            </div>
+        <div
+          className={`flex items-center justify-between gap-3 p-4 rounded-md border border-border ${stellarHealthy ? 'cursor-pointer hover-elevate' : 'opacity-40 cursor-not-allowed'}`}
+          onClick={() => stellarHealthy && !isPending && handleMint()}
+          role="button"
+          tabIndex={stellarHealthy ? 0 : -1}
+          data-testid="button-chain-stellar"
+        >
+          <span className="flex items-center gap-2">
+            <div className={`w-3 h-3 ${stellarHealthy ? 'bg-foreground' : 'bg-muted-foreground'} rounded-full`}/>
+            <span className="text-sm font-medium">{t.chains.stellar}</span>
+          </span>
+          <div className="flex items-center gap-2">
+            {stellarHealthy && (
+              <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded-full">{t.claim.recommended}</span>
+            )}
+            {!stellarHealthy && (
+              <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full">Offline</span>
+            )}
+            {isPending && <Loader2 className="animate-spin w-4 h-4 text-muted-foreground" />}
           </div>
-        ))}
+        </div>
         <Button variant="ghost" className="mt-1" onClick={onBack} data-testid="button-wallet-back">
           <ChevronLeft className="w-4 h-4 mr-1" />{t.common.back}
         </Button>

@@ -8,8 +8,6 @@ import MemoryStore from "memorystore";
 import { randomBytes, createHash, createCipheriv, createDecipheriv } from "crypto";
 import { scryptSync } from "crypto";
 
-import * as solanaService from "./services/solana";
-import * as evmService from "./services/evm";
 import * as stellarService from "./services/stellar";
 import { generateWalletForChain } from "./services/wallet";
 import { sendVerificationEmail, sendMintConfirmationEmail } from "./services/email";
@@ -184,73 +182,12 @@ export async function registerRoutes(
   // === MINT ROUTES ===
 
   // 1. EVM Permit (EIP-712) - Real signing
-  app.post(api.mint.evmPermit.path, async (req, res) => {
-    const { claimToken, recipient, chainId } = req.body;
-
-    const tokenHash = createHash('sha256').update(claimToken).digest('hex');
-    const session = await storage.getClaimSession(tokenHash);
-
-    if (!session || session.status !== "active" || new Date() > session.expiresAt) {
-      return res.status(400).json({ message: "Invalid or expired claim token" });
-    }
-
-    try {
-      const permitData = await evmService.signEIP712Permit({
-        recipient,
-        tokenId: session.dropId,
-        chainId: chainId || 11155111,
-      });
-
-      res.json(permitData);
-    } catch (err: any) {
-      console.error("[EVM_PERMIT] Error:", err.message);
-      res.status(500).json({ message: `EVM signing failed: ${err.message}` });
-    }
+  app.post(api.mint.evmPermit.path, async (_req, res) => {
+    res.status(503).json({ message: "EVM chain is currently disabled. Please use Stellar." });
   });
 
-  // 2. Solana Transaction - Real minting via Metaplex
-  app.post(api.mint.solanaTx.path, async (req, res) => {
-    const { claimToken, recipient } = req.body;
-
-    const tokenHash = createHash('sha256').update(claimToken).digest('hex');
-    const session = await storage.getClaimSession(tokenHash);
-
-    if (!session || session.status !== "active" || new Date() > session.expiresAt) {
-      return res.status(400).json({ message: "Invalid or expired claim token" });
-    }
-
-    try {
-      const drop = await storage.getDrop(session.dropId);
-      if (!drop) {
-        return res.status(404).json({ message: "Drop not found" });
-      }
-
-      const result = await solanaService.mintNFT({
-        recipientAddress: recipient,
-        name: drop.title,
-        uri: drop.metadataUrl,
-      });
-
-      await storage.markSessionConsumed(session.id);
-      await storage.incrementMintCount(session.dropId);
-
-      await storage.createMint({
-        dropId: session.dropId,
-        chain: "solana",
-        recipient,
-        txHash: result.txHash,
-        status: "confirmed",
-      });
-
-      res.json({
-        transaction: result.txHash,
-        mintAddress: result.mintAddress,
-        explorerUrl: solanaService.getSolanaExplorerUrl(result.txHash),
-      });
-    } catch (err: any) {
-      console.error("[SOLANA_MINT] Error:", err.message);
-      res.status(500).json({ message: `Solana minting failed: ${err.message}` });
-    }
+  app.post(api.mint.solanaTx.path, async (_req, res) => {
+    res.status(503).json({ message: "Solana chain is currently disabled. Please use Stellar." });
   });
 
   // 3. Stellar XDR - Real transaction building
@@ -329,39 +266,43 @@ export async function registerRoutes(
   const verificationCodes = new Map<string, string>();
 
   app.post(api.walletless.start.path, async (req, res) => {
-    const { email } = req.body;
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      const { email } = req.body;
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await sendVerificationEmail(email, code);
-    verificationCodes.set(email, code);
-    if (process.env.NODE_ENV === "development") {
+      await sendVerificationEmail(email, code);
+      verificationCodes.set(email, code);
       console.log(`[DEV] Verification code for ${email}: ${code}`);
-    }
 
-    let user = await storage.getWalletlessUser(email);
-    if (!user) {
-      user = await storage.createWalletlessUser({ email });
-    }
-
-    const chains: Array<"evm" | "solana" | "stellar"> = ["evm", "solana", "stellar"];
-    for (const chain of chains) {
-      const existingKey = await storage.getWalletlessKey(user.id, chain);
-      if (!existingKey) {
-        const wallet = generateWalletForChain(chain);
-        const encryptedSecret = encrypt(wallet.secret);
-
-        await storage.createWalletlessKey({
-          walletlessUserId: user.id,
-          chain,
-          address: wallet.address,
-          encryptedSecret
-        });
-
-        console.log(`[WALLETLESS] Created ${chain} wallet for ${email}: ${wallet.address}`);
+      let user = await storage.getWalletlessUser(email);
+      if (!user) {
+        user = await storage.createWalletlessUser({ email });
       }
-    }
 
-    res.json({ message: "Verification code sent (check console)" });
+      try {
+        const existingKey = await storage.getWalletlessKey(user.id, "stellar");
+        if (!existingKey) {
+          const wallet = generateWalletForChain("stellar");
+          const encryptedSecret = encrypt(wallet.secret);
+
+          await storage.createWalletlessKey({
+            walletlessUserId: user.id,
+            chain: "stellar",
+            address: wallet.address,
+            encryptedSecret
+          });
+
+          console.log(`[WALLETLESS] Created stellar wallet for ${email}: ${wallet.address}`);
+        }
+      } catch (walletErr: any) {
+        console.error(`[WALLETLESS] Failed to create stellar wallet for ${email}: ${walletErr.message}`);
+      }
+
+      res.json({ message: "Verification code sent" });
+    } catch (err: any) {
+      console.error(`[WALLETLESS_START] Error: ${err.message}`);
+      res.status(500).json({ message: "Failed to send verification code" });
+    }
   });
 
   app.post(api.walletless.verify.path, async (req, res) => {
@@ -385,164 +326,94 @@ export async function registerRoutes(
   });
 
   app.post(api.walletless.mine.path, async (req, res) => {
-    const { email, code, chain, claimToken } = req.body;
+    try {
+      const { email, code, claimToken } = req.body;
+      const chain = "stellar";
 
-    if (!code) {
-      return res.status(400).json({ message: "Verification code is required" });
-    }
-
-    if (verificationCodes.get(email) !== code) {
-      return res.status(400).json({ message: "Invalid verification code" });
-    }
-
-    verificationCodes.delete(email);
-    const userToVerify = await storage.getWalletlessUser(email);
-    if (userToVerify) {
-      await storage.markWalletlessUserVerified(userToVerify.id);
-    }
-
-    const user = await storage.getWalletlessUser(email);
-    if (!user) return res.status(400).json({ message: "User not found" });
-
-    const key = await storage.getWalletlessKey(user.id, chain);
-    if (!key) return res.status(400).json({ message: "Wallet key not found for this chain" });
-
-    const tokenHash = createHash('sha256').update(claimToken).digest('hex');
-    const session = await storage.getClaimSession(tokenHash);
-    if (!session || session.status !== "active" || new Date() > session.expiresAt) {
-      return res.status(400).json({ message: "Invalid or expired claim token" });
-    }
-
-    const drop = await storage.getDrop(session.dropId);
-    if (!drop) {
-      return res.status(404).json({ message: "Drop not found" });
-    }
-
-    const enabledChains = (drop.enabledChains || ["solana", "evm", "stellar"]) as Array<"evm" | "solana" | "stellar">;
-    const healthyFirst = enabledChains.filter(c => c !== chain);
-    const chainsToTry = [chain, ...healthyFirst];
-    
-    let txHash: string = "";
-    let recipientAddress = key.address;
-    let usedChain = chain;
-    let lastError: string = "";
-
-    for (const tryChain of chainsToTry) {
-      try {
-        const tryKey = await storage.getWalletlessKey(user.id, tryChain);
-        if (!tryKey) continue;
-        
-        const trySecret = decrypt(tryKey.encryptedSecret);
-        
-        switch (tryChain) {
-          case "solana": {
-            const result = await solanaService.mintNFTWithCustodialWallet({
-              custodialSecretKey: trySecret,
-              name: drop.title,
-              uri: drop.metadataUrl,
-            });
-            txHash = result.txHash;
-            recipientAddress = result.recipientAddress;
-            break;
-          }
-          case "evm": {
-            const result = await evmService.mintNFTWithCustodialWallet({
-              custodialPrivateKey: trySecret,
-              tokenId: drop.id,
-            });
-            txHash = result.txHash;
-            recipientAddress = result.recipientAddress;
-            break;
-          }
-          case "stellar": {
-            const result = await stellarService.mintNFTWithCustodialWallet({
-              custodialSecretKey: trySecret,
-              name: drop.title,
-              uri: drop.metadataUrl,
-            });
-            txHash = result.txHash;
-            recipientAddress = result.recipientAddress;
-            break;
-          }
-          default:
-            continue;
-        }
-        
-        usedChain = tryChain;
-        if (tryChain !== chain) {
-          console.log(`[WALLETLESS_MINT] Fallback: ${chain} failed, succeeded with ${tryChain}`);
-        }
-        break;
-      } catch (err: any) {
-        lastError = err.message;
-        console.warn(`[WALLETLESS_MINT] ${tryChain} failed: ${err.message}`);
-        continue;
+      if (!code) {
+        return res.status(400).json({ message: "Verification code is required" });
       }
+
+      if (verificationCodes.get(email) !== code) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+
+      verificationCodes.delete(email);
+      const userToVerify = await storage.getWalletlessUser(email);
+      if (userToVerify) {
+        await storage.markWalletlessUserVerified(userToVerify.id);
+      }
+
+      const user = await storage.getWalletlessUser(email);
+      if (!user) return res.status(400).json({ message: "User not found" });
+
+      const key = await storage.getWalletlessKey(user.id, chain);
+      if (!key) return res.status(400).json({ message: "Stellar wallet not found. Please try again." });
+
+      const tokenHash = createHash('sha256').update(claimToken).digest('hex');
+      const session = await storage.getClaimSession(tokenHash);
+      if (!session || session.status !== "active" || new Date() > session.expiresAt) {
+        return res.status(400).json({ message: "Invalid or expired claim token" });
+      }
+
+      const drop = await storage.getDrop(session.dropId);
+      if (!drop) {
+        return res.status(404).json({ message: "Drop not found" });
+      }
+
+      const secret = decrypt(key.encryptedSecret);
+      const result = await stellarService.mintNFTWithCustodialWallet({
+        custodialSecretKey: secret,
+        name: drop.title,
+        uri: drop.metadataUrl,
+      });
+
+      const txHash = result.txHash;
+      const recipientAddress = result.recipientAddress;
+
+      await storage.markSessionConsumed(session.id);
+      await storage.incrementMintCount(session.dropId);
+
+      const mint = await storage.createMint({
+        dropId: session.dropId,
+        chain,
+        recipient: recipientAddress,
+        txHash,
+        status: "confirmed"
+      });
+
+      const explorerUrl = stellarService.getStellarExplorerUrl(txHash);
+
+      console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: stellar | Email: ${email} | Recipient: ${recipientAddress} | TxHash: ${txHash} | MintID: ${mint?.id || 'unknown'} | Explorer: ${explorerUrl || 'N/A'}`);
+
+      sendMintConfirmationEmail(email, {
+        dropTitle: drop.title,
+        chain,
+        txHash,
+        explorerUrl: explorerUrl || "",
+      }).catch(console.error);
+
+      res.json({
+        txHash,
+        address: recipientAddress,
+        explorerUrl,
+        chain,
+      });
+    } catch (err: any) {
+      console.error(`[WALLETLESS_MINT] Error: ${err.message}`);
+      res.status(500).json({ message: `Minting failed: ${err.message}` });
     }
-
-    if (!txHash) {
-      return res.status(500).json({ message: `Minting failed on all chains. Last error: ${lastError}` });
-    }
-
-    await storage.markSessionConsumed(session.id);
-    await storage.incrementMintCount(session.dropId);
-
-    const mint = await storage.createMint({
-      dropId: session.dropId,
-      chain: usedChain,
-      recipient: recipientAddress,
-      txHash,
-      status: "confirmed"
-    });
-
-    const explorerUrl =
-      usedChain === "solana" ? solanaService.getSolanaExplorerUrl(txHash)
-      : usedChain === "evm" ? evmService.getEvmExplorerUrl(txHash)
-      : stellarService.getStellarExplorerUrl(txHash);
-
-    console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: ${usedChain} | Email: ${email} | Recipient: ${recipientAddress} | TxHash: ${txHash} | MintID: ${mint?.id || 'unknown'} | Explorer: ${explorerUrl || 'N/A'}`);
-
-    sendMintConfirmationEmail(email, {
-      dropTitle: drop.title,
-      chain: usedChain,
-      txHash,
-      explorerUrl: explorerUrl || "",
-    }).catch(console.error);
-
-    res.json({
-      txHash,
-      address: recipientAddress,
-      explorerUrl,
-      chain: usedChain,
-    });
   });
 
   // === BLOCKCHAIN STATUS ENDPOINT ===
   app.get("/api/blockchain/status", async (_req, res) => {
     try {
-      const [solBalance, evmBalance, stellarBalance] = await Promise.allSettled([
-        solanaService.getServerBalance(),
-        evmService.getServerBalance(),
-        stellarService.getServerBalance(),
-      ]);
-
-      const solBal = solBalance.status === "fulfilled" ? solBalance.value : 0;
-      const evmBal = evmBalance.status === "fulfilled" ? evmBalance.value : "0";
-      const stlBal = stellarBalance.status === "fulfilled" ? stellarBalance.value : "0";
+      let stlBal = "0";
+      try {
+        stlBal = await stellarService.getServerBalance();
+      } catch { }
 
       res.json({
-        solana: {
-          serverPublicKey: solanaService.getServerPublicKey(),
-          balance: solBal,
-          network: process.env.SOLANA_NETWORK || "devnet",
-          healthy: typeof solBal === "number" ? solBal > 0.005 : parseFloat(String(solBal)) > 0.005,
-        },
-        evm: {
-          serverAddress: evmService.getServerAddress(),
-          balance: evmBal,
-          ...evmService.getEvmChainInfo(),
-          healthy: parseFloat(String(evmBal)) > 0.001,
-        },
         stellar: {
           serverPublicKey: stellarService.getServerPublicKey(),
           balance: stlBal,
@@ -674,15 +545,8 @@ export async function registerRoutes(
 
   seed().catch(console.error);
 
-  // Initialize blockchain services
-  console.log("[BLOCKCHAIN] Initializing services...");
-  console.log(`[SOLANA] Server: ${solanaService.getServerPublicKey()}`);
-  console.log(`[EVM] Server: ${evmService.getServerAddress()}`);
+  console.log("[BLOCKCHAIN] Initializing Stellar service...");
   console.log(`[STELLAR] Server: ${stellarService.getServerPublicKey()}`);
-
-  solanaService.ensureServerFunded().then((funded) => {
-    console.log(`[SOLANA] Server funded: ${funded}`);
-  }).catch(console.error);
 
   stellarService.ensureServerFunded().then((funded) => {
     console.log(`[STELLAR] Server funded: ${funded}`);

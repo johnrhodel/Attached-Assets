@@ -8,8 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CHAIN_COLORS: Record<string, string> = {
-  solana: "#9945FF",
-  evm: "#627EEA",
   stellar: "#08B5E5",
 };
 
