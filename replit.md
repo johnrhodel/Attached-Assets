@@ -97,15 +97,32 @@ Two integration modes for third-party sites:
 
 ### Key Pages
 - `/` - Landing page with features and CTA
-- `/claim/:locationId` - Visitor claim page (public)
+- `/claim/:locationId` - Visitor claim page (public, with confetti on success)
 - `/embed/:locationId` - Embeddable claim widget
+- `/gallery/:locationId` - Public gallery of NFTs minted at a location
+- `/my-nfts` - User NFT lookup by email
 - `/admin/login` - Admin login
-- `/admin/dashboard` - Admin dashboard
+- `/admin/dashboard` - Admin dashboard with real metrics, charts, recent mints
 - `/admin/projects` - Project and location management
-- `/admin/drops` - Drop creation and publishing
+- `/admin/drops` - Drop creation, publishing, and QR code generation
 
 ### API Endpoints
-- `GET /api/blockchain/status` - Returns server wallet addresses, balances, and chain info for all three blockchains
+- `GET /api/blockchain/status` - Returns server wallet addresses, balances, chain health for all three blockchains
+- `GET /api/admin/stats` - Dashboard metrics (total mints, active drops, locations, unique users, mints by chain/month)
+- `GET /api/gallery/:locationId` - Public gallery data for a location
+- `GET /api/my-nfts/:email` - User's minted NFTs lookup
+- `GET /api/qr/:locationId` - QR code generation (PNG default, SVG via ?format=svg)
+
+### Email Service
+- `server/services/email.ts` - Verification codes and mint confirmations
+- Falls back to console logging when RESEND_API_KEY is not set
+- Ready for Resend integration when API key is added (user dismissed Resend connector setup)
+
+### Blockchain Resilience
+- Solana airdrop: 3 retry attempts with exponential backoff
+- Chain health tracking: Server checks balances and marks chains as healthy/unhealthy
+- Automatic chain fallback: If preferred chain fails during mint, tries next healthy chain
+- Frontend smart selection: Auto-selects first healthy chain for email/walletless flow
 
 ## Environment Variables
 

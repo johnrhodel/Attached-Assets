@@ -40,6 +40,14 @@ export interface IStorage {
   createMint(mint: InsertMint): Promise<Mint>;
   getMints(dropId: number): Promise<Mint[]>;
 
+  // Dashboard stats
+  getAllMints(): Promise<Mint[]>;
+  getAllDrops(): Promise<Drop[]>;
+  getAllLocations(): Promise<Location[]>;
+  getMintsForEmail(email: string): Promise<Array<Mint & { dropTitle: string; dropImageUrl: string }>>;
+  getRecentMints(limit: number): Promise<Array<Mint & { dropTitle: string }>>;
+  getMintsByLocation(locationId: number): Promise<Mint[]>;
+
   // Walletless
   getWalletlessUser(email: string): Promise<WalletlessUser | undefined>;
   createWalletlessUser(user: InsertWalletlessUser): Promise<WalletlessUser>;
@@ -145,6 +153,67 @@ export class DatabaseStorage implements IStorage {
   }
   async getMints(dropId: number): Promise<Mint[]> {
     return await db.select().from(mints).where(eq(mints.dropId, dropId));
+  }
+
+  // Dashboard stats
+  async getAllMints(): Promise<Mint[]> {
+    return await db.select().from(mints).orderBy(desc(mints.createdAt));
+  }
+  async getAllDrops(): Promise<Drop[]> {
+    return await db.select().from(drops).orderBy(desc(drops.createdAt));
+  }
+  async getAllLocations(): Promise<Location[]> {
+    return await db.select().from(locations).orderBy(desc(locations.createdAt));
+  }
+  async getMintsForEmail(email: string): Promise<Array<Mint & { dropTitle: string; dropImageUrl: string }>> {
+    const results = await db.select({
+      id: mints.id,
+      dropId: mints.dropId,
+      chain: mints.chain,
+      recipient: mints.recipient,
+      txHash: mints.txHash,
+      status: mints.status,
+      createdAt: mints.createdAt,
+      dropTitle: drops.title,
+      dropImageUrl: drops.imageUrl,
+    }).from(mints)
+      .innerJoin(drops, eq(mints.dropId, drops.id))
+      .innerJoin(walletlessKeys, and(eq(walletlessKeys.address, mints.recipient), eq(walletlessKeys.chain, mints.chain)))
+      .innerJoin(walletlessUsers, eq(walletlessKeys.walletlessUserId, walletlessUsers.id))
+      .where(eq(walletlessUsers.email, email))
+      .orderBy(desc(mints.createdAt));
+    return results;
+  }
+  async getRecentMints(limit: number): Promise<Array<Mint & { dropTitle: string }>> {
+    const results = await db.select({
+      id: mints.id,
+      dropId: mints.dropId,
+      chain: mints.chain,
+      recipient: mints.recipient,
+      txHash: mints.txHash,
+      status: mints.status,
+      createdAt: mints.createdAt,
+      dropTitle: drops.title,
+    }).from(mints)
+      .innerJoin(drops, eq(mints.dropId, drops.id))
+      .orderBy(desc(mints.createdAt))
+      .limit(limit);
+    return results;
+  }
+  async getMintsByLocation(locationId: number): Promise<Mint[]> {
+    const results = await db.select({
+      id: mints.id,
+      dropId: mints.dropId,
+      chain: mints.chain,
+      recipient: mints.recipient,
+      txHash: mints.txHash,
+      status: mints.status,
+      createdAt: mints.createdAt,
+    }).from(mints)
+      .innerJoin(drops, eq(mints.dropId, drops.id))
+      .where(eq(drops.locationId, locationId))
+      .orderBy(desc(mints.createdAt));
+    return results;
   }
 
   // Walletless

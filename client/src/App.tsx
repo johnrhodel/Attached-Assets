@@ -10,6 +10,8 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Claim from "@/pages/Claim";
 import Embed from "@/pages/Embed";
+import Gallery from "@/pages/Gallery";
+import MyNfts from "@/pages/MyNfts";
 
 // Admin Pages
 import AdminLogin from "@/pages/admin/Login";
@@ -41,6 +43,8 @@ function Router() {
       {/* Public Routes */}
       <Route path="/" component={Home} />
       <Route path="/claim/:locationId" component={Claim} />
+      <Route path="/gallery/:locationId" component={Gallery} />
+      <Route path="/my-nfts" component={MyNfts} />
       <Route path="/embed/:locationId" component={Embed} />
       
       {/* Admin Routes */}

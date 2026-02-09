@@ -12,6 +12,7 @@ import * as solanaService from "./services/solana";
 import * as evmService from "./services/evm";
 import * as stellarService from "./services/stellar";
 import { generateWalletForChain } from "./services/wallet";
+import { sendVerificationEmail, sendMintConfirmationEmail } from "./services/email";
 
 const SessionStore = MemoryStore(session);
 
@@ -331,7 +332,7 @@ export async function registerRoutes(
     const { email } = req.body;
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    console.log(`[WALLETLESS] Verification code for ${email}: ${code}`);
+    await sendVerificationEmail(email, code);
     verificationCodes.set(email, code);
 
     let user = await storage.getWalletlessUser(email);
@@ -495,6 +496,13 @@ export async function registerRoutes(
       : usedChain === "evm" ? evmService.getEvmExplorerUrl(txHash)
       : stellarService.getStellarExplorerUrl(txHash);
 
+    sendMintConfirmationEmail(email, {
+      dropTitle: drop.title,
+      chain: usedChain,
+      txHash,
+      explorerUrl: explorerUrl || "",
+    }).catch(console.error);
+
     res.json({
       txHash,
       address: recipientAddress,
@@ -536,6 +544,101 @@ export async function registerRoutes(
           healthy: parseFloat(String(stlBal)) > 0,
         },
       });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // === DASHBOARD STATS ===
+  app.get("/api/admin/stats", async (_req, res) => {
+    try {
+      const [allMints, allDrops, allLocations] = await Promise.all([
+        storage.getAllMints(),
+        storage.getAllDrops(),
+        storage.getAllLocations(),
+      ]);
+
+      const publishedDrops = allDrops.filter(d => d.status === "published");
+      const totalMinted = allMints.filter(m => m.status === "confirmed").length;
+      const uniqueRecipients = new Set(allMints.map(m => m.recipient)).size;
+      
+      const mintsByChain: Record<string, number> = {};
+      const mintsByMonth: Record<string, number> = {};
+      
+      allMints.forEach(m => {
+        mintsByChain[m.chain] = (mintsByChain[m.chain] || 0) + 1;
+        const monthKey = new Date(m.createdAt).toISOString().slice(0, 7);
+        mintsByMonth[monthKey] = (mintsByMonth[monthKey] || 0) + 1;
+      });
+
+      const recentMints = await storage.getRecentMints(10);
+
+      res.json({
+        totalMints: totalMinted,
+        activeDrops: publishedDrops.length,
+        totalLocations: allLocations.length,
+        uniqueUsers: uniqueRecipients,
+        mintsByChain,
+        mintsByMonth,
+        recentMints,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // === PUBLIC GALLERY ===
+  app.get("/api/gallery/:locationId", async (req, res) => {
+    try {
+      const locationId = Number(req.params.locationId);
+      const drop = await storage.getActiveDrop(locationId);
+      const mintsList = await storage.getMints(drop?.id || 0);
+      
+      res.json({
+        drop,
+        mints: mintsList.map(m => ({
+          id: m.id,
+          chain: m.chain,
+          txHash: m.txHash,
+          createdAt: m.createdAt,
+        })),
+        totalMinted: mintsList.length,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // === MY NFTS ===
+  app.get("/api/my-nfts/:email", async (req, res) => {
+    try {
+      const email = decodeURIComponent(req.params.email);
+      const userMints = await storage.getMintsForEmail(email);
+      res.json(userMints);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // === QR CODE GENERATION ===
+  app.get("/api/qr/:locationId", async (req, res) => {
+    try {
+      const locationId = Number(req.params.locationId);
+      const QRCode = await import("qrcode");
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const claimUrl = `${baseUrl}/claim/${locationId}`;
+      
+      const format = req.query.format || "png";
+      
+      if (format === "svg") {
+        const svg = await QRCode.toString(claimUrl, { type: "svg", width: 300, margin: 2 });
+        res.setHeader("Content-Type", "image/svg+xml");
+        res.send(svg);
+      } else {
+        const png = await QRCode.toBuffer(claimUrl, { width: 300, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
+        res.setHeader("Content-Type", "image/png");
+        res.send(png);
+      }
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

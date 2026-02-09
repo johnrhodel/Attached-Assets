@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Calendar, Zap } from "lucide-react";
+import { Loader2, Calendar, Zap, QrCode, Copy, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useI18n } from "@/lib/i18n/context";
 
@@ -87,6 +88,37 @@ export default function Drops() {
 
 function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: number, onPublish: any }) {
   const { t } = useI18n();
+  const { toast } = useToast();
+
+  const claimUrl = `${window.location.origin}/claim/${locationId}`;
+  const qrImageUrl = `/api/qr/${locationId}`;
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(claimUrl);
+      toast({ title: t.admin.linkCopied });
+    } catch {
+      toast({ title: t.common.error, variant: "destructive" });
+    }
+  };
+
+  const handleDownloadQR = async () => {
+    try {
+      const response = await fetch(qrImageUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `qr-claim-${locationId}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: t.common.error, variant: "destructive" });
+    }
+  };
+
   return (
     <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 border-border/60" data-testid={`card-drop-${drop.id}`}>
       <div className="aspect-video bg-accent relative overflow-hidden">
@@ -112,15 +144,65 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
           <span className="text-muted-foreground">{t.admin.supply}:</span>
           <span className="font-mono font-medium">{drop.mintedCount} / {drop.supply}</span>
         </div>
-        {drop.status === 'draft' && (
-          <Button 
-            className="w-full" 
-            onClick={() => onPublish({ id: drop.id, locationId })}
-            data-testid={`button-publish-drop-${drop.id}`}
-          >
-            {t.admin.publish}
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {drop.status === 'draft' && (
+            <Button 
+              className="flex-1" 
+              onClick={() => onPublish({ id: drop.id, locationId })}
+              data-testid={`button-publish-drop-${drop.id}`}
+            >
+              {t.admin.publish}
+            </Button>
+          )}
+          {drop.status === 'published' && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="flex-1 gap-2" data-testid={`button-qr-drop-${drop.id}`}>
+                  <QrCode className="w-4 h-4" />
+                  {t.admin.qrCode}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{t.admin.qrCode} — {drop.title}</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col items-center gap-4 py-4">
+                  <div className="bg-white p-4 rounded-lg">
+                    <img
+                      src={qrImageUrl}
+                      alt={`QR Code for ${drop.title}`}
+                      className="w-[300px] h-[300px]"
+                      data-testid={`img-qr-${drop.id}`}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground break-all text-center" data-testid={`text-claim-url-${drop.id}`}>
+                    {claimUrl}
+                  </p>
+                  <div className="flex gap-2 w-full">
+                    <Button
+                      variant="outline"
+                      className="flex-1 gap-2"
+                      onClick={handleCopyLink}
+                      data-testid={`button-copy-link-${drop.id}`}
+                    >
+                      <Copy className="w-4 h-4" />
+                      {t.admin.copyLink}
+                    </Button>
+                    <Button
+                      variant="default"
+                      className="flex-1 gap-2"
+                      onClick={handleDownloadQR}
+                      data-testid={`button-download-qr-${drop.id}`}
+                    >
+                      <Download className="w-4 h-4" />
+                      {t.admin.generateQR}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
