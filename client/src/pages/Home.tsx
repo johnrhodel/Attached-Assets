@@ -106,11 +106,6 @@ export default function Home() {
                 {t.landing.try_demo} <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
-            <Link href="/admin/login">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto bg-white/10 backdrop-blur-sm border-white/30 text-white" data-testid="button-admin-portal">
-                {t.landing.admin_portal} <ChevronRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
           </div>
 
           <div className="flex justify-center gap-2 mt-8 sm:mt-10">

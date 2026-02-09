@@ -14,9 +14,17 @@ let serverKeypair: StellarSdk.Keypair | null = null;
 function getServerKeypair(): StellarSdk.Keypair {
   if (serverKeypair) return serverKeypair;
 
-  const secretEnv = process.env.STELLAR_SERVER_SECRET_KEY;
-  if (secretEnv) {
-    serverKeypair = StellarSdk.Keypair.fromSecret(secretEnv);
+  const secretEnv = process.env.STELLAR_SERVER_SECRET_KEY?.trim().replace(/['"]/g, '');
+  if (secretEnv && secretEnv.length > 0) {
+    try {
+      serverKeypair = StellarSdk.Keypair.fromSecret(secretEnv);
+      console.log(`[STELLAR] Loaded persistent server keypair. Public key: ${serverKeypair.publicKey()}`);
+    } catch (err) {
+      console.error(`[STELLAR] Invalid STELLAR_SERVER_SECRET_KEY (length=${secretEnv.length}), generating new keypair...`);
+      serverKeypair = StellarSdk.Keypair.random();
+      console.log(`[STELLAR] Auto-generated server keypair. Public key: ${serverKeypair.publicKey()}`);
+      console.log(`[STELLAR] To persist, set STELLAR_SERVER_SECRET_KEY to: ${serverKeypair.secret()}`);
+    }
   } else {
     serverKeypair = StellarSdk.Keypair.random();
     console.log(`[STELLAR] Auto-generated server keypair. Public key: ${serverKeypair.publicKey()}`);

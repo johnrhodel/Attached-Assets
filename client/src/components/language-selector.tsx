@@ -22,9 +22,9 @@ export function LanguageSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" data-testid="button-language-selector">
+        <Button variant="outline" size="sm" className="bg-white/15 backdrop-blur-sm border-white/30 text-white" data-testid="button-language-selector">
           <Globe className="h-4 w-4 mr-1" />
-          <span className="hidden sm:inline">{current?.name}</span>
+          <span className="text-xs font-medium">{current?.abbr}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

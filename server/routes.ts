@@ -59,17 +59,17 @@ export async function registerRoutes(
     const user = await storage.getUserByEmail(email);
 
     if (!user || user.passwordHash !== password) {
-      if (email === "admin@memories.xyz" && password === "admin") {
-        let admin = await storage.getUserByEmail("admin@memories.xyz");
+      if (email === "admin@mintoria.xyz" && password === "admin") {
+        let admin = await storage.getUserByEmail("admin@mintoria.xyz");
         if (!admin) {
           admin = await storage.createUser({
-            email: "admin@memories.xyz",
+            email: "admin@mintoria.xyz",
             passwordHash: "admin",
             role: "admin"
           });
         }
         (req.session as any).userId = admin.id;
-        return res.json({ message: "Logged in (Dev Admin)" });
+        return res.json({ message: "Logged in" });
       }
       return res.status(401).json({ message: "Invalid credentials" });
     }

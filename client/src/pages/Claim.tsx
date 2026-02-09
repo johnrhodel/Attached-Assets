@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClaimCard } from "@/components/ClaimCard";
 import { LanguageSelector } from "@/components/language-selector";
-import { Loader2, CheckCircle2, Wallet, Mail, ArrowRight, Layers, ImageDown, ExternalLink, ChevronLeft, Sparkles } from "lucide-react";
+import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, ExternalLink, ChevronLeft, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/context";
 import { Link } from "wouter";
@@ -115,7 +115,7 @@ export default function Claim() {
     setView("success");
   };
 
-  const currentStep = view === "landing" ? 0 : view === "method" ? 1 : view === "email" ? 2 : view === "success" ? 4 : 1;
+  const currentStep = view === "landing" ? 0 : view === "method" || view === "email" ? 1 : view === "success" ? 3 : 1;
 
   return (
     <div className="min-h-screen w-full relative flex flex-col items-center overflow-hidden">
@@ -161,53 +161,15 @@ export default function Claim() {
             </motion.div>
           )}
 
-          {view === "method" && (
-            <motion.div key="method" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-              <ClaimCard title={t.claim.selectMethod}>
-                <div className="grid gap-3">
-                  <div
-                    className="flex items-center gap-3 p-4 rounded-md border border-border cursor-pointer hover-elevate relative"
-                    onClick={() => setView("email")}
-                    role="button"
-                    tabIndex={0}
-                    data-testid="button-method-email"
-                  >
-                    <div className="w-10 h-10 shrink-0 rounded-md bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                      <Mail className="w-5 h-5" />
-                    </div>
-                    <div className="text-left min-w-0 flex-1">
-                      <div className="font-semibold text-foreground text-sm">{t.claim.email}</div>
-                      <div className="text-xs text-muted-foreground">{t.claim.emailDesc}</div>
-                    </div>
-                    <div className="shrink-0 px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded-full">{t.claim.recommended}</div>
-                  </div>
-
-                  <div
-                    className="flex items-center gap-3 p-4 rounded-md border border-border cursor-pointer hover-elevate"
-                    onClick={() => setView("wallet")}
-                    role="button"
-                    tabIndex={0}
-                    data-testid="button-method-wallet"
-                  >
-                    <div className="w-10 h-10 shrink-0 rounded-md bg-purple-500/10 text-purple-600 flex items-center justify-center">
-                      <Wallet className="w-5 h-5" />
-                    </div>
-                    <div className="text-left min-w-0">
-                      <div className="font-semibold text-foreground text-sm">{t.claim.wallet}</div>
-                      <div className="text-xs text-muted-foreground">Freighter (Stellar)</div>
-                    </div>
-                  </div>
-
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => { setView("landing"); setClaimToken(null); }}
-                    data-testid="button-method-back"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    {t.common.back}
-                  </Button>
-                </div>
-              </ClaimCard>
+          {view === "method" && claimToken && (
+            <motion.div key="email-direct" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full">
+              <EmailFlow 
+                claimToken={claimToken} 
+                drop={drop} 
+                blockchainStatus={blockchainStatus}
+                onSuccess={handleMintSuccess} 
+                onBack={() => { setView("landing"); setClaimToken(null); }} 
+              />
             </motion.div>
           )}
 
@@ -218,19 +180,7 @@ export default function Claim() {
                 drop={drop} 
                 blockchainStatus={blockchainStatus}
                 onSuccess={handleMintSuccess} 
-                onBack={() => setView("method")} 
-              />
-            </motion.div>
-          )}
-
-          {view === "wallet" && claimToken && (
-            <motion.div key="wallet" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-              <WalletFlow 
-                claimToken={claimToken} 
-                drop={drop} 
-                blockchainStatus={blockchainStatus}
-                onSuccess={handleMintSuccess} 
-                onBack={() => setView("method")} 
+                onBack={() => { setView("landing"); setClaimToken(null); }} 
               />
             </motion.div>
           )}
@@ -250,9 +200,8 @@ export default function Claim() {
 function StepIndicator({ currentStep }: { currentStep: number }) {
   const { t } = useI18n();
   const steps = [
-    { num: 1, label: t.claim.stepMethod },
-    { num: 2, label: t.claim.stepVerify },
-    { num: 3, label: t.claim.stepMint },
+    { num: 1, label: t.claim.stepVerify },
+    { num: 2, label: t.claim.stepMint },
   ];
 
   return (
