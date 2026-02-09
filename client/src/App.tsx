@@ -18,6 +18,9 @@ import AdminLogin from "@/pages/admin/Login";
 import Dashboard from "@/pages/admin/Dashboard";
 import Projects from "@/pages/admin/Projects";
 import Drops from "@/pages/admin/Drops";
+import Activity from "@/pages/admin/Activity";
+import Settings from "@/pages/admin/Settings";
+import Notifications from "@/pages/admin/Notifications";
 
 // Auth Guard Wrapper
 import { useAuth } from "@/hooks/use-auth";
@@ -58,6 +61,15 @@ function Router() {
       </Route>
       <Route path="/admin/drops">
         {() => <ProtectedRoute component={Drops} />}
+      </Route>
+      <Route path="/admin/activity">
+        {() => <ProtectedRoute component={Activity} />}
+      </Route>
+      <Route path="/admin/settings">
+        {() => <ProtectedRoute component={Settings} />}
+      </Route>
+      <Route path="/admin/notifications">
+        {() => <ProtectedRoute component={Notifications} />}
       </Route>
 
       {/* Fallback */}

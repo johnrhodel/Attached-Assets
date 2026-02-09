@@ -102,6 +102,41 @@ export const walletlessKeys = pgTable("walletless_keys", {
 
 export const insertWalletlessKeySchema = createInsertSchema(walletlessKeys).omit({ id: true, createdAt: true });
 
+// === ACTIVITY LOGS ===
+export const activityLogs = pgTable("activity_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  action: text("action").notNull(),
+  entity: text("entity").notNull(),
+  entityId: integer("entity_id"),
+  details: text("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true });
+
+// === PLATFORM SETTINGS ===
+export const platformSettings = pgTable("platform_settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPlatformSettingSchema = createInsertSchema(platformSettings).omit({ id: true, updatedAt: true });
+
+// === NOTIFICATIONS ===
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  read: boolean("read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+
 // === RELATIONS ===
 export const projectsRelations = relations(projects, ({ many }) => ({
   locations: many(locations),
@@ -133,6 +168,9 @@ export type ClaimSession = typeof claimSessions.$inferSelect;
 export type Mint = typeof mints.$inferSelect;
 export type WalletlessUser = typeof walletlessUsers.$inferSelect;
 export type WalletlessKey = typeof walletlessKeys.$inferSelect;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type PlatformSetting = typeof platformSettings.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -142,3 +180,6 @@ export type InsertClaimSession = z.infer<typeof insertClaimSessionSchema>;
 export type InsertMint = z.infer<typeof insertMintSchema>;
 export type InsertWalletlessUser = z.infer<typeof insertWalletlessUserSchema>;
 export type InsertWalletlessKey = z.infer<typeof insertWalletlessKeySchema>;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+export type InsertPlatformSetting = z.infer<typeof insertPlatformSettingSchema>;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;

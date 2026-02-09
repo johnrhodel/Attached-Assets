@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, MapPin, Layers, LogOut, Menu } from "lucide-react";
+import { LayoutDashboard, MapPin, Layers, LogOut, Menu, Settings, ClipboardList, Bell } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/language-selector";
@@ -11,6 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useState } from "react";
+import mintoriaLogo from "@assets/johnrhodel_create_a_logo_for_my_entreprise_called_mintoria_a___1770674059629.png";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -22,11 +23,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/dashboard", label: t.nav.dashboard, icon: LayoutDashboard },
     { href: "/admin/projects", label: t.nav.projects, icon: MapPin },
     { href: "/admin/drops", label: t.nav.drops, icon: Layers },
+    { href: "/admin/activity", label: t.nav.activity || "Activity", icon: ClipboardList },
+    { href: "/admin/notifications", label: t.nav.notifications || "Notifications", icon: Bell },
+    { href: "/admin/settings", label: t.nav.settings || "Settings", icon: Settings },
   ];
 
   const NavContent = () => (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-8">
+      <div className="px-6 py-6 flex items-center gap-3">
+        <img src={mintoriaLogo} alt="Mintoria" className="w-10 h-10 rounded-lg" />
         <h1 className="text-2xl font-serif font-bold text-primary">Mintoria</h1>
       </div>
       <nav className="flex-1 px-4 space-y-2">
@@ -72,7 +77,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="lg:hidden h-16 border-b border-border bg-card flex items-center px-4 justify-between">
-          <span className="font-serif font-bold text-primary text-xl">Mintoria</span>
+          <div className="flex items-center gap-2">
+            <img src={mintoriaLogo} alt="Mintoria" className="w-8 h-8 rounded-lg" />
+            <span className="font-serif font-bold text-primary text-xl">Mintoria</span>
+          </div>
           <div className="flex items-center gap-2">
             <LanguageSelector />
             <Sheet open={open} onOpenChange={setOpen}>

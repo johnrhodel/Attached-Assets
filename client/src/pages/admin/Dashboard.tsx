@@ -3,12 +3,13 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Users, Box, MapPin, Layers, Copy, Check, Search, ShieldCheck } from "lucide-react";
+import { Activity, Users, Box, MapPin, Layers, Copy, Check, Search, ShieldCheck, Download, Clock, ArrowUpDown, Zap } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useI18n } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface AdminStats {
   totalMints: number;
@@ -43,6 +44,28 @@ interface BlockchainStatus {
     network: string;
     healthy: boolean;
   };
+}
+
+interface StellarDetailed {
+  serverPublicKey: string;
+  balance: string;
+  network: string;
+  healthy: boolean;
+  totalTransactions: number;
+  lastTransaction: string | null;
+  lastTxHash: string | null;
+  uptimeMs: number;
+}
+
+function formatUptime(ms: number): string {
+  const secs = Math.floor(ms / 1000);
+  const mins = Math.floor(secs / 60);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${mins % 60}m`;
+  if (mins > 0) return `${mins}m`;
+  return `${secs}s`;
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -92,9 +115,35 @@ export default function Dashboard() {
     queryKey: ["/api/admin/stats"],
   });
 
+  const { toast } = useToast();
+
   const { data: blockchainStatus } = useQuery<BlockchainStatus>({
     queryKey: ["/api/blockchain/status"],
   });
+
+  const { data: stellarDetailed } = useQuery<StellarDetailed>({
+    queryKey: ["/api/admin/stellar/detailed"],
+    refetchInterval: 30000,
+  });
+
+  const handleExportCsv = async (type: "mints" | "users") => {
+    try {
+      const res = await fetch(`/api/admin/export/${type}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${type}-export.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: t.admin.exportCsv });
+    } catch {
+      toast({ title: t.common.error, variant: "destructive" });
+    }
+  };
 
   const monthlyData = stats?.mintsByMonth
     ? Object.entries(stats.mintsByMonth)
@@ -169,11 +218,23 @@ export default function Dashboard() {
   return (
     <AdminLayout>
       <div className="space-y-8" data-testid="dashboard-content">
-        <div>
-          <h2 className="text-3xl font-serif font-bold text-foreground" data-testid="text-dashboard-title">
-            {t.nav.dashboard}
-          </h2>
-          <p className="text-muted-foreground mt-2">{t.admin.welcome}</p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-3xl font-serif font-bold text-foreground" data-testid="text-dashboard-title">
+              {t.nav.dashboard}
+            </h2>
+            <p className="text-muted-foreground mt-2">{t.admin.welcome}</p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => handleExportCsv("mints")} data-testid="button-export-mints">
+              <Download className="w-4 h-4" />
+              {t.admin.exportMints}
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => handleExportCsv("users")} data-testid="button-export-users">
+              <Download className="w-4 h-4" />
+              {t.admin.exportUsers}
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -198,21 +259,26 @@ export default function Dashboard() {
           <Card className="shadow-sm" data-testid="card-stellar-status">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle>{t.admin.stellarStatus}</CardTitle>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`h-3 w-3 rounded-full ${stellar.healthy ? "bg-green-500" : "bg-red-500"}`}
-                  data-testid="indicator-stellar-health"
-                />
-                <span className="text-sm text-muted-foreground" data-testid="text-stellar-health">
-                  {stellar.healthy ? t.admin.healthy : t.admin.unhealthy}
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`h-3 w-3 rounded-full ${stellar.healthy ? "bg-green-500" : "bg-red-500"}`}
+                    data-testid="indicator-stellar-health"
+                  />
+                  <span className="text-sm text-muted-foreground" data-testid="text-stellar-health">
+                    {stellar.healthy ? t.admin.healthy : t.admin.unhealthy}
+                  </span>
+                </div>
+                <Badge variant="secondary" data-testid="badge-stellar-network">
+                  {stellar.network}
+                </Badge>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">{t.admin.serverAddress}</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <span className="text-sm font-mono font-medium" data-testid="text-stellar-address">
                       {truncateStellarAddress(stellar.serverPublicKey)}
                     </span>
@@ -224,9 +290,6 @@ export default function Dashboard() {
                     >
                       {copiedAddress ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
-                    {copiedAddress && (
-                      <span className="text-xs text-green-500" data-testid="text-copied">{t.admin.copied}</span>
-                    )}
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -236,10 +299,28 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{t.admin.network}</p>
-                  <Badge variant="secondary" data-testid="badge-stellar-network">
-                    {stellar.network}
-                  </Badge>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> {t.admin.uptime}</p>
+                  <p className="text-sm font-medium" data-testid="text-stellar-uptime">
+                    {stellarDetailed ? formatUptime(stellarDetailed.uptimeMs) : "—"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1"><Zap className="w-3 h-3" /> {t.admin.transactionsTotal}</p>
+                  <p className="text-sm font-medium" data-testid="text-stellar-txcount">
+                    {stellarDetailed?.totalTransactions ?? 0}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1"><ArrowUpDown className="w-3 h-3" /> {t.admin.lastTransaction}</p>
+                  <p className="text-sm font-medium" data-testid="text-stellar-lasttx">
+                    {stellarDetailed?.lastTransaction ? formatRelativeTime(stellarDetailed.lastTransaction) : t.admin.never}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1"><ArrowUpDown className="w-3 h-3" /> {t.admin.volumeXlm}</p>
+                  <p className="text-sm font-medium" data-testid="text-stellar-volume">
+                    ~{((stellarDetailed?.totalTransactions ?? 0) * 0.00001).toFixed(5)} XLM
+                  </p>
                 </div>
               </div>
             </CardContent>

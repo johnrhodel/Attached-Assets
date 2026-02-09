@@ -10,11 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Calendar, Zap, QrCode, Copy, Download, Pencil, Trash2, Upload, Image, Link2 } from "lucide-react";
+import { Loader2, Calendar, Zap, QrCode, Copy, Download, Pencil, Trash2, Upload, Image, Link2, CopyPlus, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useI18n } from "@/lib/i18n/context";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 function ImageUploadField({
   value,
@@ -364,6 +364,23 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
     }
   };
 
+  const handleDownloadSVG = async () => {
+    try {
+      const response = await fetch(`/api/qr/${locationId}?format=svg`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `qr-claim-${locationId}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: t.common.error, variant: "destructive" });
+    }
+  };
+
   return (
     <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 border-border/60" data-testid={`card-drop-${drop.id}`}>
       <div className="aspect-video bg-accent relative overflow-hidden">
@@ -381,6 +398,22 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-lg">{drop.title}</CardTitle>
         <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={async () => {
+              try {
+                await apiRequest("POST", `/api/admin/drops/${drop.id}/duplicate`);
+                queryClient.invalidateQueries({ queryKey: ['/api/drops', locationId] });
+                toast({ title: t.admin.duplicateDrop });
+              } catch {
+                toast({ title: t.common.error, variant: "destructive" });
+              }
+            }}
+            data-testid={`button-duplicate-drop-${drop.id}`}
+          >
+            <CopyPlus className="w-4 h-4" />
+          </Button>
           <EditDropDialog drop={drop} locationId={locationId} />
           <DeleteDropDialog drop={drop} locationId={locationId} />
         </div>
@@ -393,6 +426,54 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
           <span className="text-muted-foreground">{t.admin.supply}:</span>
           <span className="font-mono font-medium">{drop.mintedCount} / {drop.supply}</span>
         </div>
+        {drop.status === 'published' && (
+          <div className="mb-4 p-3 bg-accent/50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="bg-white p-2 rounded-md flex-shrink-0">
+                <img
+                  src={qrImageUrl}
+                  alt="QR Code"
+                  className="w-16 h-16"
+                  data-testid={`img-qr-preview-${drop.id}`}
+                />
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <p className="text-xs text-muted-foreground truncate">{claimUrl}</p>
+                <div className="flex gap-1 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    onClick={handleDownloadQR}
+                    data-testid={`button-download-png-${drop.id}`}
+                  >
+                    <Download className="w-3 h-3" />
+                    PNG
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    onClick={handleDownloadSVG}
+                    data-testid={`button-download-svg-${drop.id}`}
+                  >
+                    <Download className="w-3 h-3" />
+                    SVG
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    onClick={handleCopyLink}
+                    data-testid={`button-copy-link-inline-${drop.id}`}
+                  >
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex gap-2">
           {drop.status === 'draft' && (
             <Button 
@@ -451,6 +532,16 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
               </DialogContent>
             </Dialog>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1"
+            onClick={() => window.open(`/claim/${locationId}`, '_blank')}
+            data-testid={`button-preview-claim-${drop.id}`}
+          >
+            <ExternalLink className="w-4 h-4" />
+            {t.admin.previewClaim}
+          </Button>
         </div>
       </CardContent>
     </Card>

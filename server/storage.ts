@@ -1,8 +1,11 @@
 import { 
   users, projects, locations, drops, claimSessions, mints, walletlessUsers, walletlessKeys,
+  activityLogs, platformSettings, notifications,
   type User, type Project, type Location, type Drop, type ClaimSession, type Mint, type WalletlessUser, type WalletlessKey,
+  type ActivityLog, type PlatformSetting, type Notification,
   type InsertUser, type InsertProject, type InsertLocation, type InsertDrop, type InsertClaimSession, type InsertMint,
   type InsertWalletlessUser, type InsertWalletlessKey,
+  type InsertActivityLog, type InsertPlatformSetting, type InsertNotification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -60,6 +63,22 @@ export interface IStorage {
   markWalletlessUserVerified(userId: number): Promise<void>;
   getWalletlessKey(userId: number, chain: string): Promise<WalletlessKey | undefined>;
   createWalletlessKey(key: InsertWalletlessKey): Promise<WalletlessKey>;
+
+  // Activity Logs
+  createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
+  getActivityLogs(limit?: number): Promise<Array<ActivityLog & { userEmail?: string }>>;
+
+  // Platform Settings
+  getSetting(key: string): Promise<string | undefined>;
+  setSetting(key: string, value: string): Promise<void>;
+  getAllSettings(): Promise<PlatformSetting[]>;
+
+  // Notifications
+  createNotification(n: InsertNotification): Promise<Notification>;
+  getNotifications(limit?: number): Promise<Notification[]>;
+  markNotificationRead(id: number): Promise<void>;
+  markAllNotificationsRead(): Promise<void>;
+  getUnreadNotificationCount(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -274,6 +293,64 @@ export class DatabaseStorage implements IStorage {
   async createWalletlessKey(item: InsertWalletlessKey): Promise<WalletlessKey> {
     const [key] = await db.insert(walletlessKeys).values(item).returning();
     return key;
+  }
+
+  // Activity Logs
+  async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
+    const [entry] = await db.insert(activityLogs).values(log).returning();
+    return entry;
+  }
+  async getActivityLogs(limit = 100): Promise<Array<ActivityLog & { userEmail?: string }>> {
+    const results = await db.select({
+      id: activityLogs.id,
+      userId: activityLogs.userId,
+      action: activityLogs.action,
+      entity: activityLogs.entity,
+      entityId: activityLogs.entityId,
+      details: activityLogs.details,
+      createdAt: activityLogs.createdAt,
+      userEmail: users.email,
+    }).from(activityLogs)
+      .leftJoin(users, eq(activityLogs.userId, users.id))
+      .orderBy(desc(activityLogs.createdAt))
+      .limit(limit);
+    return results.map(r => ({ ...r, userEmail: r.userEmail ?? undefined }));
+  }
+
+  // Platform Settings
+  async getSetting(key: string): Promise<string | undefined> {
+    const [s] = await db.select().from(platformSettings).where(eq(platformSettings.key, key));
+    return s?.value;
+  }
+  async setSetting(key: string, value: string): Promise<void> {
+    const existing = await this.getSetting(key);
+    if (existing !== undefined) {
+      await db.update(platformSettings).set({ value, updatedAt: new Date() }).where(eq(platformSettings.key, key));
+    } else {
+      await db.insert(platformSettings).values({ key, value });
+    }
+  }
+  async getAllSettings(): Promise<PlatformSetting[]> {
+    return db.select().from(platformSettings);
+  }
+
+  // Notifications
+  async createNotification(n: InsertNotification): Promise<Notification> {
+    const [notif] = await db.insert(notifications).values(n).returning();
+    return notif;
+  }
+  async getNotifications(limit = 50): Promise<Notification[]> {
+    return db.select().from(notifications).orderBy(desc(notifications.createdAt)).limit(limit);
+  }
+  async markNotificationRead(id: number): Promise<void> {
+    await db.update(notifications).set({ read: true }).where(eq(notifications.id, id));
+  }
+  async markAllNotificationsRead(): Promise<void> {
+    await db.update(notifications).set({ read: true }).where(eq(notifications.read, false));
+  }
+  async getUnreadNotificationCount(): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(notifications).where(eq(notifications.read, false));
+    return Number(result?.count ?? 0);
   }
 }
 

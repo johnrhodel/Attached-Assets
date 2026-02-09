@@ -209,6 +209,15 @@ export function getServerPublicKey(): string {
   return getServerKeypair().publicKey();
 }
 
+export function getChainStatus() {
+  return {
+    network: STELLAR_NETWORK,
+    horizonUrl: STELLAR_HORIZON_URL,
+    serverPublicKey: getServerPublicKey(),
+    healthy: true,
+  };
+}
+
 export function getStellarExplorerUrl(txHash: string): string {
   const base = STELLAR_NETWORK === "mainnet"
     ? "https://stellar.expert/explorer/public"

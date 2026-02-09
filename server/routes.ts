@@ -51,6 +51,8 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  (global as any).__serverStartTime = Date.now();
+
   app.use(session({
     cookie: { maxAge: 86400000 },
     store: new SessionStore({ checkPeriod: 86400000 }),
@@ -144,7 +146,11 @@ export async function registerRoutes(
   });
 
   app.post(api.projects.create.path, async (req, res) => {
+    const userId = (req.session as any).userId;
     const project = await storage.createProject(req.body);
+    if (userId) {
+      await storage.createActivityLog({ userId, action: "create", entity: "project", entityId: project.id, details: `Created project "${project.name}"` });
+    }
     res.status(201).json(project);
   });
 
@@ -154,10 +160,14 @@ export async function registerRoutes(
   });
 
   app.post(api.locations.create.path, async (req, res) => {
+    const userId = (req.session as any).userId;
     const location = await storage.createLocation({
       ...req.body,
       projectId: Number(req.params.projectId)
     });
+    if (userId) {
+      await storage.createActivityLog({ userId, action: "create", entity: "location", entityId: location.id, details: `Created location "${location.name}"` });
+    }
     res.status(201).json(location);
   });
 
@@ -173,10 +183,14 @@ export async function registerRoutes(
   });
 
   app.post(api.drops.create.path, async (req, res) => {
+    const userId = (req.session as any).userId;
     const drop = await storage.createDrop({
       ...req.body,
       locationId: Number(req.params.locationId)
     });
+    if (userId) {
+      await storage.createActivityLog({ userId, action: "create", entity: "drop", entityId: drop.id, details: `Created drop "${drop.title}"` });
+    }
     res.status(201).json(drop);
   });
 
@@ -190,6 +204,7 @@ export async function registerRoutes(
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const project = await storage.updateProject(Number(req.params.id), req.body);
+    await storage.createActivityLog({ userId, action: "update", entity: "project", entityId: project.id, details: `Updated project "${project.name}"` });
     res.json(project);
   });
 
@@ -197,6 +212,7 @@ export async function registerRoutes(
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.deleteProject(Number(req.params.id));
+    await storage.createActivityLog({ userId, action: "delete", entity: "project", entityId: Number(req.params.id), details: `Deleted project #${req.params.id}` });
     res.json({ message: "Project deleted" });
   });
 
@@ -204,6 +220,7 @@ export async function registerRoutes(
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.updateLocation(Number(req.params.id), req.body);
+    await storage.createActivityLog({ userId, action: "update", entity: "location", entityId: Number(req.params.id), details: `Updated location #${req.params.id}` });
     res.json({ message: "Location updated" });
   });
 
@@ -211,6 +228,7 @@ export async function registerRoutes(
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.deleteLocation(Number(req.params.id));
+    await storage.createActivityLog({ userId, action: "delete", entity: "location", entityId: Number(req.params.id), details: `Deleted location #${req.params.id}` });
     res.json({ message: "Location deleted" });
   });
 
@@ -218,6 +236,7 @@ export async function registerRoutes(
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.updateDrop(Number(req.params.id), req.body);
+    await storage.createActivityLog({ userId, action: "update", entity: "drop", entityId: Number(req.params.id), details: `Updated drop #${req.params.id}` });
     res.json({ message: "Drop updated" });
   });
 
@@ -225,6 +244,7 @@ export async function registerRoutes(
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.deleteDrop(Number(req.params.id));
+    await storage.createActivityLog({ userId, action: "delete", entity: "drop", entityId: Number(req.params.id), details: `Deleted drop #${req.params.id}` });
     res.json({ message: "Drop deleted" });
   });
 
@@ -303,13 +323,16 @@ export async function registerRoutes(
       await storage.markSessionConsumed(session.id);
       await storage.incrementMintCount(session.dropId);
 
-      await storage.createMint({
+      const mint = await storage.createMint({
         dropId: session.dropId,
         chain: "stellar",
         recipient: recipient || stellarService.getServerPublicKey(),
         txHash: result.txHash,
         status: "confirmed",
       });
+
+      await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: mint.dropId, details: `NFT minted on ${mint.chain} to ${mint.recipient}` });
+      await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${mint.recipient} on ${mint.chain}` });
 
       res.json({
         xdr: result.txHash,
@@ -345,6 +368,9 @@ export async function registerRoutes(
       txHash,
       status: "confirmed"
     });
+
+    await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: mint.dropId, details: `NFT minted on ${mint.chain} to ${mint.recipient}` });
+    await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${mint.recipient} on ${mint.chain}` });
 
     res.json(mint);
   });
@@ -468,6 +494,9 @@ export async function registerRoutes(
         txHash,
         status: "confirmed"
       });
+
+      await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: mint.dropId, details: `NFT minted on ${mint.chain} to ${mint.recipient}` });
+      await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${mint.recipient} on ${mint.chain}` });
 
       const explorerUrl = stellarService.getStellarExplorerUrl(txHash);
 
@@ -632,6 +661,154 @@ export async function registerRoutes(
         res.setHeader("Content-Type", "image/png");
         res.send(png);
       }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // === ACTIVITY LOGS ===
+  app.get("/api/admin/activity", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const logs = await storage.getActivityLogs(200);
+    res.json(logs);
+  });
+
+  // === PLATFORM SETTINGS ===
+  app.get("/api/admin/settings", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const settings = await storage.getAllSettings();
+    const settingsMap: Record<string, string> = {};
+    settings.forEach(s => { settingsMap[s.key] = s.value; });
+    res.json(settingsMap);
+  });
+
+  app.put("/api/admin/settings", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const entries = req.body as Record<string, string>;
+    for (const [key, value] of Object.entries(entries)) {
+      await storage.setSetting(key, value);
+    }
+    await storage.createActivityLog({
+      userId,
+      action: "update",
+      entity: "settings",
+      details: `Updated settings: ${Object.keys(entries).join(", ")}`,
+    });
+    res.json({ success: true });
+  });
+
+  // === NOTIFICATIONS ===
+  app.get("/api/admin/notifications", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const notifs = await storage.getNotifications(50);
+    const unread = await storage.getUnreadNotificationCount();
+    res.json({ notifications: notifs, unreadCount: unread });
+  });
+
+  app.post("/api/admin/notifications/read-all", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    await storage.markAllNotificationsRead();
+    res.json({ success: true });
+  });
+
+  app.post("/api/admin/notifications/:id/read", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    await storage.markNotificationRead(Number(req.params.id));
+    res.json({ success: true });
+  });
+
+  // === CSV EXPORT ===
+  app.get("/api/admin/export/mints", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const allMints = await storage.getAllMints();
+    const drops_list = await storage.getAllDrops();
+    const dropsMap = new Map(drops_list.map(d => [d.id, d.title]));
+
+    let csv = "ID,Drop,Chain,Recipient,TX Hash,Status,Date\n";
+    allMints.forEach(m => {
+      csv += `${m.id},"${dropsMap.get(m.dropId) || m.dropId}",${m.chain},"${m.recipient}","${m.txHash || ''}",${m.status},${m.createdAt}\n`;
+    });
+
+    await storage.createActivityLog({ userId, action: "export", entity: "mints", details: `Exported ${allMints.length} mints to CSV` });
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=mints-export.csv");
+    res.send(csv);
+  });
+
+  app.get("/api/admin/export/users", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const { db: database } = await import("./db");
+    const { walletlessUsers: wuTable } = await import("@shared/schema");
+    const allUsers = await database.select().from(wuTable);
+
+    let csv = "ID,Email,Verified,Created\n";
+    allUsers.forEach(u => {
+      csv += `${u.id},"${u.email}",${u.verifiedAt ? 'Yes' : 'No'},${u.createdAt}\n`;
+    });
+
+    await storage.createActivityLog({ userId, action: "export", entity: "users", details: `Exported ${allUsers.length} users to CSV` });
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=users-export.csv");
+    res.send(csv);
+  });
+
+  // === DUPLICATE DROP ===
+  app.post("/api/admin/drops/:id/duplicate", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const drop = await storage.getDrop(Number(req.params.id));
+    if (!drop) return res.status(404).json({ message: "Drop not found" });
+    const newDrop = await storage.createDrop({
+      locationId: drop.locationId,
+      title: `${drop.title} (Copy)`,
+      month: drop.month,
+      year: drop.year,
+      imageUrl: drop.imageUrl,
+      metadataUrl: drop.metadataUrl,
+      supply: drop.supply,
+      status: "draft",
+      enabledChains: drop.enabledChains,
+    });
+    await storage.createActivityLog({
+      userId,
+      action: "duplicate",
+      entity: "drop",
+      entityId: newDrop.id,
+      details: `Duplicated drop "${drop.title}" as "${newDrop.title}"`,
+    });
+    res.json(newDrop);
+  });
+
+  // === ENHANCED STELLAR STATUS ===
+  app.get("/api/admin/stellar/detailed", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const status = stellarService.getChainStatus();
+      const allMints = await storage.getAllMints();
+      const stellarMints = allMints.filter(m => m.chain === "stellar");
+      const lastMint = stellarMints.length > 0 
+        ? stellarMints.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+        : null;
+
+      const serverStartTime = (global as any).__serverStartTime || Date.now();
+      const uptimeMs = Date.now() - serverStartTime;
+
+      res.json({
+        ...status,
+        totalTransactions: stellarMints.length,
+        lastTransaction: lastMint ? lastMint.createdAt : null,
+        lastTxHash: lastMint ? lastMint.txHash : null,
+        uptimeMs,
+      });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
