@@ -2,9 +2,9 @@
 
 ## Overview
 
-Mintoria is a plug-and-play platform for minting commemorative NFTs when visitors arrive at tourist locations or events. Visitors claim NFTs quickly via QR code on mobile devices. The platform supports multiple blockchain ecosystems (EVM, Solana, Stellar) and provides admin capabilities for creating monthly "drops" at various locations.
+Mintoria is a plug-and-play platform for minting commemorative NFTs when visitors arrive at tourist locations or events. Visitors claim NFTs quickly via QR code on mobile devices. The platform uses Stellar blockchain exclusively and provides admin capabilities for creating monthly "drops" at various locations.
 
-The application supports internationalization with English, Spanish, and Portuguese languages. It offers both wallet-based and walletless (email-based custodial) minting flows, plus embeddable widget integration for third-party sites. It is a PWA that can be installed on mobile devices.
+The application supports internationalization with English, Spanish, and Portuguese languages. It offers email-based custodial minting (no crypto wallet required), plus embeddable widget integration for third-party sites. It is a PWA that can be installed on mobile devices.
 
 ## User Preferences
 
@@ -50,7 +50,7 @@ Key entities: Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, 
 
 ### Authentication & Authorization
 - Cookie-based session authentication for admin users
-- Default admin credentials: admin@memories.xyz / admin (auto-created in dev mode)
+- Default admin credentials: admin@mintoria.xyz / admin (auto-created in dev mode)
 - Claim sessions use cryptographically hashed tokens for one-time NFT minting
 - Walletless flow uses encrypted custodial keys (AES-256-CBC) with email verification codes
 

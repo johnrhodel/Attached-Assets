@@ -1,5 +1,7 @@
 import * as StellarSdk from "stellar-sdk";
 import { createHash } from "crypto";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { join } from "path";
 
 const STELLAR_NETWORK = process.env.STELLAR_NETWORK || "testnet";
 const STELLAR_RPC_URL = process.env.STELLAR_RPC_URL || "https://soroban-testnet.stellar.org";
@@ -9,26 +11,49 @@ const STELLAR_NETWORK_PASSPHRASE =
     ? StellarSdk.Networks.PUBLIC
     : StellarSdk.Networks.TESTNET;
 
+const KEYPAIR_FILE = join(process.cwd(), '.stellar-server-key');
+
 let serverKeypair: StellarSdk.Keypair | null = null;
+
+function tryLoadSecret(secret: string): StellarSdk.Keypair | null {
+  const cleaned = secret.trim().replace(/[^A-Z0-9]/gi, '');
+  if (cleaned.length !== 56) return null;
+  try {
+    return StellarSdk.Keypair.fromSecret(cleaned);
+  } catch {
+    return null;
+  }
+}
 
 function getServerKeypair(): StellarSdk.Keypair {
   if (serverKeypair) return serverKeypair;
 
-  const secretEnv = process.env.STELLAR_SERVER_SECRET_KEY?.trim().replace(/['"]/g, '');
-  if (secretEnv && secretEnv.length > 0) {
+  const envSecret = process.env.STELLAR_SERVER_SECRET_KEY || '';
+  const envKp = tryLoadSecret(envSecret);
+  if (envKp) {
+    serverKeypair = envKp;
+    console.log(`[STELLAR] Loaded persistent server keypair from env. Public key: ${serverKeypair.publicKey()}`);
+    return serverKeypair;
+  }
+
+  if (existsSync(KEYPAIR_FILE)) {
     try {
-      serverKeypair = StellarSdk.Keypair.fromSecret(secretEnv);
-      console.log(`[STELLAR] Loaded persistent server keypair. Public key: ${serverKeypair.publicKey()}`);
-    } catch (err) {
-      console.error(`[STELLAR] Invalid STELLAR_SERVER_SECRET_KEY (length=${secretEnv.length}), generating new keypair...`);
-      serverKeypair = StellarSdk.Keypair.random();
-      console.log(`[STELLAR] Auto-generated server keypair. Public key: ${serverKeypair.publicKey()}`);
-      console.log(`[STELLAR] To persist, set STELLAR_SERVER_SECRET_KEY to: ${serverKeypair.secret()}`);
-    }
-  } else {
-    serverKeypair = StellarSdk.Keypair.random();
-    console.log(`[STELLAR] Auto-generated server keypair. Public key: ${serverKeypair.publicKey()}`);
-    console.log(`[STELLAR] Set STELLAR_SERVER_SECRET_KEY env var to persist this keypair across restarts.`);
+      const fileSecret = readFileSync(KEYPAIR_FILE, 'utf-8');
+      const fileKp = tryLoadSecret(fileSecret);
+      if (fileKp) {
+        serverKeypair = fileKp;
+        console.log(`[STELLAR] Loaded persistent server keypair from file. Public key: ${serverKeypair.publicKey()}`);
+        return serverKeypair;
+      }
+    } catch {}
+  }
+
+  serverKeypair = StellarSdk.Keypair.random();
+  try {
+    writeFileSync(KEYPAIR_FILE, serverKeypair.secret(), 'utf-8');
+    console.log(`[STELLAR] Generated and saved new server keypair. Public key: ${serverKeypair.publicKey()}`);
+  } catch {
+    console.log(`[STELLAR] Generated server keypair (not persisted). Public key: ${serverKeypair.publicKey()}`);
   }
 
   return serverKeypair;

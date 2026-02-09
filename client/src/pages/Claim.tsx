@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { useActiveDrop } from "@/hooks/use-drops";
-import { useCreateClaimSession, useWalletless, useConfirmMint } from "@/hooks/use-claim";
+import { useCreateClaimSession, useWalletless } from "@/hooks/use-claim";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,7 @@ function ConfettiEffect() {
   );
 }
 
-type ClaimView = "landing" | "method" | "wallet" | "email" | "success";
+type ClaimView = "landing" | "email" | "success";
 
 interface MintResult {
   txHash: string;
@@ -104,7 +104,7 @@ export default function Claim() {
     try {
       const session = await createSession(locationId);
       setClaimToken(session.token);
-      setView("method");
+      setView("email");
     } catch (e) {
       // Error handled by query hook toast
     }
@@ -115,7 +115,7 @@ export default function Claim() {
     setView("success");
   };
 
-  const currentStep = view === "landing" ? 0 : view === "method" || view === "email" ? 1 : view === "success" ? 3 : 1;
+  const currentStep = view === "landing" ? 0 : view === "email" ? 1 : view === "success" ? 3 : 1;
 
   return (
     <div className="min-h-screen w-full relative flex flex-col items-center overflow-hidden">
@@ -158,18 +158,6 @@ export default function Claim() {
                   </Button>
                 </div>
               </ClaimCard>
-            </motion.div>
-          )}
-
-          {view === "method" && claimToken && (
-            <motion.div key="email-direct" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full">
-              <EmailFlow 
-                claimToken={claimToken} 
-                drop={drop} 
-                blockchainStatus={blockchainStatus}
-                onSuccess={handleMintSuccess} 
-                onBack={() => { setView("landing"); setClaimToken(null); }} 
-              />
             </motion.div>
           )}
 
@@ -444,64 +432,3 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
   );
 }
 
-function WalletFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult) => void; onBack: () => void }) {
-  const { t } = useI18n();
-  const { mutate, isPending } = useConfirmMint();
-  const [isMinting, setIsMinting] = useState(false);
-  
-  const handleMint = () => {
-    setIsMinting(true);
-    setTimeout(() => {
-      mutate(
-        { claimToken, txHash: `0x${Date.now().toString(16)}`, chain: "stellar" },
-        {
-          onSuccess: (data: any) => {
-            onSuccess({
-              txHash: data.txHash || `0x${Date.now().toString(16)}`,
-              address: data.recipient || "wallet-connected",
-              chain: "stellar",
-            });
-          },
-          onError: () => { setIsMinting(false); onBack(); }
-        }
-      );
-    }, 1500);
-  };
-
-  if (isMinting) {
-    return <MintingAnimation dropTitle={drop.title} />;
-  }
-
-  const stellarHealthy = blockchainStatus?.stellar?.healthy ?? false;
-
-  return (
-    <ClaimCard title={t.claim.wallet}>
-      <div className="grid gap-3">
-        <div
-          className={`flex items-center justify-between gap-3 p-4 rounded-md border border-border ${stellarHealthy ? 'cursor-pointer hover-elevate' : 'opacity-40 cursor-not-allowed'}`}
-          onClick={() => stellarHealthy && !isPending && handleMint()}
-          role="button"
-          tabIndex={stellarHealthy ? 0 : -1}
-          data-testid="button-chain-stellar"
-        >
-          <span className="flex items-center gap-2">
-            <div className={`w-3 h-3 ${stellarHealthy ? 'bg-foreground' : 'bg-muted-foreground'} rounded-full`}/>
-            <span className="text-sm font-medium">{t.chains.stellar}</span>
-          </span>
-          <div className="flex items-center gap-2">
-            {stellarHealthy && (
-              <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded-full">{t.claim.recommended}</span>
-            )}
-            {!stellarHealthy && (
-              <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full">Offline</span>
-            )}
-            {isPending && <Loader2 className="animate-spin w-4 h-4 text-muted-foreground" />}
-          </div>
-        </div>
-        <Button variant="ghost" className="mt-1" onClick={onBack} data-testid="button-wallet-back">
-          <ChevronLeft className="w-4 h-4 mr-1" />{t.common.back}
-        </Button>
-      </div>
-    </ClaimCard>
-  );
-}
