@@ -1,4 +1,5 @@
 import * as StellarSdk from "stellar-sdk";
+import { createHash } from "crypto";
 
 const STELLAR_NETWORK = process.env.STELLAR_NETWORK || "testnet";
 const STELLAR_RPC_URL = process.env.STELLAR_RPC_URL || "https://soroban-testnet.stellar.org";
@@ -82,25 +83,23 @@ export async function mintNFT(params: {
   try {
     const account = await server.loadAccount(kp.publicKey());
 
+    const nftId = createHash('sha256').update(`${params.name}:${params.recipientAddress}:${Date.now()}`).digest('hex').slice(0, 16);
+    const ownerShort = params.recipientAddress.slice(0, 56);
+
     const transaction = new StellarSdk.TransactionBuilder(account, {
       fee: StellarSdk.BASE_FEE,
       networkPassphrase: STELLAR_NETWORK_PASSPHRASE,
     })
       .addOperation(
         StellarSdk.Operation.manageData({
-          name: `nft:${params.name}`,
-          value: JSON.stringify({
-            name: params.name,
-            uri: params.uri,
-            owner: params.recipientAddress,
-            timestamp: Date.now(),
-          }),
+          name: `nft:${nftId}`,
+          value: ownerShort,
         })
       )
       .addOperation(
         StellarSdk.Operation.manageData({
-          name: `nft_owner:${params.name}`,
-          value: params.recipientAddress,
+          name: `nft_name:${nftId}`,
+          value: params.name.slice(0, 64),
         })
       )
       .setTimeout(30)
@@ -143,19 +142,23 @@ export function buildMintXDR(params: {
 
   const account = new StellarSdk.Account(kp.publicKey(), "0");
 
+  const nftId = createHash('sha256').update(`${params.name}:${params.recipientAddress}:${Date.now()}`).digest('hex').slice(0, 16);
+  const ownerShort = params.recipientAddress.slice(0, 56);
+
   const transaction = new StellarSdk.TransactionBuilder(account, {
     fee: StellarSdk.BASE_FEE,
     networkPassphrase: STELLAR_NETWORK_PASSPHRASE,
   })
     .addOperation(
       StellarSdk.Operation.manageData({
-        name: `nft:${params.name}`,
-        value: JSON.stringify({
-          name: params.name,
-          uri: params.uri,
-          owner: params.recipientAddress,
-          timestamp: Date.now(),
-        }),
+        name: `nft:${nftId}`,
+        value: ownerShort,
+      })
+    )
+    .addOperation(
+      StellarSdk.Operation.manageData({
+        name: `nft_name:${nftId}`,
+        value: params.name.slice(0, 64),
       })
     )
     .setTimeout(300)

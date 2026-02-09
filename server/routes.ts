@@ -487,7 +487,7 @@ export async function registerRoutes(
     await storage.markSessionConsumed(session.id);
     await storage.incrementMintCount(session.dropId);
 
-    await storage.createMint({
+    const mint = await storage.createMint({
       dropId: session.dropId,
       chain: usedChain,
       recipient: recipientAddress,
@@ -499,6 +499,8 @@ export async function registerRoutes(
       usedChain === "solana" ? solanaService.getSolanaExplorerUrl(txHash)
       : usedChain === "evm" ? evmService.getEvmExplorerUrl(txHash)
       : stellarService.getStellarExplorerUrl(txHash);
+
+    console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: ${usedChain} | Email: ${email} | Recipient: ${recipientAddress} | TxHash: ${txHash} | MintID: ${mint?.id || 'unknown'} | Explorer: ${explorerUrl || 'N/A'}`);
 
     sendMintConfirmationEmail(email, {
       dropTitle: drop.title,

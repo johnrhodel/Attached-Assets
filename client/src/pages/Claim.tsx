@@ -61,7 +61,7 @@ function ConfettiEffect() {
   );
 }
 
-type ClaimView = "landing" | "method" | "wallet" | "email" | "minting" | "success";
+type ClaimView = "landing" | "method" | "wallet" | "email" | "success";
 
 interface MintResult {
   txHash: string;
@@ -121,7 +121,7 @@ export default function Claim() {
     setView("success");
   };
 
-  const currentStep = view === "landing" ? 0 : view === "method" ? 1 : view === "email" ? 2 : view === "minting" ? 3 : view === "success" ? 4 : 1;
+  const currentStep = view === "landing" ? 0 : view === "method" ? 1 : view === "email" ? 2 : view === "success" ? 4 : 1;
 
   return (
     <div className="min-h-screen w-full relative flex flex-col items-center overflow-hidden">
@@ -218,22 +218,14 @@ export default function Claim() {
           )}
 
           {view === "email" && claimToken && (
-            <motion.div key="email" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+            <motion.div key="email" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full">
               <EmailFlow 
                 claimToken={claimToken} 
                 drop={drop} 
                 blockchainStatus={blockchainStatus}
-                onMinting={() => setView("minting")}
                 onSuccess={handleMintSuccess} 
                 onBack={() => setView("method")} 
-                onRetry={() => setView("email")}
               />
-            </motion.div>
-          )}
-
-          {view === "minting" && (
-            <motion.div key="minting" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="text-center w-full">
-              <MintingAnimation dropTitle={drop.title} />
             </motion.div>
           )}
 
@@ -243,7 +235,6 @@ export default function Claim() {
                 claimToken={claimToken} 
                 drop={drop} 
                 blockchainStatus={blockchainStatus}
-                onMinting={() => setView("minting")}
                 onSuccess={handleMintSuccess} 
                 onBack={() => setView("method")} 
               />
@@ -388,9 +379,9 @@ function handleDownloadImage(imageUrl: string, title: string) {
   document.body.removeChild(link);
 }
 
-function EmailFlow({ claimToken, drop, blockchainStatus, onMinting, onSuccess, onBack, onRetry }: { claimToken: string; drop: any; blockchainStatus: any; onMinting: () => void; onSuccess: (result: MintResult) => void; onBack: () => void; onRetry: () => void }) {
+function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult) => void; onBack: () => void }) {
   const { t } = useI18n();
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [step, setStep] = useState<"email" | "code" | "minting">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [mintError, setMintError] = useState<string | null>(null);
@@ -402,7 +393,7 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onMinting, onSuccess, o
 
   const handleVerifyAndMint = () => {
     setMintError(null);
-    onMinting();
+    setStep("minting");
     const preferredChain = getHealthyChain(blockchainStatus, drop.enabledChains || ["solana", "evm", "stellar"]);
     mine.mutate(
       { email, code, chain: preferredChain, claimToken },
@@ -411,11 +402,15 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onMinting, onSuccess, o
         onError: (err: any) => {
           setMintError(err.message || t.claim.mintFailed);
           setCode("");
-          onRetry();
+          setStep("code");
         }
       }
     );
   };
+
+  if (step === "minting") {
+    return <MintingAnimation dropTitle={drop.title} />;
+  }
 
   return (
     <ClaimCard title={step === "email" ? t.email.enterEmail : t.email.enterCode}>
@@ -476,12 +471,13 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onMinting, onSuccess, o
   );
 }
 
-function WalletFlow({ claimToken, drop, blockchainStatus, onMinting, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onMinting: () => void; onSuccess: (result: MintResult) => void; onBack: () => void }) {
+function WalletFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult) => void; onBack: () => void }) {
   const { t } = useI18n();
   const { mutate, isPending } = useConfirmMint();
+  const [isMinting, setIsMinting] = useState(false);
   
   const handleMint = (chain: "evm" | "solana" | "stellar") => {
-    onMinting();
+    setIsMinting(true);
     setTimeout(() => {
       mutate(
         { claimToken, txHash: `0x${Date.now().toString(16)}`, chain },
@@ -493,11 +489,15 @@ function WalletFlow({ claimToken, drop, blockchainStatus, onMinting, onSuccess, 
               chain,
             });
           },
-          onError: () => onBack()
+          onError: () => { setIsMinting(false); onBack(); }
         }
       );
     }, 1500);
   };
+
+  if (isMinting) {
+    return <MintingAnimation dropTitle={drop.title} />;
+  }
   const chainOptions = [
     { id: "solana" as const, name: t.chains.solana, color: "bg-purple-500", recommended: false },
     { id: "evm" as const, name: t.chains.evm, color: "bg-blue-500", recommended: false },
