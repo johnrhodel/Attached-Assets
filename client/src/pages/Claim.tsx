@@ -194,7 +194,7 @@ export default function Claim() {
                     </div>
                     <div className="text-left min-w-0">
                       <div className="font-semibold text-foreground text-sm">{t.claim.wallet}</div>
-                      <div className="text-xs text-muted-foreground">MetaMask, Phantom, Freighter</div>
+                      <div className="text-xs text-muted-foreground">Freighter (Stellar)</div>
                     </div>
                   </div>
 
@@ -378,27 +378,53 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
   const [step, setStep] = useState<"email" | "code" | "minting">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [mintError, setMintError] = useState<string | null>(null);
+  const [flowError, setFlowError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
   const { start, mine } = useWalletless();
 
-  const handleSendCode = () => {
-    start.mutate(email, { onSuccess: () => setStep("code") });
+  const handleSendCode = async () => {
+    setFlowError(null);
+    setIsSending(true);
+    try {
+      const res = await fetch("/api/walletless/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to send code");
+      }
+      setStep("code");
+    } catch (err: any) {
+      console.error("[EmailFlow] Send code error:", err);
+      setFlowError(err.message || "Failed to send verification code");
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleVerifyAndMint = () => {
-    setMintError(null);
+  const handleVerifyAndMint = async () => {
+    setFlowError(null);
     setStep("minting");
-    mine.mutate(
-      { email, code, chain: "stellar", claimToken },
-      { 
-        onSuccess: (data) => onSuccess({ ...data, chain: data.chain || "stellar" }),
-        onError: (err: any) => {
-          setMintError(err.message || t.claim.mintFailed);
-          setCode("");
-          setStep("code");
-        }
+    try {
+      const res = await fetch("/api/walletless/mine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code, chain: "stellar", claimToken }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Mint failed");
       }
-    );
+      const data = await res.json();
+      onSuccess({ ...data, chain: data.chain || "stellar" });
+    } catch (err: any) {
+      console.error("[EmailFlow] Mint error:", err);
+      setFlowError(err.message || t.claim.mintFailed);
+      setCode("");
+      setStep("code");
+    }
   };
 
   if (step === "minting") {
@@ -409,6 +435,11 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
     <ClaimCard title={step === "email" ? t.email.enterEmail : t.email.enterCode}>
       {step === "email" ? (
         <div className="space-y-4">
+          {flowError && (
+            <div className="text-xs text-center text-destructive bg-destructive/10 rounded-md py-2 px-3" data-testid="text-flow-error">
+              {flowError}
+            </div>
+          )}
           <div className="space-y-2">
             <Input 
               type="email" 
@@ -421,8 +452,8 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
               data-testid="input-email"
             />
           </div>
-          <Button className="w-full" onClick={handleSendCode} disabled={!email || start.isPending} data-testid="button-send-code">
-            {start.isPending ? <Loader2 className="animate-spin mr-2 w-4 h-4" /> : <ArrowRight className="mr-2 w-4 h-4" />}
+          <Button className="w-full" onClick={handleSendCode} disabled={!email || isSending} data-testid="button-send-code">
+            {isSending ? <Loader2 className="animate-spin mr-2 w-4 h-4" /> : <ArrowRight className="mr-2 w-4 h-4" />}
             {t.email.sendCode}
           </Button>
           <Button variant="ghost" className="w-full" onClick={onBack} data-testid="button-email-back">
@@ -432,9 +463,9 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
       ) : (
         <div className="space-y-4">
           <p className="text-xs text-center text-muted-foreground">{t.email.codeSentTo} <strong>{email}</strong></p>
-          {mintError && (
+          {flowError && (
             <div className="text-xs text-center text-destructive bg-destructive/10 rounded-md py-2 px-3" data-testid="text-mint-error">
-              {mintError}
+              {flowError}
             </div>
           )}
           <div className="space-y-2">
@@ -451,11 +482,11 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
             />
             <p className="text-[10px] text-center text-muted-foreground/60">{t.email.devNote}</p>
           </div>
-          <Button className="w-full" onClick={handleVerifyAndMint} disabled={!code || mine.isPending} data-testid="button-verify-mint">
-            {mine.isPending ? <Loader2 className="animate-spin mr-2 w-4 h-4" /> : <Sparkles className="mr-2 w-4 h-4" />}
+          <Button className="w-full" onClick={handleVerifyAndMint} disabled={!code || code.length < 6} data-testid="button-verify-mint">
+            <Sparkles className="mr-2 w-4 h-4" />
             {t.claim.mintNow}
           </Button>
-          <Button variant="ghost" className="w-full" onClick={() => setStep("email")} data-testid="button-code-back">
+          <Button variant="ghost" className="w-full" onClick={() => { setStep("email"); setFlowError(null); }} data-testid="button-code-back">
             <ChevronLeft className="w-4 h-4 mr-1" />{t.common.back}
           </Button>
         </div>
