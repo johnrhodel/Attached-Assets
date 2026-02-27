@@ -244,15 +244,16 @@ function EditDropDialog({ drop, locationId }: { drop: any; locationId: number })
     year: drop.year,
     imageUrl: drop.imageUrl,
     supply: drop.supply,
+    accessCode: drop.accessCode || "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutate({ id: drop.id, locationId, ...formData }, { onSuccess: () => setOpen(false) });
+    mutate({ id: drop.id, locationId, ...formData, accessCode: formData.accessCode.trim().toUpperCase() || null }, { onSuccess: () => setOpen(false) });
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) { setFormData({ title: drop.title, month: drop.month, year: drop.year, imageUrl: drop.imageUrl, supply: drop.supply }); } }}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) { setFormData({ title: drop.title, month: drop.month, year: drop.year, imageUrl: drop.imageUrl, supply: drop.supply, accessCode: drop.accessCode || "" }); } }}>
       <DialogTrigger asChild>
         <Button size="icon" variant="ghost" data-testid={`button-edit-drop-${drop.id}`}>
           <Pencil className="w-4 h-4" />
@@ -290,6 +291,11 @@ function EditDropDialog({ drop, locationId }: { drop: any; locationId: number })
           <div className="space-y-2">
             <Label>{t.admin.supply}</Label>
             <Input type="number" value={formData.supply} onChange={e => setFormData({...formData, supply: Number(e.target.value)})} required data-testid={`input-edit-drop-supply-${drop.id}`} />
+          </div>
+          <div className="space-y-2 col-span-2">
+            <Label>{t.admin.accessCode}</Label>
+            <Input value={formData.accessCode} onChange={e => setFormData({...formData, accessCode: e.target.value.toUpperCase()})} placeholder={t.admin.accessCodePlaceholder} data-testid={`input-edit-drop-access-code-${drop.id}`} />
+            <p className="text-xs text-muted-foreground">{t.admin.accessCodeHelp}</p>
           </div>
           <Button type="submit" className="col-span-2 mt-4" disabled={isPending} data-testid={`button-save-drop-${drop.id}`}>
             {isPending ? <Loader2 className="animate-spin" /> : t.admin.save}
@@ -426,6 +432,12 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
           <span className="text-muted-foreground">{t.admin.supply}:</span>
           <span className="font-mono font-medium">{drop.mintedCount} / {drop.supply}</span>
         </div>
+        {drop.accessCode && (
+          <div className="flex items-center justify-between text-sm mb-4">
+            <span className="text-muted-foreground">{t.admin.accessCode}:</span>
+            <Badge variant="outline" className="font-mono" data-testid={`text-access-code-${drop.id}`}>{drop.accessCode}</Badge>
+          </div>
+        )}
         {drop.status === 'published' && (
           <div className="mb-4 p-3 bg-accent/50 rounded-lg">
             <div className="flex items-center gap-3">
@@ -561,11 +573,12 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
     supply: 1000,
     status: "draft",
     enabledChains: ["stellar"],
+    accessCode: "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutate({ locationId, ...formData }, { onSuccess: () => setOpen(false) });
+    mutate({ locationId, ...formData, accessCode: formData.accessCode.trim().toUpperCase() || null }, { onSuccess: () => setOpen(false) });
   };
 
   const toggleChain = (chain: string) => {
@@ -618,6 +631,12 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
           <div className="space-y-2">
             <Label>{t.admin.supply}</Label>
             <Input type="number" value={formData.supply} onChange={e => setFormData({...formData, supply: Number(e.target.value)})} required data-testid="input-drop-supply" />
+          </div>
+
+          <div className="space-y-2 col-span-2">
+            <Label>{t.admin.accessCode}</Label>
+            <Input value={formData.accessCode} onChange={e => setFormData({...formData, accessCode: e.target.value.toUpperCase()})} placeholder={t.admin.accessCodePlaceholder} data-testid="input-drop-access-code" />
+            <p className="text-xs text-muted-foreground">{t.admin.accessCodeHelp}</p>
           </div>
 
           <div className="space-y-2 col-span-2">

@@ -62,6 +62,15 @@ export const translations = {
       stepMethod: 'Method',
       stepVerify: 'Verify',
       stepMint: 'Mint',
+      alreadyMinted: 'You already minted this NFT!',
+      alreadyMintedDesc: 'Each email can only mint once per drop. Check your collection in My NFTs.',
+    },
+    accessCode: {
+      title: 'Enter Access Code',
+      placeholder: 'e.g. CATARATAS2026',
+      submit: 'Find Event',
+      invalidCode: 'Invalid access code. Please check and try again.',
+      or: 'or scan the QR code at the event',
     },
     email: {
       enterEmail: 'Enter your email',
@@ -176,6 +185,9 @@ export const translations = {
       never: 'Never',
       exportMints: 'Export Mints',
       exportUsers: 'Export Users',
+      accessCode: 'Access Code',
+      accessCodePlaceholder: 'e.g. CATARATAS2026',
+      accessCodeHelp: 'Optional short code visitors can type instead of scanning QR',
     },
     gallery: {
       title: 'Gallery',
@@ -291,6 +303,15 @@ export const translations = {
       stepMethod: 'Método',
       stepVerify: 'Verificar',
       stepMint: 'Mint',
+      alreadyMinted: 'Você já mintou este NFT!',
+      alreadyMintedDesc: 'Cada email só pode mintar uma vez por drop. Veja sua coleção em Meus NFTs.',
+    },
+    accessCode: {
+      title: 'Digite o Código de Acesso',
+      placeholder: 'ex: CATARATAS2026',
+      submit: 'Buscar Evento',
+      invalidCode: 'Código de acesso inválido. Verifique e tente novamente.',
+      or: 'ou escaneie o QR code no evento',
     },
     email: {
       enterEmail: 'Digite seu email',
@@ -405,6 +426,9 @@ export const translations = {
       never: 'Nunca',
       exportMints: 'Exportar Mints',
       exportUsers: 'Exportar Usuários',
+      accessCode: 'Código de Acesso',
+      accessCodePlaceholder: 'ex: CATARATAS2026',
+      accessCodeHelp: 'Código curto opcional que visitantes digitam em vez de escanear QR',
     },
     gallery: {
       title: 'Galeria',
@@ -520,6 +544,15 @@ export const translations = {
       stepMethod: 'Método',
       stepVerify: 'Verificar',
       stepMint: 'Mint',
+      alreadyMinted: '¡Ya acuñaste este NFT!',
+      alreadyMintedDesc: 'Cada email solo puede acuñar una vez por drop. Revisa tu colección en Mis NFTs.',
+    },
+    accessCode: {
+      title: 'Ingresa el Código de Acceso',
+      placeholder: 'ej: CATARATAS2026',
+      submit: 'Buscar Evento',
+      invalidCode: 'Código de acceso inválido. Verifique e intente nuevamente.',
+      or: 'o escanea el código QR en el evento',
     },
     email: {
       enterEmail: 'Ingresa tu email',
@@ -634,6 +667,9 @@ export const translations = {
       never: 'Nunca',
       exportMints: 'Exportar Mints',
       exportUsers: 'Exportar Usuarios',
+      accessCode: 'Código de Acceso',
+      accessCodePlaceholder: 'ej: CATARATAS2026',
+      accessCodeHelp: 'Código corto opcional que visitantes escriben en vez de escanear QR',
     },
     gallery: {
       title: 'Galería',

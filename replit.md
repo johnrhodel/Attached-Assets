@@ -2,9 +2,9 @@
 
 ## Overview
 
-Mintoria is a plug-and-play platform for minting commemorative NFTs when visitors arrive at tourist locations or events. Visitors claim NFTs quickly via QR code on mobile devices. The platform uses Stellar blockchain exclusively and provides admin capabilities for creating monthly "drops" at various locations.
+Mintoria is a plug-and-play platform designed for minting commemorative NFTs for visitors at tourist locations or events. It enables quick NFT claims via QR code on mobile devices and exclusively utilizes the Stellar blockchain. The platform includes an admin interface for creating monthly "drops" across various locations and supports internationalization (English, Spanish, Portuguese). Key capabilities include email-based custodial minting (no crypto wallet required), embeddable widget integration, and PWA functionality for mobile installation.
 
-The application supports internationalization with English, Spanish, and Portuguese languages. It offers email-based custodial minting (no crypto wallet required), plus embeddable widget integration for third-party sites. It is a PWA that can be installed on mobile devices.
+The project's vision is to leverage Stellar's efficiency for low-cost, fast, and energy-efficient NFT minting, targeting the tourism and event industries. Future ambitions include migrating to Soroban smart contracts, developing an NFT marketplace, and implementing advanced features like MPC custody and AI-powered NFT generation.
 
 ## User Preferences
 
@@ -12,157 +12,160 @@ Preferred communication style: Simple, everyday language. User speaks Portuguese
 
 ## System Architecture
 
-### Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **Routing**: Wouter (lightweight React router)
-- **State Management**: TanStack React Query for server state
-- **Styling**: Tailwind CSS with shadcn/ui component library
-- **Animations**: Framer Motion for smooth transitions
-- **Build Tool**: Vite with hot module replacement
-- **Internationalization**: Custom i18n system with React Context
-- **Color Scheme**: Blue-based professional palette (primary: blue 221 83%)
-- **PWA**: Installable via manifest.json + service worker (sw.js)
+### Frontend
+The frontend is built with React 18 and TypeScript, utilizing Wouter for routing, TanStack React Query for state management, and Tailwind CSS with shadcn/ui for styling. Framer Motion handles animations. It's a Vite-based PWA with a custom i18n system supporting English, Portuguese, and Spanish, using a blue-based professional color scheme. The structure follows a page-based approach with reusable components and custom hooks for logic encapsulation.
 
-The frontend follows a page-based structure under `client/src/pages/` with reusable components in `client/src/components/`. Custom hooks in `client/src/hooks/` encapsulate data fetching and authentication logic.
-
-### Internationalization (i18n)
-The app supports three languages:
-- **English** (en) - Default
-- **Portuguese** (pt) - Português
-- **Spanish** (es) - Español
-
-Translation files are in `client/src/lib/i18n/translations.ts`. The `LanguageSelector` component (globe icon) allows users to switch languages, with preference saved to localStorage. The language is auto-detected from browser settings on first visit.
-
-### Backend Architecture
-- **Runtime**: Node.js with Express
-- **Language**: TypeScript with ESM modules
-- **Session Management**: Express-session with MemoryStore (development) or PostgreSQL store (production)
-- **API Design**: RESTful endpoints defined in `shared/routes.ts` with Zod schema validation
-
-The server handles claim session management, anti-fraud token generation, real blockchain minting, and custodial wallet management.
+### Backend
+The backend is a Node.js Express application written in TypeScript (ESM). It uses Express-session for authentication and handles claim session management, anti-fraud token generation, blockchain minting, and custodial wallet management. RESTful endpoints are defined with Zod schema validation.
 
 ### Data Storage
-- **Database**: PostgreSQL via Drizzle ORM
-- **Schema Location**: `shared/schema.ts` defines all tables
-- **Migrations**: Managed via `drizzle-kit push` command
-
-Key entities: Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, WalletlessUsers, and WalletlessKeys.
+PostgreSQL is the primary database, managed via Drizzle ORM. The schema defines tables for Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, WalletlessUsers, and WalletlessKeys.
 
 ### Authentication & Authorization
-- Cookie-based session authentication for admin users
-- Default admin credentials: admin@mintoria.xyz / admin (auto-created in dev mode)
-- Claim sessions use cryptographically hashed tokens for one-time NFT minting
-- Walletless flow uses encrypted custodial keys (AES-256-CBC) with email verification codes
+Admin users utilize cookie-based session authentication. Claim sessions employ cryptographically hashed tokens for one-time NFT minting. The walletless flow involves encrypted custodial keys (AES-256-CBC) and email verification.
 
-### Blockchain Integration (LIVE)
-All three blockchain integrations are implemented with real chain interactions:
-
-- **Solana** (`server/services/solana.ts`): 
-  - Metaplex Umi + mpl-core for NFT minting
-  - Server keypair auto-generated or loaded from SOLANA_SERVER_SECRET_KEY
-  - Auto-airdrop on devnet for server funding
-  - Uses @solana/web3.js + @metaplex-foundation packages
-  
-- **EVM** (`server/services/evm.ts`):
-  - ethers.js v6 for wallet management and contract interaction
-  - EIP-712 typed data signing for mint permits
-  - Supports Sepolia, Polygon Amoy, Arbitrum, Base testnets
-  - Server wallet loaded from EVM_SERVER_PRIVATE_KEY or auto-generated
-  - ERC-1155 contract integration when EVM_CONTRACT_ADDRESS is set
-  
-- **Stellar** (`server/services/stellar.ts`):
-  - stellar-sdk for Horizon API and transaction building
-  - manageData operations for on-chain NFT metadata storage
-  - Auto-funding via Friendbot on testnet
-  - Server keypair loaded from STELLAR_SERVER_SECRET_KEY or auto-generated
+### Blockchain Integration
+The platform integrates with Solana, EVM-compatible chains, and Stellar for NFT minting.
+- **Solana**: Uses Metaplex Umi + mpl-core.
+- **EVM**: Employs ethers.js v6 for wallet and contract interaction, supporting various testnets and ERC-1155 contracts.
+- **Stellar**: Leverages stellar-sdk for Horizon API interaction and uses `manageData` operations for on-chain NFT metadata storage.
+All integrations support server-side keypair generation and automatic funding for test environments. The system also tracks chain health and implements automatic fallback if a preferred chain fails during minting.
 
 ### Custodial Wallet System
-When users choose the email/walletless flow:
-1. Real keypairs are generated for each chain (Solana/EVM/Stellar)
-2. Private keys are encrypted with AES-256-CBC and stored in `walletless_keys` table
-3. Public addresses are visible and can receive NFTs
-4. Server mints NFTs to the custodial wallet on the user's behalf
-5. Wallet generation uses: `server/services/wallet.ts`
+For email-based minting, the system generates and encrypts real keypairs for each blockchain (Solana, EVM, Stellar), storing them in the database. Public addresses receive NFTs minted by the server on the user's behalf.
 
-### PWA (Progressive Web App)
-- `client/public/manifest.json` - App manifest for install prompt
-- `client/public/sw.js` - Service worker for offline caching
-- Apple and Android meta tags in `client/index.html`
-- Network-first caching strategy with offline fallback
+### PWA and Embed Features
+The application functions as a PWA with a manifest and service worker. It offers two embed options for third-party sites: a direct iFrame (`/embed/:locationId`) and a script widget (`widget.js`) for modal integration.
 
-### Embed Integration
-Two integration modes for third-party sites:
-1. **iFrame embed**: Direct embedding via `/embed/:locationId` route
-2. **Script widget**: `widget.js` injects a modal iframe on external pages. Use `window.Mintoria.open()` to trigger.
-
-### Key Pages
-- `/` - Landing page with features and CTA
-- `/claim/:locationId` - Visitor claim page (public, with confetti on success)
-- `/embed/:locationId` - Embeddable claim widget
-- `/gallery/:locationId` - Public gallery of NFTs minted at a location
-- `/my-nfts` - User NFT lookup by email
-- `/admin/login` - Admin login
-- `/admin/dashboard` - Admin dashboard with real metrics, charts, recent mints
-- `/admin/projects` - Project and location management
-- `/admin/drops` - Drop creation, publishing, and QR code generation
-
-### API Endpoints
-- `GET /api/blockchain/status` - Returns server wallet addresses, balances, chain health for all three blockchains
-- `GET /api/admin/stats` - Dashboard metrics (total mints, active drops, locations, unique users, mints by chain/month)
-- `GET /api/gallery/:locationId` - Public gallery data for a location
-- `GET /api/my-nfts/:email` - User's minted NFTs lookup
-- `GET /api/qr/:locationId` - QR code generation (PNG default, SVG via ?format=svg)
-
-### Email Service
-- `server/services/email.ts` - Verification codes and mint confirmations
-- Falls back to console logging when RESEND_API_KEY is not set
-- Ready for Resend integration when API key is added (user dismissed Resend connector setup)
-
-### Blockchain Resilience
-- Solana airdrop: 3 retry attempts with exponential backoff
-- Chain health tracking: Server checks balances and marks chains as healthy/unhealthy
-- Automatic chain fallback: If preferred chain fails during mint, tries next healthy chain
-- Frontend smart selection: Auto-selects first healthy chain for email/walletless flow
-
-## Environment Variables
-
-### Required
-- `DATABASE_URL` - PostgreSQL connection string
-- `SESSION_SECRET` - Express session secret
-
-### Blockchain (Optional - auto-generated if not set)
-- `SOLANA_SERVER_SECRET_KEY` - Base58-encoded Solana server keypair secret
-- `SOLANA_NETWORK` - "devnet" (default) or "mainnet-beta"
-- `SOLANA_RPC_URL` - Custom RPC endpoint
-- `EVM_SERVER_PRIVATE_KEY` - Hex-encoded Ethereum private key
-- `EVM_RPC_URL` - RPC endpoint (default: Sepolia drpc.org)
-- `EVM_CHAIN_ID` - Chain ID (default: 11155111 Sepolia)
-- `EVM_CONTRACT_ADDRESS` - Deployed ERC-1155 contract address
-- `STELLAR_SERVER_SECRET_KEY` - Stellar secret key
-- `STELLAR_NETWORK` - "testnet" (default) or "mainnet"
-- `WALLET_ENCRYPTION_SECRET` - Key for encrypting custodial wallet secrets
+### Core Features
+- **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitors.
+- **NFT Gallery**: `/gallery/:locationId` to display minted NFTs.
+- **User NFT Lookup**: `/my-nfts` allows users to find their NFTs by email.
+- **Admin Dashboard**: Comprehensive `/admin/dashboard` with metrics, project, location, and drop management.
+- **API Endpoints**: Provide blockchain status, admin statistics, gallery data, user NFT lookups, and QR code generation.
+- **Email Service**: For verification codes and mint confirmations, with Resend integration capabilities.
 
 ## External Dependencies
 
 ### Database
-- PostgreSQL (required, connection via `DATABASE_URL` environment variable)
-- Drizzle ORM for type-safe database operations
+- PostgreSQL (via `DATABASE_URL`)
+- Drizzle ORM
 
 ### Blockchain SDKs
-- `@solana/web3.js` for Solana interactions
-- `@metaplex-foundation/umi` + `@metaplex-foundation/mpl-core` for Solana NFT minting
-- `ethers` (v6) for EVM wallet management and contract interaction
-- `stellar-sdk` for Stellar/Soroban interactions
-- `bs58` for Base58 encoding/decoding
-- `viem` for additional EVM utilities
+- `@solana/web3.js`, `@metaplex-foundation/umi`, `@metaplex-foundation/mpl-core`
+- `ethers` (v6)
+- `stellar-sdk`
+- `bs58`, `viem`
 
 ### UI Component Libraries
-- Full shadcn/ui component set (Radix UI primitives)
-- Lucide React for icons
-- Embla Carousel for image carousels
-- Recharts for admin analytics
+- shadcn/ui (based on Radix UI)
+- Lucide React (icons)
+- Embla Carousel
+- Recharts
 
 ### Development Tools
-- Vite dev server with Replit-specific plugins
-- ESBuild for production server bundling
-- TypeScript for full-stack type safety
+- Vite
+- ESBuild
+- TypeScript
+
+### Security Features
+- Mint uniqueness enforced per email per drop (prevents duplicate minting)
+- Event access codes as alternative to QR scanning (`/access` page)
+- `accessCode` field on drops table (optional, uppercase, auto-converted)
+- `email` field on mints table for duplicate tracking
+
+---
+
+## Product Roadmap / Roadmap do Produto
+
+### Current State / Estado Atual (v1.0)
+**EN:** Mintoria is a fully functional commemorative NFT minting platform built on Stellar classic. Core features include: QR code claim flow, email-based custodial wallets (no crypto wallet required), admin dashboard with analytics, multi-language support (EN/PT/ES), PWA for mobile, and embeddable widget for third-party sites. Mint uniqueness is enforced per email per drop. Event access codes provide an alternative to QR scanning.
+
+**PT:** Mintoria é uma plataforma funcional de mintagem de NFTs comemorativos construída na Stellar classic. Funcionalidades principais: fluxo de resgate por QR code, carteiras custodiais via email (sem necessidade de carteira cripto), painel admin com analytics, suporte multi-idioma (EN/PT/ES), PWA para mobile, e widget embutível para sites de terceiros. Unicidade de mint é garantida por email por drop. Códigos de acesso por evento oferecem alternativa ao QR code.
+
+### Short-term / Curto Prazo (v1.1 — Q2 2026)
+**EN:**
+- Enhanced analytics dashboard with conversion funnel metrics
+- Multi-image drops (gallery-style NFTs with carousel)
+- Social sharing integration (share minted NFTs on social media)
+- Webhook notifications for real-time mint events
+- Rate limiting and advanced anti-fraud measures
+- Improved email templates with branding customization
+
+**PT:**
+- Painel de analytics aprimorado com métricas de funil de conversão
+- Drops com múltiplas imagens (NFTs estilo galeria com carrossel)
+- Integração com redes sociais (compartilhar NFTs mintados)
+- Notificações via webhook para eventos de mint em tempo real
+- Limitação de taxa e medidas anti-fraude avançadas
+- Templates de email aprimorados com personalização de marca
+
+### Medium-term / Médio Prazo (v2.0 — Q3-Q4 2026)
+**EN:**
+- **Soroban Smart Contract Migration**: Move from Stellar classic manageData to Soroban smart contracts for true on-chain NFT standard (SEP-0039/Soroban NFT)
+- **NFT Marketplace**: Secondary market for trading commemorative NFTs between users
+- **Multi-Admin System**: Role-based access control (owner, editor, viewer) for team management
+- **White-label Solution**: Custom branding, domains, and themes per client
+- **API Access**: RESTful API with API keys for programmatic integrations
+- **Advanced Reporting**: Export reports, scheduled reports, custom date ranges
+
+**PT:**
+- **Migração para Smart Contracts Soroban**: Mover de Stellar classic manageData para contratos inteligentes Soroban para padrão NFT real on-chain (SEP-0039/Soroban NFT)
+- **Marketplace de NFTs**: Mercado secundário para troca de NFTs comemorativos entre usuários
+- **Sistema Multi-Admin**: Controle de acesso baseado em funções (proprietário, editor, visualizador) para gestão de equipes
+- **Solução White-label**: Marca personalizada, domínios e temas por cliente
+- **Acesso via API**: API RESTful com chaves de API para integrações programáticas
+- **Relatórios Avançados**: Exportar relatórios, relatórios agendados, intervalos de datas personalizados
+
+### Long-term / Longo Prazo (v3.0 — 2027+)
+**EN:**
+- **MPC Custody (Multi-Party Computation)**: Replace single-key custodial wallets with MPC-based custody for enhanced security. Users retain partial key control without managing full private keys
+- **Cross-chain Bridges**: Enable NFT portability across Stellar, Ethereum, and Solana ecosystems
+- **AI-powered Experiences**: Auto-generate NFT artwork from location photos, personalized commemorative designs
+- **Decentralized Storage**: Move NFT metadata and images to IPFS/Arweave for permanent, censorship-resistant storage
+- **Mobile SDK**: Native iOS/Android SDK for seamless integration into travel and event apps
+- **Enterprise SSO**: SAML/OAuth integration for large corporate clients
+
+**PT:**
+- **Custódia MPC (Multi-Party Computation)**: Substituir carteiras custodiais de chave única por custódia baseada em MPC para segurança aprimorada. Usuários mantêm controle parcial da chave sem gerenciar chaves privadas completas
+- **Pontes Cross-chain**: Permitir portabilidade de NFTs entre ecossistemas Stellar, Ethereum e Solana
+- **Experiências com IA**: Gerar automaticamente arte de NFTs a partir de fotos do local, designs comemorativos personalizados
+- **Armazenamento Descentralizado**: Mover metadados e imagens de NFTs para IPFS/Arweave para armazenamento permanente e resistente a censura
+- **SDK Mobile**: SDK nativo iOS/Android para integração fluida em apps de turismo e eventos
+- **SSO Enterprise**: Integração SAML/OAuth para grandes clientes corporativos
+
+### Business Model / Modelo de Negócios
+**EN:**
+- **Target Market**: Tourism operators, event organizers, museums, parks, festivals
+- **Pricing Tiers**:
+  - Starter: R$500/event (up to 500 mints)
+  - Professional: R$1,497/month (unlimited mints, 5 locations)
+  - Enterprise: R$4,997/month (unlimited everything, white-label, API access, dedicated support)
+- **Revenue Streams**: SaaS subscriptions, per-mint fees at scale, white-label licensing, marketplace commissions (v2.0+)
+
+**PT:**
+- **Mercado Alvo**: Operadores de turismo, organizadores de eventos, museus, parques, festivais
+- **Faixas de Preço**:
+  - Starter: R$500/evento (até 500 mints)
+  - Profissional: R$1.497/mês (mints ilimitados, 5 locais)
+  - Enterprise: R$4.997/mês (tudo ilimitado, white-label, acesso API, suporte dedicado)
+- **Fontes de Receita**: Assinaturas SaaS, taxas por mint em escala, licenciamento white-label, comissões de marketplace (v2.0+)
+
+### Why Stellar / Por Que Stellar
+**EN:**
+- **Lowest transaction cost**: ~$0.000003 per transaction (vs Ethereum $2-10, Solana $0.01-0.05)
+- **Fast finality**: 3-5 second transaction confirmation
+- **Energy efficient**: Stellar Consensus Protocol uses minimal energy
+- **Built-in DEX**: Native decentralized exchange for future marketplace
+- **Soroban readiness**: Smart contract platform for advanced NFT features
+- **Stellar Community Fund**: Eligible for grants to build ecosystem tooling
+- **Real-world asset focus**: Stellar's mission aligns with tokenizing real experiences
+
+**PT:**
+- **Menor custo de transação**: ~$0,000003 por transação (vs Ethereum $2-10, Solana $0,01-0,05)
+- **Finalidade rápida**: Confirmação de transação em 3-5 segundos
+- **Eficiência energética**: Stellar Consensus Protocol usa energia mínima
+- **DEX integrada**: Exchange descentralizada nativa para futuro marketplace
+- **Preparação para Soroban**: Plataforma de contratos inteligentes para funcionalidades avançadas de NFT
+- **Stellar Community Fund**: Elegível para grants para construir ferramentas do ecossistema
+- **Foco em ativos do mundo real**: A missão da Stellar se alinha com tokenizar experiências reais

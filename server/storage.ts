@@ -8,7 +8,7 @@ import {
   type InsertActivityLog, type InsertPlatformSetting, type InsertNotification,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Users (Admin)
@@ -48,6 +48,7 @@ export interface IStorage {
   // Mints
   createMint(mint: InsertMint): Promise<Mint>;
   getMints(dropId: number): Promise<Mint[]>;
+  getMintByEmailAndDrop(email: string, dropId: number): Promise<Mint | undefined>;
 
   // Dashboard stats
   getAllMints(): Promise<Mint[]>;
@@ -56,6 +57,9 @@ export interface IStorage {
   getMintsForEmail(email: string): Promise<Array<Mint & { dropTitle: string; dropImageUrl: string }>>;
   getRecentMints(limit: number): Promise<Array<Mint & { dropTitle: string }>>;
   getMintsByLocation(locationId: number): Promise<Mint[]>;
+
+  // Drops by access code
+  getDropByAccessCode(code: string): Promise<Drop | undefined>;
 
   // Walletless
   getWalletlessUser(email: string): Promise<WalletlessUser | undefined>;
@@ -208,6 +212,16 @@ export class DatabaseStorage implements IStorage {
   async getMints(dropId: number): Promise<Mint[]> {
     return await db.select().from(mints).where(eq(mints.dropId, dropId));
   }
+  async getMintByEmailAndDrop(email: string, dropId: number): Promise<Mint | undefined> {
+    const [mint] = await db.select().from(mints).where(
+      and(
+        eq(mints.email, email),
+        eq(mints.dropId, dropId),
+        inArray(mints.status, ["confirmed", "pending"])
+      )
+    );
+    return mint;
+  }
 
   // Dashboard stats
   async getAllMints(): Promise<Mint[]> {
@@ -268,6 +282,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(drops.locationId, locationId))
       .orderBy(desc(mints.createdAt));
     return results;
+  }
+
+  // Drops by access code
+  async getDropByAccessCode(code: string): Promise<Drop | undefined> {
+    const [drop] = await db.select().from(drops).where(
+      and(eq(drops.accessCode, code.toUpperCase()), eq(drops.status, "published"))
+    );
+    return drop;
   }
 
   // Walletless

@@ -200,6 +200,12 @@ export async function registerRoutes(
     res.json(drop);
   });
 
+  app.get("/api/drops/:id", async (req, res) => {
+    const drop = await storage.getDrop(Number(req.params.id));
+    if (!drop || drop.status !== "published") return res.status(404).json({ message: "Drop not found" });
+    res.json(drop);
+  });
+
   app.put(api.projects.update.path, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
@@ -474,6 +480,11 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Drop not found" });
       }
 
+      const existingMint = await storage.getMintByEmailAndDrop(email, drop.id);
+      if (existingMint) {
+        return res.status(409).json({ message: "ALREADY_MINTED" });
+      }
+
       const secret = decrypt(key.encryptedSecret);
       const result = await stellarService.mintNFTWithCustodialWallet({
         custodialSecretKey: secret,
@@ -492,7 +503,8 @@ export async function registerRoutes(
         chain,
         recipient: recipientAddress,
         txHash,
-        status: "confirmed"
+        status: "confirmed",
+        email,
       });
 
       await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: mint.dropId, details: `NFT minted on ${mint.chain} to ${mint.recipient}` });
@@ -518,6 +530,30 @@ export async function registerRoutes(
     } catch (err: any) {
       console.error(`[WALLETLESS_MINT] Error: ${err.message}`);
       res.status(500).json({ message: `Minting failed: ${err.message}` });
+    }
+  });
+
+  // === ACCESS CODE LOOKUP ===
+  app.post("/api/access-code/lookup", async (req, res) => {
+    try {
+      const { code } = req.body;
+      if (!code || typeof code !== "string") {
+        return res.status(400).json({ message: "Access code is required" });
+      }
+
+      const drop = await storage.getDropByAccessCode(code.trim());
+      if (!drop) {
+        return res.status(404).json({ message: "INVALID_CODE" });
+      }
+
+      const location = await storage.getLocation(drop.locationId);
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+
+      res.json({ locationId: drop.locationId, drop });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 
@@ -776,6 +812,7 @@ export async function registerRoutes(
       supply: drop.supply,
       status: "draft",
       enabledChains: drop.enabledChains,
+      accessCode: null,
     });
     await storage.createActivityLog({
       userId,

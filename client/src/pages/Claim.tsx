@@ -55,7 +55,7 @@ function ConfettiEffect() {
   );
 }
 
-type ClaimView = "landing" | "email" | "success";
+type ClaimView = "landing" | "email" | "success" | "already_minted";
 
 interface MintResult {
   txHash: string;
@@ -64,12 +64,37 @@ interface MintResult {
   chain?: string;
 }
 
+function useDropByIdOrActive(locationId: number) {
+  const searchParams = new URLSearchParams(window.location.search);
+  const dropId = searchParams.get("dropId");
+
+  const activeDropQuery = useActiveDrop(locationId);
+
+  const specificDropQuery = useQuery({
+    queryKey: ["/api/drops/by-id", dropId, locationId],
+    queryFn: async () => {
+      const res = await fetch(`/api/drops/${dropId}`);
+      if (!res.ok) return null;
+      const drop = await res.json();
+      if (drop.locationId !== locationId) return null;
+      return drop;
+    },
+    enabled: !!dropId && !!locationId,
+    retry: false,
+  });
+
+  if (dropId) {
+    return specificDropQuery;
+  }
+  return activeDropQuery;
+}
+
 export default function Claim() {
   const [, params] = useRoute("/claim/:locationId");
   const locationId = Number(params?.locationId);
   const { t } = useI18n();
   
-  const { data: drop, isLoading, error } = useActiveDrop(locationId);
+  const { data: drop, isLoading, error } = useDropByIdOrActive(locationId);
   const { mutateAsync: createSession } = useCreateClaimSession();
   const { data: blockchainStatus } = useBlockchainStatus();
   
@@ -110,7 +135,11 @@ export default function Claim() {
     }
   };
 
-  const handleMintSuccess = (result: MintResult) => {
+  const handleMintSuccess = (result: MintResult | "ALREADY_MINTED") => {
+    if (result === "ALREADY_MINTED") {
+      setView("already_minted");
+      return;
+    }
     setMintResult(result);
     setView("success");
   };
@@ -170,6 +199,12 @@ export default function Claim() {
                 onSuccess={handleMintSuccess} 
                 onBack={() => { setView("landing"); setClaimToken(null); }} 
               />
+            </motion.div>
+          )}
+
+          {view === "already_minted" && (
+            <motion.div key="already_minted" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center w-full">
+              <AlreadyMintedScreen onBack={() => { setView("landing"); setClaimToken(null); }} />
             </motion.div>
           )}
 
@@ -300,6 +335,28 @@ function SuccessScreen({ drop, mintResult }: { drop: any; mintResult: MintResult
   );
 }
 
+function AlreadyMintedScreen({ onBack }: { onBack: () => void }) {
+  const { t } = useI18n();
+  return (
+    <>
+      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-5">
+        <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
+      </div>
+      <h2 className="text-2xl sm:text-3xl font-serif font-bold mb-2 text-white" data-testid="text-already-minted">{t.claim.alreadyMinted}</h2>
+      <p className="text-white/70 mb-5 max-w-xs mx-auto text-sm" data-testid="text-already-minted-desc">{t.claim.alreadyMintedDesc}</p>
+      <div className="flex flex-col gap-3 max-w-xs mx-auto">
+        <Link href="/my-nfts">
+          <Button size="lg" className="w-full font-semibold" data-testid="button-go-my-nfts">
+            <Layers className="w-5 h-5 mr-2" />
+            My NFTs
+          </Button>
+        </Link>
+        <Button onClick={onBack} variant="outline" className="w-full bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-already-minted-back">{t.common.back}</Button>
+      </div>
+    </>
+  );
+}
+
 function handleDownloadImage(imageUrl: string, title: string) {
   const link = document.createElement("a");
   link.href = imageUrl;
@@ -310,7 +367,7 @@ function handleDownloadImage(imageUrl: string, title: string) {
   document.body.removeChild(link);
 }
 
-function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult) => void; onBack: () => void }) {
+function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult | "ALREADY_MINTED") => void; onBack: () => void }) {
   const { t } = useI18n();
   const [step, setStep] = useState<"email" | "code" | "minting">("email");
   const [email, setEmail] = useState("");
@@ -352,6 +409,10 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
+        if (errData.message === "ALREADY_MINTED") {
+          onSuccess("ALREADY_MINTED");
+          return;
+        }
         throw new Error(errData.message || "Mint failed");
       }
       const data = await res.json();

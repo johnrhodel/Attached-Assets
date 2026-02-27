@@ -13,7 +13,8 @@ import {
   BarChart3, 
   Shield,
   ChevronRight,
-  Linkedin
+  Linkedin,
+  KeyRound
 } from "lucide-react";
 
 import heroConcert from "../assets/images/hero-concert.jpg";
@@ -104,6 +105,12 @@ export default function Home() {
             <Link href="/claim/1">
               <Button size="lg" className="w-full sm:w-auto" data-testid="button-try-demo">
                 {t.landing.try_demo} <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
+            <Link href="/access">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-access-code">
+                <KeyRound className="mr-2 w-5 h-5" />
+                {t.accessCode.title}
               </Button>
             </Link>
           </div>

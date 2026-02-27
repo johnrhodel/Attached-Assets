@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -38,16 +38,17 @@ export const insertLocationSchema = createInsertSchema(locations).omit({ id: tru
 // === DROPS ===
 export const drops = pgTable("drops", {
   id: serial("id").primaryKey(),
-  locationId: integer("location_id").notNull(), // Foreign key to locations
+  locationId: integer("location_id").notNull(),
   title: text("title").notNull(),
-  month: text("month").notNull(), // e.g. "February"
-  year: integer("year").notNull(), // e.g. 2026
+  month: text("month").notNull(),
+  year: integer("year").notNull(),
   imageUrl: text("image_url").notNull(),
   metadataUrl: text("metadata_url").notNull(),
   supply: integer("supply").default(0).notNull(),
   mintedCount: integer("minted_count").default(0).notNull(),
-  status: text("status").default("draft").notNull(), // draft, published
-  enabledChains: jsonb("enabled_chains").$type<string[]>().notNull(), // ["evm", "solana", "stellar"]
+  status: text("status").default("draft").notNull(),
+  enabledChains: jsonb("enabled_chains").$type<string[]>().notNull(),
+  accessCode: text("access_code"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -71,12 +72,15 @@ export const insertClaimSessionSchema = createInsertSchema(claimSessions).omit({
 export const mints = pgTable("mints", {
   id: serial("id").primaryKey(),
   dropId: integer("drop_id").notNull(),
-  chain: text("chain").notNull(), // evm, solana, stellar
+  chain: text("chain").notNull(),
   recipient: text("recipient").notNull(),
   txHash: text("tx_hash"),
-  status: text("status").default("pending").notNull(), // pending, confirmed, failed
+  status: text("status").default("pending").notNull(),
+  email: text("email"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex("mints_email_drop_unique").on(table.email, table.dropId),
+]);
 
 export const insertMintSchema = createInsertSchema(mints).omit({ id: true, createdAt: true });
 
