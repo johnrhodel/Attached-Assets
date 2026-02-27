@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClaimCard } from "@/components/ClaimCard";
 import { LanguageSelector } from "@/components/language-selector";
-import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, ExternalLink, ChevronLeft, Sparkles } from "lucide-react";
+import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, ExternalLink, ChevronLeft, Sparkles, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/context";
 import { Link } from "wouter";
@@ -125,13 +125,17 @@ export default function Claim() {
     </div>
   );
 
+  const [isStarting, setIsStarting] = useState(false);
   const startClaim = async () => {
+    setIsStarting(true);
     try {
       const session = await createSession(locationId);
       setClaimToken(session.token);
       setView("email");
-    } catch (e) {
-      // Error handled by query hook toast
+    } catch (e: any) {
+      console.error("[Claim] Start error:", e);
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -181,9 +185,16 @@ export default function Claim() {
                   </div>
                 </div>
                 <div className="p-5 sm:p-6 bg-card text-center">
+                  {blockchainStatus && !blockchainStatus.healthy && (
+                    <div className="text-xs text-center text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 rounded-md py-2 px-3 mb-3 flex items-center justify-center gap-1.5" data-testid="text-blockchain-warning">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      {t.admin.unhealthy} — {t.chains.stellar}
+                    </div>
+                  )}
                   <p className="text-muted-foreground text-sm mb-4 sm:mb-5">{t.claim.subtitle}</p>
-                  <Button size="lg" className="w-full font-semibold" onClick={startClaim} data-testid="button-claim-start">
-                    {t.claim.claimNow} <ArrowRight className="ml-2 w-4 h-4" />
+                  <Button size="lg" className="w-full font-semibold" onClick={startClaim} disabled={isStarting} data-testid="button-claim-start">
+                    {isStarting ? <Loader2 className="animate-spin mr-2 w-4 h-4" /> : <ArrowRight className="ml-2 w-4 h-4" />}
+                    {t.claim.claimNow}
                   </Button>
                 </div>
               </ClaimCard>
@@ -211,7 +222,7 @@ export default function Claim() {
           {view === "success" && mintResult && (
             <motion.div key="success" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center w-full">
               <ConfettiEffect />
-              <SuccessScreen drop={drop} mintResult={mintResult} />
+              <SuccessScreen drop={drop} mintResult={mintResult} onBack={() => { setView("landing"); setMintResult(null); setClaimToken(null); }} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -271,9 +282,9 @@ function MintingAnimation({ dropTitle }: { dropTitle: string }) {
   );
 }
 
-function SuccessScreen({ drop, mintResult }: { drop: any; mintResult: MintResult }) {
+function SuccessScreen({ drop, mintResult, onBack }: { drop: any; mintResult: MintResult; onBack: () => void }) {
   const { t } = useI18n();
-  const chainName = mintResult.chain === "solana" ? "Solana" : mintResult.chain === "evm" ? "Ethereum" : mintResult.chain === "stellar" ? "Stellar" : "Blockchain";
+  const chainName = mintResult.chain === "solana" ? t.chains.solana : mintResult.chain === "evm" ? t.chains.evm : mintResult.chain === "stellar" ? t.chains.stellar : t.chains.stellar;
   const shortTx = mintResult.txHash.length > 16 ? `${mintResult.txHash.slice(0, 8)}...${mintResult.txHash.slice(-6)}` : mintResult.txHash;
   const shortAddr = mintResult.address.length > 16 ? `${mintResult.address.slice(0, 8)}...${mintResult.address.slice(-6)}` : mintResult.address;
 
@@ -329,7 +340,7 @@ function SuccessScreen({ drop, mintResult }: { drop: any; mintResult: MintResult
           <ImageDown className="w-5 h-5 mr-2" />
           {t.claim.downloadImage}
         </Button>
-        <Button onClick={() => window.location.reload()} variant="outline" className="bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-claim-another">{t.common.back}</Button>
+        <Button onClick={onBack} variant="outline" className="bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-claim-another">{t.common.back}</Button>
       </div>
     </>
   );
@@ -348,7 +359,7 @@ function AlreadyMintedScreen({ onBack }: { onBack: () => void }) {
         <Link href="/my-nfts">
           <Button size="lg" className="w-full font-semibold" data-testid="button-go-my-nfts">
             <Layers className="w-5 h-5 mr-2" />
-            My NFTs
+            {t.myNfts.title}
           </Button>
         </Link>
         <Button onClick={onBack} variant="outline" className="w-full bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-already-minted-back">{t.common.back}</Button>

@@ -412,9 +412,35 @@ export async function registerRoutes(
   // === WALLETLESS ROUTES ===
   const verificationCodes = new Map<string, string>();
 
+  const rateLimitByEmail = new Map<string, number[]>();
+  const rateLimitByIp = new Map<string, number[]>();
+  const RATE_LIMIT_WINDOW = 10 * 60 * 1000;
+  const MAX_PER_EMAIL = 3;
+  const MAX_PER_IP = 10;
+
+  function checkRateLimit(key: string, store: Map<string, number[]>, max: number): boolean {
+    const now = Date.now();
+    const timestamps = (store.get(key) || []).filter(t => now - t < RATE_LIMIT_WINDOW);
+    if (timestamps.length >= max) {
+      store.set(key, timestamps);
+      return false;
+    }
+    timestamps.push(now);
+    store.set(key, timestamps);
+    return true;
+  }
+
   app.post(api.walletless.start.path, async (req, res) => {
     try {
       const { email } = req.body;
+      if (!email || typeof email !== "string" || !email.trim()) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      const ip = req.ip || req.socket.remoteAddress || "unknown";
+
+      if (!checkRateLimit(email.trim().toLowerCase(), rateLimitByEmail, MAX_PER_EMAIL) || !checkRateLimit(ip, rateLimitByIp, MAX_PER_IP)) {
+        return res.status(429).json({ message: "Too many requests. Please wait a few minutes." });
+      }
       const code = Math.floor(100000 + Math.random() * 900000).toString();
 
       await sendVerificationEmail(email, code);
@@ -689,6 +715,24 @@ export async function registerRoutes(
           createdAt: m.createdAt,
         })),
         totalMinted: mintsList.length,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // === PUBLIC STATS ===
+  app.get("/api/public/stats", async (_req, res) => {
+    try {
+      const allMints = await storage.getAllMints();
+      const allLocations = await storage.getAllLocations();
+      const allDrops = await storage.getAllDrops();
+      const confirmedMints = allMints.filter(m => m.status === "confirmed").length;
+      const activeDrops = allDrops.filter(d => d.status === "published").length;
+      res.json({
+        totalMinted: confirmedMints,
+        activeLocations: allLocations.length,
+        activeDrops,
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });

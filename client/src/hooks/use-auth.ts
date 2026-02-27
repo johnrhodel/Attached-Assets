@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n/context";
 import { z } from "zod";
 
 type LoginInput = z.infer<typeof api.auth.login.input>;
@@ -8,6 +9,7 @@ type LoginInput = z.infer<typeof api.auth.login.input>;
 export function useAuth() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useI18n();
 
   const { data: user, isLoading } = useQuery({
     queryKey: [api.auth.me.path],
@@ -35,10 +37,10 @@ export function useAuth() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.auth.me.path] });
-      toast({ title: "Welcome back", description: "You have successfully logged in." });
+      toast({ title: t.toasts.welcomeBack, description: t.toasts.welcomeBackDesc });
     },
     onError: (error: Error) => {
-      toast({ variant: "destructive", title: "Login Failed", description: error.message });
+      toast({ variant: "destructive", title: t.toasts.loginFailed, description: error.message });
     },
   });
 
@@ -49,7 +51,7 @@ export function useAuth() {
     },
     onSuccess: () => {
       queryClient.setQueryData([api.auth.me.path], null);
-      toast({ title: "Logged out", description: "See you soon!" });
+      toast({ title: t.toasts.loggedOut, description: t.toasts.loggedOutDesc });
     },
   });
 

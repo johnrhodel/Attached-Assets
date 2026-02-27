@@ -1,7 +1,9 @@
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { LanguageSelector } from "@/components/language-selector";
 import { useI18n } from "@/lib/i18n/context";
 import { 
@@ -14,7 +16,11 @@ import {
   Shield,
   ChevronRight,
   Linkedin,
-  KeyRound
+  KeyRound,
+  Check,
+  Zap,
+  MapPin,
+  Sparkles
 } from "lucide-react";
 
 import heroConcert from "../assets/images/hero-concert.jpg";
@@ -32,9 +38,22 @@ const heroImages = [
 
 const featureIcons = [Layers, QrCode, Mail, Code2, BarChart3, Shield];
 
+function usePublicStats() {
+  return useQuery({
+    queryKey: ["/api/public/stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/public/stats");
+      if (!res.ok) return { totalMinted: 0, activeLocations: 0, activeDrops: 0 };
+      return await res.json();
+    },
+    refetchInterval: 30000,
+  });
+}
+
 export default function Home() {
   const { t } = useI18n();
   const [currentImage, setCurrentImage] = useState(0);
+  const { data: stats } = usePublicStats();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -107,13 +126,33 @@ export default function Home() {
                 {t.landing.try_demo} <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
-            <Link href="/access">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-access-code">
-                <KeyRound className="mr-2 w-5 h-5" />
-                {t.accessCode.title}
-              </Button>
-            </Link>
           </div>
+
+          {stats && (
+            <div className="flex flex-wrap justify-center gap-6 sm:gap-10 mt-8 sm:mt-10" data-testid="section-live-stats">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1.5 mb-1">
+                  <Sparkles className="w-4 h-4 text-white/60" />
+                  <span className="text-2xl sm:text-3xl font-bold text-white" data-testid="stat-total-minted">{stats.totalMinted || 0}</span>
+                </div>
+                <span className="text-xs text-white/60">{t.stats.totalMinted}</span>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1.5 mb-1">
+                  <MapPin className="w-4 h-4 text-white/60" />
+                  <span className="text-2xl sm:text-3xl font-bold text-white" data-testid="stat-locations">{stats.activeLocations || 0}</span>
+                </div>
+                <span className="text-xs text-white/60">{t.stats.activeLocations}</span>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1.5 mb-1">
+                  <Zap className="w-4 h-4 text-white/60" />
+                  <span className="text-2xl sm:text-3xl font-bold text-white" data-testid="stat-drops">{stats.activeDrops || 0}</span>
+                </div>
+                <span className="text-xs text-white/60">{t.stats.activeDrops}</span>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-center gap-2 mt-8 sm:mt-10">
             {heroImages.map((_, index) => (
@@ -181,7 +220,87 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24" data-testid="section-team">
+      <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24" data-testid="section-pricing">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-center mb-3 sm:mb-4" data-testid="text-pricing-title">
+            {t.pricing.title}
+          </h2>
+          <p className="text-sm sm:text-base text-muted-foreground text-center mb-8 sm:mb-12 max-w-xl mx-auto">
+            {t.pricing.subtitle}
+          </p>
+
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-3 max-w-5xl mx-auto">
+            <Card className="border-border/50 shadow-sm relative" data-testid="card-pricing-starter">
+              <CardContent className="pt-6 pb-6">
+                <h3 className="font-serif font-bold text-xl mb-1">{t.pricing.starter}</h3>
+                <p className="text-sm text-muted-foreground mb-4">{t.pricing.starterDesc}</p>
+                <div className="mb-6">
+                  <span className="text-3xl font-bold">{t.pricing.starterPrice}</span>
+                  <span className="text-muted-foreground text-sm">{t.pricing.starterPer}</span>
+                </div>
+                <ul className="space-y-2.5 mb-6">
+                  {t.pricing.starterFeatures.map((f: string, i: number) => (
+                    <li key={i} className="flex items-center gap-2 text-sm">
+                      <Check className="w-4 h-4 text-green-500 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Button variant="outline" className="w-full" data-testid="button-pricing-starter">
+                  {t.pricing.contact}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-primary shadow-md relative ring-2 ring-primary/20" data-testid="card-pricing-professional">
+              <CardContent className="pt-6 pb-6">
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2" data-testid="badge-popular">{t.pricing.popular}</Badge>
+                <h3 className="font-serif font-bold text-xl mb-1">{t.pricing.professional}</h3>
+                <p className="text-sm text-muted-foreground mb-4">{t.pricing.professionalDesc}</p>
+                <div className="mb-6">
+                  <span className="text-3xl font-bold">{t.pricing.professionalPrice}</span>
+                  <span className="text-muted-foreground text-sm">{t.pricing.professionalPer}</span>
+                </div>
+                <ul className="space-y-2.5 mb-6">
+                  {t.pricing.professionalFeatures.map((f: string, i: number) => (
+                    <li key={i} className="flex items-center gap-2 text-sm">
+                      <Check className="w-4 h-4 text-green-500 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Button className="w-full" data-testid="button-pricing-professional">
+                  {t.pricing.contact}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50 shadow-sm relative" data-testid="card-pricing-enterprise">
+              <CardContent className="pt-6 pb-6">
+                <h3 className="font-serif font-bold text-xl mb-1">{t.pricing.enterprise}</h3>
+                <p className="text-sm text-muted-foreground mb-4">{t.pricing.enterpriseDesc}</p>
+                <div className="mb-6">
+                  <span className="text-3xl font-bold">{t.pricing.enterprisePrice}</span>
+                  <span className="text-muted-foreground text-sm">{t.pricing.enterprisePer}</span>
+                </div>
+                <ul className="space-y-2.5 mb-6">
+                  {t.pricing.enterpriseFeatures.map((f: string, i: number) => (
+                    <li key={i} className="flex items-center gap-2 text-sm">
+                      <Check className="w-4 h-4 text-green-500 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Button variant="outline" className="w-full" data-testid="button-pricing-enterprise">
+                  {t.pricing.contact}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24 bg-accent/30" data-testid="section-team">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold mb-3 sm:mb-4" data-testid="text-team-title">
             {t.landing.team_title}
@@ -217,7 +336,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24 bg-accent/30">
+      <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold mb-5 sm:mb-6">
             {t.landing.try_demo}
@@ -226,6 +345,12 @@ export default function Home() {
             <Link href="/claim/1">
               <Button size="lg" className="w-full sm:w-auto" data-testid="button-cta-demo">
                 {t.landing.try_demo} <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
+            <Link href="/access">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto" data-testid="button-access-code">
+                <KeyRound className="mr-2 w-5 h-5" />
+                {t.accessCode.title}
               </Button>
             </Link>
           </div>

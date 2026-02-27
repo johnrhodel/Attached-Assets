@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import type { InsertDrop } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n/context";
 
 export function useDrops(locationId: number) {
   return useQuery({
@@ -19,6 +20,7 @@ export function useDrops(locationId: number) {
 export function useCreateDrop() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: async ({ locationId, ...data }: InsertDrop & { locationId: number }) => {
       const url = buildUrl(api.drops.create.path, { locationId });
@@ -32,7 +34,7 @@ export function useCreateDrop() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.drops.list.path, variables.locationId] });
-      toast({ title: "Drop created", description: "New drop is ready to be published." });
+      toast({ title: t.toasts.dropCreated, description: t.toasts.dropCreatedDesc });
     },
   });
 }
@@ -40,6 +42,7 @@ export function useCreateDrop() {
 export function usePublishDrop() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: async ({ id, locationId }: { id: number, locationId: number }) => {
       const url = buildUrl(api.drops.publish.path, { id });
@@ -49,7 +52,7 @@ export function usePublishDrop() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.drops.list.path, variables.locationId] });
-      toast({ title: "Drop Published", description: "This drop is now live." });
+      toast({ title: t.toasts.dropPublished, description: t.toasts.dropPublishedDesc });
     },
   });
 }
@@ -57,6 +60,7 @@ export function usePublishDrop() {
 export function useUpdateDrop() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: async ({ id, locationId, ...data }: { id: number; locationId: number } & Partial<InsertDrop>) => {
       const url = buildUrl(api.drops.update.path, { id });
@@ -70,7 +74,7 @@ export function useUpdateDrop() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.drops.list.path, variables.locationId] });
-      toast({ title: "Drop updated" });
+      toast({ title: t.toasts.dropUpdated });
     },
   });
 }
@@ -78,6 +82,7 @@ export function useUpdateDrop() {
 export function useDeleteDrop() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: async ({ id, locationId }: { id: number; locationId: number }) => {
       const url = buildUrl(api.drops.delete.path, { id });
@@ -87,12 +92,11 @@ export function useDeleteDrop() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.drops.list.path, variables.locationId] });
-      toast({ title: "Drop deleted" });
+      toast({ title: t.toasts.dropDeleted });
     },
   });
 }
 
-// For public claim page
 export function useActiveDrop(locationId: number) {
   return useQuery({
     queryKey: [api.drops.getActive.path, locationId],

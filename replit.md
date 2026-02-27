@@ -42,8 +42,11 @@ The application functions as a PWA with manifest, service worker (registered in 
 - **NFT Gallery**: `/gallery/:locationId` to display minted NFTs.
 - **User NFT Lookup**: `/my-nfts` allows users to find their NFTs by email.
 - **Admin Dashboard**: Comprehensive `/admin/dashboard` with metrics, project, location, and drop management.
-- **API Endpoints**: Provide blockchain status, admin statistics, gallery data, user NFT lookups, and QR code generation.
+- **API Endpoints**: Provide blockchain status, admin statistics, gallery data, user NFT lookups, QR code generation, and public stats (`/api/public/stats`).
 - **Email Service**: For verification codes and mint confirmations, with Resend integration capabilities.
+- **Landing Page**: Pricing section (3 tiers: Starter R$500, Professional R$1,497, Enterprise R$4,997), live platform stats, team section, and access code entry.
+- **Rate Limiting**: In-memory rate limiting on `/api/walletless/start` — max 3 per email per 10 min, max 10 per IP per 10 min.
+- **Full i18n**: All toast messages, chain names, pricing text, and UI strings use the i18n system (EN/PT/ES). No hardcoded English in user-facing hooks or components.
 
 ## External Dependencies
 

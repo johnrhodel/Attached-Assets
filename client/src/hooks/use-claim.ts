@@ -1,11 +1,11 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n/context";
 import { z } from "zod";
 
 type VerifySessionResponse = z.infer<typeof api.claims.verifySession.responses[200]>;
 
-// Hook to verify if a claim token is valid
 export function useVerifyClaimSession(token: string | null) {
   return useQuery({
     queryKey: [api.claims.verifySession.path, token],
@@ -17,12 +17,13 @@ export function useVerifyClaimSession(token: string | null) {
       return api.claims.verifySession.responses[200].parse(await res.json());
     },
     enabled: !!token,
-    staleTime: 0, // Always check freshness
+    staleTime: 0,
   });
 }
 
-// Hook to start a new claim session
 export function useCreateClaimSession() {
+  const { toast } = useToast();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: async (locationId: number) => {
       const res = await fetch(api.claims.createSession.path, {
@@ -31,17 +32,24 @@ export function useCreateClaimSession() {
         body: JSON.stringify({ locationId }),
       });
       
-      if (res.status === 429) throw new Error("Too many requests. Please try again later.");
+      if (res.status === 429) throw new Error("RATE_LIMITED");
       if (!res.ok) throw new Error("Failed to start claim session");
       
       return api.claims.createSession.responses[200].parse(await res.json());
-    }
+    },
+    onError: (error: Error) => {
+      if (error.message === "RATE_LIMITED") {
+        toast({ title: t.toasts.rateLimited, description: t.toasts.rateLimitedDesc, variant: "destructive" });
+      } else {
+        toast({ title: t.toasts.claimError, description: t.toasts.claimErrorDesc, variant: "destructive" });
+      }
+    },
   });
 }
 
-// === WALLETLESS FLOW ===
 export function useWalletless() {
   const { toast } = useToast();
+  const { t } = useI18n();
 
   const start = useMutation({
     mutationFn: async (email: string) => {
@@ -50,12 +58,18 @@ export function useWalletless() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
+      if (res.status === 429) throw new Error("RATE_LIMITED");
       if (!res.ok) throw new Error("Failed to send verification code");
       return api.walletless.start.responses[200].parse(await res.json());
     },
     onSuccess: () => {
-      toast({ title: "Code sent!", description: "Check your console (dev mode) or email." });
-    }
+      toast({ title: t.toasts.codeSent, description: t.toasts.codeSentDesc });
+    },
+    onError: (error: Error) => {
+      if (error.message === "RATE_LIMITED") {
+        toast({ title: t.toasts.rateLimited, description: t.toasts.rateLimitedDesc, variant: "destructive" });
+      }
+    },
   });
 
   const verify = useMutation({
@@ -81,16 +95,16 @@ export function useWalletless() {
       return api.walletless.mine.responses[200].parse(await res.json());
     },
     onSuccess: () => {
-      toast({ title: "Minted!", description: "Your memory has been safely stored." });
-    }
+      toast({ title: t.toasts.minted, description: t.toasts.mintedDesc });
+    },
   });
 
   return { start, verify, mine };
 }
 
-// === MINTING CONFIRMATION ===
 export function useConfirmMint() {
   const { toast } = useToast();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: async (data: { claimToken: string; txHash: string; chain: "evm" | "solana" | "stellar" }) => {
       const res = await fetch(api.mint.confirm.path, {
@@ -102,7 +116,7 @@ export function useConfirmMint() {
       return api.mint.confirm.responses[200].parse(await res.json());
     },
     onSuccess: () => {
-      toast({ title: "Success!", description: "NFT claimed successfully." });
-    }
+      toast({ title: t.toasts.mintConfirmed, description: t.toasts.mintConfirmedDesc });
+    },
   });
 }
