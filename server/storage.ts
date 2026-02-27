@@ -58,6 +58,7 @@ export interface IStorage {
   getMintsForEmail(email: string): Promise<Array<Mint & { dropTitle: string; dropImageUrl: string }>>;
   getRecentMints(limit: number): Promise<Array<Mint & { dropTitle: string }>>;
   getMintsByLocation(locationId: number): Promise<Mint[]>;
+  deleteAllMints(): Promise<void>;
 
   // Drops by access code
   getDropByAccessCode(code: string): Promise<Drop | undefined>;
@@ -278,6 +279,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(mints.createdAt))
       .limit(limit);
     return results;
+  }
+  async deleteAllMints(): Promise<void> {
+    await db.delete(mints);
+    await db.update(drops).set({ mintedCount: 0 });
   }
   async getMintsByLocation(locationId: number): Promise<Mint[]> {
     const results = await db.select({

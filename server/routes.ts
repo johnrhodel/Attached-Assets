@@ -645,6 +645,19 @@ export async function registerRoutes(
     }
   });
 
+  // === RESET MINTS (Admin only) ===
+  app.post("/api/admin/reset-mints", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      await storage.deleteAllMints();
+      console.log("[ADMIN] All mints and mint counts have been reset");
+      res.json({ message: "All mints have been deleted and drop counts reset to 0" });
+    } catch (error: any) {
+      console.error("[ADMIN] Error resetting mints:", error);
+      res.status(500).json({ message: "Failed to reset mints" });
+    }
+  });
+
   // === DASHBOARD STATS ===
   app.get("/api/admin/stats", async (_req, res) => {
     try {

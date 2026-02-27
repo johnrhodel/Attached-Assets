@@ -2,14 +2,15 @@ import { useState } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useQuery } from "@tanstack/react-query";
-import { Activity, Users, Box, MapPin, Layers, Copy, Check, Search, ShieldCheck, Download, Clock, ArrowUpDown, Zap } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Activity, Users, Box, MapPin, Layers, Copy, Check, Search, ShieldCheck, Download, Clock, ArrowUpDown, Zap, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useI18n } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface AdminStats {
   totalMints: number;
@@ -116,6 +117,23 @@ export default function Dashboard() {
   });
 
   const { toast } = useToast();
+
+  const resetMintsMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/reset-mints"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({ title: t.admin.resetMintsSuccess });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reset mints", variant: "destructive" });
+    },
+  });
+
+  const handleResetMints = () => {
+    if (window.confirm(t.admin.resetMintsConfirm)) {
+      resetMintsMutation.mutate();
+    }
+  };
 
   const { data: blockchainStatus } = useQuery<BlockchainStatus>({
     queryKey: ["/api/blockchain/status"],
@@ -233,6 +251,10 @@ export default function Dashboard() {
             <Button variant="outline" size="sm" className="gap-2" onClick={() => handleExportCsv("users")} data-testid="button-export-users">
               <Download className="w-4 h-4" />
               {t.admin.exportUsers}
+            </Button>
+            <Button variant="destructive" size="sm" className="gap-2" onClick={handleResetMints} disabled={resetMintsMutation.isPending} data-testid="button-reset-mints">
+              <Trash2 className="w-4 h-4" />
+              {t.admin.resetMints}
             </Button>
           </div>
         </div>
