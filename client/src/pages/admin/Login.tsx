@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
-import { useLocation } from "wouter";
+import { Loader2, ChevronLeft } from "lucide-react";
+import { useLocation, Link } from "wouter";
 import { LanguageSelector } from "@/components/language-selector";
 import { useI18n } from "@/lib/i18n/context";
 
@@ -28,6 +28,14 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-accent/20 p-4 relative">
+      <div className="absolute top-4 left-4">
+        <Link href="/" data-testid="link-back-home">
+          <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground">
+            <ChevronLeft className="w-4 h-4" />
+            {t.common.back}
+          </Button>
+        </Link>
+      </div>
       <div className="absolute top-4 right-4">
         <LanguageSelector />
       </div>
