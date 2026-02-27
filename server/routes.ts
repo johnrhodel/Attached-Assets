@@ -612,21 +612,34 @@ export async function registerRoutes(
   });
 
   // === BLOCKCHAIN STATUS ENDPOINT ===
+  let cachedStatus: { data: any; timestamp: number } | null = null;
+  const STATUS_CACHE_TTL = 30000;
+
   app.get("/api/blockchain/status", async (_req, res) => {
     try {
+      const isHealthyCached = cachedStatus && parseFloat(String(cachedStatus.data?.stellar?.balance || "0")) > 0;
+      if (cachedStatus && isHealthyCached && Date.now() - cachedStatus.timestamp < STATUS_CACHE_TTL) {
+        return res.json(cachedStatus.data);
+      }
+
+      try { await stellarService.ensureServerFunded(); } catch { }
+
       let stlBal = "0";
       try {
         stlBal = await stellarService.getServerBalance();
       } catch { }
 
-      res.json({
+      const data = {
         stellar: {
           serverPublicKey: stellarService.getServerPublicKey(),
           balance: stlBal,
           network: process.env.STELLAR_NETWORK || "testnet",
           healthy: parseFloat(String(stlBal)) > 0,
         },
-      });
+      };
+
+      cachedStatus = { data, timestamp: Date.now() };
+      res.json(data);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1005,6 +1018,13 @@ export async function registerRoutes(
         status: "published"
       });
       console.log("Seeding Complete.");
+    }
+
+    const allDrops = await storage.getDrops(1);
+    const parisDrop = allDrops.find(d => d.title === "Paris Visit 2026" && !d.accessCode);
+    if (parisDrop) {
+      await storage.updateDrop(parisDrop.id, { accessCode: "PARIS2026" });
+      console.log(`[SEED] Set access code PARIS2026 on drop "${parisDrop.title}"`);
     }
 
     const existingPlans = await storage.getPricingPlans();

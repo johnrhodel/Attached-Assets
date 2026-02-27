@@ -184,7 +184,7 @@ export default function Claim() {
                   </div>
                 </div>
                 <div className="p-5 sm:p-6 bg-card text-center">
-                  {blockchainStatus && !blockchainStatus.healthy && (
+                  {blockchainStatus?.stellar && !blockchainStatus.stellar.healthy && (
                     <div className="text-xs text-center text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 rounded-md py-2 px-3 mb-3 flex items-center justify-center gap-1.5" data-testid="text-blockchain-warning">
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                       {t.admin.unhealthy} — {t.chains.stellar}

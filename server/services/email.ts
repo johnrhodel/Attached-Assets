@@ -1,5 +1,5 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const EMAIL_FROM = process.env.EMAIL_FROM || "Mintoria <noreply@mintoria.xyz>";
+const EMAIL_FROM = process.env.EMAIL_FROM || "Mintoria <onboarding@resend.dev>";
 
 let resendClient: any = null;
 
@@ -25,7 +25,7 @@ export async function sendVerificationEmail(email: string, code: string): Promis
   }
 
   try {
-    await client.emails.send({
+    const result = await client.emails.send({
       from: EMAIL_FROM,
       to: email,
       subject: `Your Mintoria verification code: ${code}`,
@@ -48,10 +48,15 @@ export async function sendVerificationEmail(email: string, code: string): Promis
         </div>
       `,
     });
-    console.log(`[EMAIL] Verification code sent to ${email} via Resend`);
+    if (result.error) {
+      console.error(`[EMAIL] Resend API error for ${email}:`, JSON.stringify(result.error));
+      console.log(`[WALLETLESS] Verification code for ${email}: ${code} (Resend error fallback)`);
+    } else {
+      console.log(`[EMAIL] Verification code sent to ${email} via Resend (id: ${result.data?.id})`);
+    }
     return true;
   } catch (err: any) {
-    console.error(`[EMAIL] Failed to send via Resend: ${err.message}`);
+    console.error(`[EMAIL] Failed to send via Resend:`, err.message, err.statusCode || '', JSON.stringify(err.response?.body || ''));
     console.log(`[WALLETLESS] Verification code for ${email}: ${code} (fallback to console)`);
     return true;
   }
@@ -66,7 +71,7 @@ export async function sendMintConfirmationEmail(email: string, params: { dropTit
   }
 
   try {
-    await client.emails.send({
+    const result = await client.emails.send({
       from: EMAIL_FROM,
       to: email,
       subject: `Your NFT "${params.dropTitle}" has been minted!`,
@@ -90,10 +95,14 @@ export async function sendMintConfirmationEmail(email: string, params: { dropTit
         </div>
       `,
     });
-    console.log(`[EMAIL] Mint confirmation sent to ${email} via Resend`);
+    if (result.error) {
+      console.error(`[EMAIL] Resend API error for mint confirmation to ${email}:`, JSON.stringify(result.error));
+      return false;
+    }
+    console.log(`[EMAIL] Mint confirmation sent to ${email} via Resend (id: ${result.data?.id})`);
     return true;
   } catch (err: any) {
-    console.error(`[EMAIL] Failed to send mint confirmation: ${err.message}`);
+    console.error(`[EMAIL] Failed to send mint confirmation:`, err.message, JSON.stringify(err.response?.body || ''));
     return false;
   }
 }
