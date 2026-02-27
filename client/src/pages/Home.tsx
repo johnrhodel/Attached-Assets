@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -144,14 +145,20 @@ export default function Home() {
             {t.landing.hero_subtitle}
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center flex-wrap">
+          <motion.div
+            className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center flex-wrap"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.6 }}
+          >
             <Link href="/access">
-              <Button size="lg" className="w-full sm:w-auto" data-testid="button-try-demo">
+              <Button size="lg" className="w-full sm:w-auto relative overflow-hidden group shadow-lg shadow-primary/25" data-testid="button-try-demo">
+                <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
                 <KeyRound className="mr-2 w-5 h-5" />
                 {t.landing.try_demo}
               </Button>
             </Link>
-          </div>
+          </motion.div>
 
           {stats && (
             <div className="flex flex-wrap justify-center gap-6 sm:gap-10 mt-8 sm:mt-10" data-testid="section-live-stats">
@@ -337,17 +344,30 @@ export default function Home() {
 
       <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold mb-5 sm:mb-6">
+          <motion.h2
+            className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold mb-5 sm:mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
             {t.landing.try_demo}
-          </h2>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center flex-wrap">
+          </motion.h2>
+          <motion.div
+            className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center flex-wrap"
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
             <Link href="/access">
-              <Button size="lg" className="w-full sm:w-auto" data-testid="button-access-code">
+              <Button size="lg" className="w-full sm:w-auto relative overflow-hidden group shadow-lg shadow-primary/25" data-testid="button-access-code">
+                <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
                 <KeyRound className="mr-2 w-5 h-5" />
                 {t.accessCode.title}
               </Button>
             </Link>
-          </div>
+          </motion.div>
         </div>
       </section>
 

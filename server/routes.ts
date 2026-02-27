@@ -1027,6 +1027,44 @@ export async function registerRoutes(
       console.log(`[SEED] Set access code PARIS2026 on drop "${parisDrop.title}"`);
     }
 
+    const projectId = (await storage.getProjects())[0]?.id;
+    const allLocations = projectId ? await storage.getLocations(projectId) : [];
+    if (projectId && !allLocations.find(l => l.slug === "cristo-redentor")) {
+      console.log("[SEED] Creating Cristo Redentor location...");
+      const rioLocation = await storage.createLocation({ name: "Cristo Redentor", slug: "cristo-redentor", projectId });
+      await storage.createDrop({
+        locationId: rioLocation.id,
+        title: "Rio de Janeiro 2026",
+        month: "February",
+        year: 2026,
+        imageUrl: "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?auto=format&fit=crop&q=80&w=1000",
+        metadataUrl: "https://example.com/metadata-rio.json",
+        supply: 1000,
+        enabledChains: ["stellar"],
+        status: "published",
+        accessCode: "RIO2026",
+      });
+      console.log(`[SEED] Created Cristo Redentor with access code RIO2026`);
+    }
+
+    if (projectId && !allLocations.find(l => l.slug === "palacio-cristal")) {
+      console.log("[SEED] Creating Palácio de Cristal location...");
+      const cwbLocation = await storage.createLocation({ name: "Palácio de Cristal", slug: "palacio-cristal", projectId });
+      await storage.createDrop({
+        locationId: cwbLocation.id,
+        title: "Curitiba 2026",
+        month: "February",
+        year: 2026,
+        imageUrl: "https://images.unsplash.com/photo-1587974928442-77dc3e0dba72?auto=format&fit=crop&q=80&w=1000",
+        metadataUrl: "https://example.com/metadata-curitiba.json",
+        supply: 1000,
+        enabledChains: ["stellar"],
+        status: "published",
+        accessCode: "CURITIBA2026",
+      });
+      console.log(`[SEED] Created Palácio de Cristal with access code CURITIBA2026`);
+    }
+
     const existingPlans = await storage.getPricingPlans();
     if (existingPlans.length === 0) {
       console.log("Seeding default pricing plans...");
