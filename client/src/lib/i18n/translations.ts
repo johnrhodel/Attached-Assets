@@ -290,7 +290,7 @@ export const translations = {
     landing: {
       hero_title: 'Mintoria',
       hero_tagline: 'Your memories eternalized with technology',
-      hero_subtitle: 'Turn real moments into unique digital collectibles. Concerts, trips, events — every experience becomes an NFT you can keep forever.',
+      hero_subtitle: 'Turn real moments into unique digital collectibles — from concerts and trips to events and tourist attractions. Every unforgettable experience becomes an NFT you\'ll own forever.',
       admin_portal: 'Admin Portal',
       try_demo: 'Claim Your Memory',
       features_title: 'Everything you need',
@@ -602,7 +602,7 @@ export const translations = {
     landing: {
       hero_title: 'Mintoria',
       hero_tagline: 'Suas memórias eternizadas com tecnologia',
-      hero_subtitle: 'Transforme momentos reais em colecionáveis digitais únicos. Shows, viagens, eventos — cada experiência vira um NFT que você guarda para sempre.',
+      hero_subtitle: 'Transforme momentos reais em colecionáveis digitais únicos — de shows e viagens a eventos e pontos turísticos. Cada experiência inesquecível se torna um NFT que é seu para sempre.',
       admin_portal: 'Portal Admin',
       try_demo: 'Resgate Sua Lembrança',
       features_title: 'Tudo que você precisa',
@@ -914,7 +914,7 @@ export const translations = {
     landing: {
       hero_title: 'Mintoria',
       hero_tagline: 'Tus recuerdos eternizados con tecnología',
-      hero_subtitle: 'Convierte momentos reales en coleccionables digitales únicos. Conciertos, viajes, eventos — cada experiencia se convierte en un NFT que puedes guardar para siempre.',
+      hero_subtitle: 'Convierte momentos reales en coleccionables digitales únicos — desde conciertos y viajes hasta eventos y atracciones turísticas. Cada experiencia inolvidable se convierte en un NFT que será tuyo para siempre.',
       admin_portal: 'Portal Admin',
       try_demo: 'Reclama Tu Recuerdo',
       features_title: 'Todo lo que necesitas',

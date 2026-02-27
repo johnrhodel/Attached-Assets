@@ -183,7 +183,7 @@ export default function Claim() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5 sm:p-6 text-white">
                     <p className="text-xs sm:text-sm font-medium opacity-75 mb-1">{drop.month} {drop.year}</p>
                     <h1 className="text-xl sm:text-2xl font-serif font-bold">{drop.title}</h1>
-                    <p className="text-xs sm:text-sm opacity-60 mt-1">{drop.mintedCount} / {drop.supply} {t.claim.supplyRemaining}</p>
+                    <p className="text-xs sm:text-sm opacity-60 mt-1">{drop.supply - drop.mintedCount} / {drop.supply} {t.claim.supplyRemaining}</p>
                   </div>
                 </div>
                 <div className="p-5 sm:p-6 bg-card text-center">
