@@ -668,6 +668,9 @@ export async function registerRoutes(
       });
 
       const mintsByLocationData: Record<string, number> = {};
+      for (const loc of allLocations) {
+        mintsByLocationData[loc.name] = 0;
+      }
       for (const mint of allMints) {
         const drop = allDrops.find(d => d.id === mint.dropId);
         if (drop) {
