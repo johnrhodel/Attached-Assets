@@ -145,9 +145,10 @@ export default function Home() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center flex-wrap">
-            <Link href="/claim/1">
+            <Link href="/access">
               <Button size="lg" className="w-full sm:w-auto" data-testid="button-try-demo">
-                {t.landing.try_demo} <ArrowRight className="ml-2 w-5 h-5" />
+                <KeyRound className="mr-2 w-5 h-5" />
+                {t.landing.try_demo}
               </Button>
             </Link>
           </div>
@@ -340,13 +341,8 @@ export default function Home() {
             {t.landing.try_demo}
           </h2>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center flex-wrap">
-            <Link href="/claim/1">
-              <Button size="lg" className="w-full sm:w-auto" data-testid="button-cta-demo">
-                {t.landing.try_demo} <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
             <Link href="/access">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto" data-testid="button-access-code">
+              <Button size="lg" className="w-full sm:w-auto" data-testid="button-access-code">
                 <KeyRound className="mr-2 w-5 h-5" />
                 {t.accessCode.title}
               </Button>

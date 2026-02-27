@@ -155,12 +155,15 @@ export default function Claim() {
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
 
       <div className="relative z-20 w-full max-w-sm sm:max-w-md flex items-center justify-between gap-3 flex-wrap px-4 py-4 sm:px-6 sm:py-5 mx-auto">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="w-7 h-7 bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center">
-            <Layers className="w-3.5 h-3.5 text-white" />
+        <Link href="/">
+          <div className="flex items-center gap-2 flex-wrap cursor-pointer" data-testid="link-back-home">
+            <ChevronLeft className="w-4 h-4 text-white/70" />
+            <div className="w-7 h-7 bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center">
+              <Layers className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="font-serif font-bold text-base text-white">Mintoria</span>
           </div>
-          <span className="font-serif font-bold text-base text-white">Mintoria</span>
-        </div>
+        </Link>
         <LanguageSelector />
       </div>
 
