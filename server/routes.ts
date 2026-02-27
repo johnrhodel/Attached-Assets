@@ -1037,14 +1037,22 @@ export async function registerRoutes(
     }
 
     const projectId = (await storage.getProjects())[0]?.id;
-    if (projectId) {
-      const allDrops = await storage.getDrops(projectId);
-      const parisDrop = allDrops.find(d => d.title === "Paris Visit 2026" && !d.accessCode);
-      if (parisDrop) {
-        await storage.updateDrop(parisDrop.id, { accessCode: "PARIS2026" });
-        console.log(`[SEED] Set access code PARIS2026 on drop "${parisDrop.title}"`);
+
+    const accessCodeMap: Record<string, string> = {
+      "Paris Visit 2026": "PARIS2026",
+      "Rio de Janeiro 2026": "RIO2026",
+      "Curitiba 2026": "CURITIBA2026",
+      "Foz do Iguaçu 2026": "FOZ2026",
+    };
+    const allExistingDrops = await storage.getAllDrops();
+    for (const [title, code] of Object.entries(accessCodeMap)) {
+      const drop = allExistingDrops.find(d => d.title === title && d.accessCode !== code);
+      if (drop) {
+        await storage.updateDrop(drop.id, { accessCode: code });
+        console.log(`[SEED] Fixed access code ${code} on drop "${title}"`);
       }
     }
+
     const allLocations = projectId ? await storage.getLocations(projectId) : [];
     if (projectId && !allLocations.find(l => l.slug === "cristo-redentor")) {
       console.log("[SEED] Creating Cristo Redentor location...");
