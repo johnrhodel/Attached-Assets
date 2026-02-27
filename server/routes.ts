@@ -1037,7 +1037,7 @@ export async function registerRoutes(
         title: "Rio de Janeiro 2026",
         month: "February",
         year: 2026,
-        imageUrl: "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?auto=format&fit=crop&q=80&w=1000",
+        imageUrl: "/uploads/rio-cristo-redentor.png",
         metadataUrl: "https://example.com/metadata-rio.json",
         supply: 1000,
         enabledChains: ["stellar"],
@@ -1055,7 +1055,7 @@ export async function registerRoutes(
         title: "Curitiba 2026",
         month: "February",
         year: 2026,
-        imageUrl: "https://images.unsplash.com/photo-1587974928442-77dc3e0dba72?auto=format&fit=crop&q=80&w=1000",
+        imageUrl: "/uploads/curitiba-jardim-botanico.png",
         metadataUrl: "https://example.com/metadata-curitiba.json",
         supply: 1000,
         enabledChains: ["stellar"],
@@ -1063,6 +1063,24 @@ export async function registerRoutes(
         accessCode: "CURITIBA2026",
       });
       console.log(`[SEED] Created Palácio de Cristal with access code CURITIBA2026`);
+    }
+
+    if (projectId && !allLocations.find(l => l.slug === "cataratas-do-iguacu")) {
+      console.log("[SEED] Creating Cataratas do Iguaçu location...");
+      const fozLocation = await storage.createLocation({ name: "Cataratas do Iguaçu", slug: "cataratas-do-iguacu", projectId });
+      await storage.createDrop({
+        locationId: fozLocation.id,
+        title: "Foz do Iguaçu 2026",
+        month: "February",
+        year: 2026,
+        imageUrl: "/uploads/foz-cataratas.png",
+        metadataUrl: "https://example.com/metadata-foz.json",
+        supply: 1000,
+        enabledChains: ["stellar"],
+        status: "published",
+        accessCode: "FOZ2026",
+      });
+      console.log(`[SEED] Created Cataratas do Iguaçu with access code FOZ2026`);
     }
 
     const existingPlans = await storage.getPricingPlans();
