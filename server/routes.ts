@@ -13,7 +13,7 @@ import express from "express";
 
 import * as stellarService from "./services/stellar";
 import { generateWalletForChain } from "./services/wallet";
-import { walletlessUsers, walletlessKeys } from "@shared/schema";
+import { walletlessUsers, walletlessKeys, insertPricingPlanSchema } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { sendVerificationEmail, sendMintConfirmationEmail } from "./services/email";
@@ -721,6 +721,16 @@ export async function registerRoutes(
     }
   });
 
+  // === PUBLIC PRICING ===
+  app.get("/api/public/pricing", async (_req, res) => {
+    try {
+      const plans = await storage.getActivePricingPlans();
+      res.json(plans);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // === PUBLIC STATS ===
   app.get("/api/public/stats", async (_req, res) => {
     try {
@@ -829,6 +839,59 @@ export async function registerRoutes(
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.markNotificationRead(Number(req.params.id));
     res.json({ success: true });
+  });
+
+  // === ADMIN PRICING ===
+  app.get("/api/admin/pricing", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const plans = await storage.getPricingPlans();
+      res.json(plans);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/pricing", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const parsed = insertPricingPlanSchema.parse(req.body);
+      const plan = await storage.createPricingPlan(parsed);
+      await storage.createActivityLog({ userId, action: "create", entity: "pricing_plan", entityId: plan.id, details: `Created pricing plan: ${plan.name}` });
+      res.status(201).json(plan);
+    } catch (err: any) {
+      if (err.name === "ZodError") return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/admin/pricing/:id", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const parsed = insertPricingPlanSchema.partial().parse(req.body);
+      const plan = await storage.updatePricingPlan(Number(req.params.id), parsed);
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+      await storage.createActivityLog({ userId, action: "update", entity: "pricing_plan", entityId: plan.id, details: `Updated pricing plan: ${plan.name}` });
+      res.json(plan);
+    } catch (err: any) {
+      if (err.name === "ZodError") return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/admin/pricing/:id", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      await storage.deletePricingPlan(Number(req.params.id));
+      await storage.createActivityLog({ userId, action: "delete", entity: "pricing_plan", entityId: Number(req.params.id), details: "Deleted pricing plan" });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
   });
 
   // === CSV EXPORT ===
@@ -942,6 +1005,42 @@ export async function registerRoutes(
         status: "published"
       });
       console.log("Seeding Complete.");
+    }
+
+    const existingPlans = await storage.getPricingPlans();
+    if (existingPlans.length === 0) {
+      console.log("Seeding default pricing plans...");
+      await storage.createPricingPlan({
+        name: "Starter",
+        description: "Perfeito para eventos individuais",
+        price: "R$500",
+        pricePer: "/evento",
+        features: ["Up to 500 mints", "1 location", "QR code generation", "Email support", "Basic analytics"],
+        highlighted: false,
+        sortOrder: 0,
+        isActive: true,
+      });
+      await storage.createPricingPlan({
+        name: "Professional",
+        description: "Para operadores de turismo",
+        price: "R$1.497",
+        pricePer: "/month",
+        features: ["Unlimited mints", "5 locations", "Custom branding", "Priority support", "Advanced analytics", "Embeddable widget"],
+        highlighted: true,
+        sortOrder: 1,
+        isActive: true,
+      });
+      await storage.createPricingPlan({
+        name: "Enterprise",
+        description: "Solucao completa para grandes operacoes",
+        price: "R$4.997",
+        pricePer: "/month",
+        features: ["Unlimited everything", "Unlimited locations", "White-label solution", "API access", "Dedicated support", "Custom integrations", "SLA guarantee"],
+        highlighted: false,
+        sortOrder: 2,
+        isActive: true,
+      });
+      console.log("Pricing plans seeded.");
     }
   }
 

@@ -20,7 +20,8 @@ import {
   Check,
   Zap,
   MapPin,
-  Sparkles
+  Sparkles,
+  Loader2
 } from "lucide-react";
 
 import heroConcert from "../assets/images/hero-concert.jpg";
@@ -38,6 +39,17 @@ const heroImages = [
 
 const featureIcons = [Layers, QrCode, Mail, Code2, BarChart3, Shield];
 
+interface PublicPricingPlan {
+  id: number;
+  name: string;
+  description: string;
+  price: string;
+  pricePer: string;
+  features: string[];
+  highlighted: boolean;
+  sortOrder: number;
+}
+
 function usePublicStats() {
   return useQuery({
     queryKey: ["/api/public/stats"],
@@ -50,10 +62,22 @@ function usePublicStats() {
   });
 }
 
+function usePublicPricing() {
+  return useQuery<PublicPricingPlan[]>({
+    queryKey: ["/api/public/pricing"],
+    queryFn: async () => {
+      const res = await fetch("/api/public/pricing");
+      if (!res.ok) return [];
+      return await res.json();
+    },
+  });
+}
+
 export default function Home() {
   const { t } = useI18n();
   const [currentImage, setCurrentImage] = useState(0);
   const { data: stats } = usePublicStats();
+  const { data: pricingPlans, isLoading: pricingLoading } = usePublicPricing();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -220,85 +244,59 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24" data-testid="section-pricing">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-center mb-3 sm:mb-4" data-testid="text-pricing-title">
-            {t.pricing.title}
-          </h2>
-          <p className="text-sm sm:text-base text-muted-foreground text-center mb-8 sm:mb-12 max-w-xl mx-auto">
-            {t.pricing.subtitle}
-          </p>
+      {pricingPlans && pricingPlans.length > 0 && (
+        <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24" data-testid="section-pricing">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-center mb-3 sm:mb-4" data-testid="text-pricing-title">
+              {t.pricing.title}
+            </h2>
+            <p className="text-sm sm:text-base text-muted-foreground text-center mb-8 sm:mb-12 max-w-xl mx-auto">
+              {t.pricing.subtitle}
+            </p>
 
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-3 max-w-5xl mx-auto">
-            <Card className="border-border/50 shadow-sm relative" data-testid="card-pricing-starter">
-              <CardContent className="pt-6 pb-6">
-                <h3 className="font-serif font-bold text-xl mb-1">{t.pricing.starter}</h3>
-                <p className="text-sm text-muted-foreground mb-4">{t.pricing.starterDesc}</p>
-                <div className="mb-6">
-                  <span className="text-3xl font-bold">{t.pricing.starterPrice}</span>
-                  <span className="text-muted-foreground text-sm">{t.pricing.starterPer}</span>
-                </div>
-                <ul className="space-y-2.5 mb-6">
-                  {t.pricing.starterFeatures.map((f: string, i: number) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-green-500 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button variant="outline" className="w-full" data-testid="button-pricing-starter">
-                  {t.pricing.contact}
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="border-primary shadow-md relative ring-2 ring-primary/20" data-testid="card-pricing-professional">
-              <CardContent className="pt-6 pb-6">
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2" data-testid="badge-popular">{t.pricing.popular}</Badge>
-                <h3 className="font-serif font-bold text-xl mb-1">{t.pricing.professional}</h3>
-                <p className="text-sm text-muted-foreground mb-4">{t.pricing.professionalDesc}</p>
-                <div className="mb-6">
-                  <span className="text-3xl font-bold">{t.pricing.professionalPrice}</span>
-                  <span className="text-muted-foreground text-sm">{t.pricing.professionalPer}</span>
-                </div>
-                <ul className="space-y-2.5 mb-6">
-                  {t.pricing.professionalFeatures.map((f: string, i: number) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-green-500 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button className="w-full" data-testid="button-pricing-professional">
-                  {t.pricing.contact}
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/50 shadow-sm relative" data-testid="card-pricing-enterprise">
-              <CardContent className="pt-6 pb-6">
-                <h3 className="font-serif font-bold text-xl mb-1">{t.pricing.enterprise}</h3>
-                <p className="text-sm text-muted-foreground mb-4">{t.pricing.enterpriseDesc}</p>
-                <div className="mb-6">
-                  <span className="text-3xl font-bold">{t.pricing.enterprisePrice}</span>
-                  <span className="text-muted-foreground text-sm">{t.pricing.enterprisePer}</span>
-                </div>
-                <ul className="space-y-2.5 mb-6">
-                  {t.pricing.enterpriseFeatures.map((f: string, i: number) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-green-500 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button variant="outline" className="w-full" data-testid="button-pricing-enterprise">
-                  {t.pricing.contact}
-                </Button>
-              </CardContent>
-            </Card>
+            <div className={`grid gap-6 grid-cols-1 max-w-5xl mx-auto ${pricingPlans.length === 1 ? 'md:grid-cols-1 max-w-md' : pricingPlans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3'}`}>
+              {pricingPlans.map((plan) => (
+                <Card
+                  key={plan.id}
+                  className={`relative ${plan.highlighted ? 'border-primary shadow-md ring-2 ring-primary/20' : 'border-border/50 shadow-sm'}`}
+                  data-testid={`card-pricing-${plan.id}`}
+                >
+                  <CardContent className="pt-6 pb-6">
+                    {plan.highlighted && (
+                      <Badge className="absolute -top-3 left-1/2 -translate-x-1/2" data-testid={`badge-popular-${plan.id}`}>{t.pricing.popular}</Badge>
+                    )}
+                    <h3 className="font-serif font-bold text-xl mb-1">{plan.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
+                    <div className="mb-6">
+                      <span className="text-3xl font-bold">{plan.price}</span>
+                      <span className="text-muted-foreground text-sm">{plan.pricePer}</span>
+                    </div>
+                    <ul className="space-y-2.5 mb-6">
+                      {plan.features.map((f, i) => (
+                        <li key={i} className="flex items-center gap-2 text-sm">
+                          <Check className="w-4 h-4 text-green-500 shrink-0" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button variant={plan.highlighted ? "default" : "outline"} className="w-full" data-testid={`button-pricing-${plan.id}`}>
+                      {t.pricing.contact}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {pricingLoading && (
+        <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24">
+          <div className="flex justify-center">
+            <Loader2 className="animate-spin text-primary w-8 h-8" />
+          </div>
+        </section>
+      )}
 
       <section className="w-full px-4 sm:px-6 py-12 sm:py-16 md:py-24 bg-accent/30" data-testid="section-team">
         <div className="max-w-4xl mx-auto text-center">

@@ -1,11 +1,11 @@
 import { 
   users, projects, locations, drops, claimSessions, mints, walletlessUsers, walletlessKeys,
-  activityLogs, platformSettings, notifications,
+  activityLogs, platformSettings, notifications, pricingPlans,
   type User, type Project, type Location, type Drop, type ClaimSession, type Mint, type WalletlessUser, type WalletlessKey,
-  type ActivityLog, type PlatformSetting, type Notification,
+  type ActivityLog, type PlatformSetting, type Notification, type PricingPlan,
   type InsertUser, type InsertProject, type InsertLocation, type InsertDrop, type InsertClaimSession, type InsertMint,
   type InsertWalletlessUser, type InsertWalletlessKey,
-  type InsertActivityLog, type InsertPlatformSetting, type InsertNotification,
+  type InsertActivityLog, type InsertPlatformSetting, type InsertNotification, type InsertPricingPlan,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
@@ -84,6 +84,13 @@ export interface IStorage {
   markNotificationRead(id: number): Promise<void>;
   markAllNotificationsRead(): Promise<void>;
   getUnreadNotificationCount(): Promise<number>;
+
+  // Pricing Plans
+  getPricingPlans(): Promise<PricingPlan[]>;
+  getActivePricingPlans(): Promise<PricingPlan[]>;
+  createPricingPlan(plan: InsertPricingPlan): Promise<PricingPlan>;
+  updatePricingPlan(id: number, data: Partial<InsertPricingPlan>): Promise<PricingPlan>;
+  deletePricingPlan(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -377,6 +384,25 @@ export class DatabaseStorage implements IStorage {
   async getUnreadNotificationCount(): Promise<number> {
     const [result] = await db.select({ count: sql<number>`count(*)` }).from(notifications).where(eq(notifications.read, false));
     return Number(result?.count ?? 0);
+  }
+
+  // Pricing Plans
+  async getPricingPlans(): Promise<PricingPlan[]> {
+    return db.select().from(pricingPlans).orderBy(pricingPlans.sortOrder);
+  }
+  async getActivePricingPlans(): Promise<PricingPlan[]> {
+    return db.select().from(pricingPlans).where(eq(pricingPlans.isActive, true)).orderBy(pricingPlans.sortOrder);
+  }
+  async createPricingPlan(plan: InsertPricingPlan): Promise<PricingPlan> {
+    const [created] = await db.insert(pricingPlans).values(plan).returning();
+    return created;
+  }
+  async updatePricingPlan(id: number, data: Partial<InsertPricingPlan>): Promise<PricingPlan> {
+    const [updated] = await db.update(pricingPlans).set({ ...data, updatedAt: new Date() }).where(eq(pricingPlans.id, id)).returning();
+    return updated;
+  }
+  async deletePricingPlan(id: number): Promise<void> {
+    await db.delete(pricingPlans).where(eq(pricingPlans.id, id));
   }
 }
 

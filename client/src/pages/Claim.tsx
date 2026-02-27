@@ -101,6 +101,7 @@ export default function Claim() {
   const [claimToken, setClaimToken] = useState<string | null>(null);
   const [view, setView] = useState<ClaimView>("landing");
   const [mintResult, setMintResult] = useState<MintResult | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
 
   if (isLoading) return (
     <div className="h-screen w-full flex items-center justify-center bg-background">
@@ -124,8 +125,6 @@ export default function Claim() {
       </div>
     </div>
   );
-
-  const [isStarting, setIsStarting] = useState(false);
   const startClaim = async () => {
     setIsStarting(true);
     try {

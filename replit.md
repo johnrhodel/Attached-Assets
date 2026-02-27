@@ -19,7 +19,7 @@ The frontend is built with React 18 and TypeScript, utilizing Wouter for routing
 The backend is a Node.js Express application written in TypeScript (ESM). It uses Express-session for authentication and handles claim session management, anti-fraud token generation, blockchain minting, and custodial wallet management. RESTful endpoints are defined with Zod schema validation.
 
 ### Data Storage
-PostgreSQL is the primary database, managed via Drizzle ORM. The schema defines tables for Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, WalletlessUsers, and WalletlessKeys.
+PostgreSQL is the primary database, managed via Drizzle ORM. The schema defines tables for Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, WalletlessUsers, WalletlessKeys, PricingPlans, ActivityLogs, PlatformSettings, and Notifications.
 
 ### Authentication & Authorization
 Admin users utilize cookie-based session authentication with PostgreSQL-backed session storage (connect-pg-simple). Admin passwords are hashed using scrypt with random salt (auto-migrated from plaintext on login). Default admin: `admin@mintoria.xyz` / `Mintoria2026!`. Claim sessions employ cryptographically hashed tokens for one-time NFT minting. The walletless flow involves encrypted custodial keys (AES-256-CBC) and email verification.

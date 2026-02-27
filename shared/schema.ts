@@ -141,6 +141,22 @@ export const notifications = pgTable("notifications", {
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 
+// === PRICING PLANS ===
+export const pricingPlans = pgTable("pricing_plans", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  price: text("price").notNull(),
+  pricePer: text("price_per").notNull(),
+  features: text("features").array().notNull(),
+  highlighted: boolean("highlighted").default(false).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPricingPlanSchema = createInsertSchema(pricingPlans).omit({ id: true, updatedAt: true });
+
 // === RELATIONS ===
 export const projectsRelations = relations(projects, ({ many }) => ({
   locations: many(locations),
@@ -187,3 +203,5 @@ export type InsertWalletlessKey = z.infer<typeof insertWalletlessKeySchema>;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type InsertPlatformSetting = z.infer<typeof insertPlatformSettingSchema>;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type PricingPlan = typeof pricingPlans.$inferSelect;
+export type InsertPricingPlan = z.infer<typeof insertPricingPlanSchema>;
