@@ -1036,14 +1036,15 @@ export async function registerRoutes(
       console.log("Seeding Complete.");
     }
 
-    const allDrops = await storage.getDrops(1);
-    const parisDrop = allDrops.find(d => d.title === "Paris Visit 2026" && !d.accessCode);
-    if (parisDrop) {
-      await storage.updateDrop(parisDrop.id, { accessCode: "PARIS2026" });
-      console.log(`[SEED] Set access code PARIS2026 on drop "${parisDrop.title}"`);
-    }
-
     const projectId = (await storage.getProjects())[0]?.id;
+    if (projectId) {
+      const allDrops = await storage.getDrops(projectId);
+      const parisDrop = allDrops.find(d => d.title === "Paris Visit 2026" && !d.accessCode);
+      if (parisDrop) {
+        await storage.updateDrop(parisDrop.id, { accessCode: "PARIS2026" });
+        console.log(`[SEED] Set access code PARIS2026 on drop "${parisDrop.title}"`);
+      }
+    }
     const allLocations = projectId ? await storage.getLocations(projectId) : [];
     if (projectId && !allLocations.find(l => l.slug === "cristo-redentor")) {
       console.log("[SEED] Creating Cristo Redentor location...");
