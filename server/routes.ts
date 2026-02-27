@@ -4,9 +4,9 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 import { randomBytes, createHash, createCipheriv, createDecipheriv } from "crypto";
-import { scryptSync } from "crypto";
+import { scryptSync, timingSafeEqual } from "crypto";
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import path from "path";
 import express from "express";
@@ -18,7 +18,22 @@ import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { sendVerificationEmail, sendMintConfirmationEmail } from "./services/email";
 
-const SessionStore = MemoryStore(session);
+const PgSession = connectPgSimple(session);
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, storedHash: string): boolean {
+  const [salt, hash] = storedHash.split(':');
+  if (!salt || !hash) return password === storedHash;
+  const hashBuffer = Buffer.from(hash, 'hex');
+  const suppliedBuffer = scryptSync(password, salt, 64);
+  if (hashBuffer.length !== suppliedBuffer.length) return false;
+  return timingSafeEqual(hashBuffer, suppliedBuffer);
+}
 
 const ALGORITHM = 'aes-256-cbc';
 const encryptionSecret = process.env.WALLET_ENCRYPTION_SECRET || process.env.SESSION_SECRET || 'dev-only-encryption-key';
@@ -55,7 +70,12 @@ export async function registerRoutes(
 
   app.use(session({
     cookie: { maxAge: 86400000 },
-    store: new SessionStore({ checkPeriod: 86400000 }),
+    store: new PgSession({
+      conString: process.env.DATABASE_URL,
+      tableName: "session",
+      createTableIfMissing: true,
+      pruneSessionInterval: 60 * 15,
+    }),
     resave: false,
     saveUninitialized: false,
     secret: process.env.SESSION_SECRET || "dev_secret",
@@ -100,25 +120,33 @@ export async function registerRoutes(
     }
   });
 
+  // === SEED DEFAULT ADMIN ===
+  const defaultAdminEmail = "admin@mintoria.xyz";
+  const defaultAdminPassword = "Mintoria2026!";
+  const existingAdmin = await storage.getUserByEmail(defaultAdminEmail);
+  if (!existingAdmin) {
+    await storage.createUser({
+      email: defaultAdminEmail,
+      passwordHash: hashPassword(defaultAdminPassword),
+      role: "admin"
+    });
+    console.log(`[AUTH] Default admin seeded: ${defaultAdminEmail}`);
+  } else if (!existingAdmin.passwordHash.includes(':')) {
+    await storage.updateUserPassword(existingAdmin.id, hashPassword(existingAdmin.passwordHash === "admin" ? defaultAdminPassword : existingAdmin.passwordHash));
+    console.log(`[AUTH] Migrated admin password to hashed format`);
+  }
+
   // === AUTH ROUTES ===
   app.post(api.auth.login.path, async (req, res) => {
     const { email, password } = api.auth.login.input.parse(req.body);
     const user = await storage.getUserByEmail(email);
 
-    if (!user || user.passwordHash !== password) {
-      if (email === "admin@mintoria.xyz" && password === "admin") {
-        let admin = await storage.getUserByEmail("admin@mintoria.xyz");
-        if (!admin) {
-          admin = await storage.createUser({
-            email: "admin@mintoria.xyz",
-            passwordHash: "admin",
-            role: "admin"
-          });
-        }
-        (req.session as any).userId = admin.id;
-        return res.json({ message: "Logged in" });
-      }
+    if (!user || !verifyPassword(password, user.passwordHash)) {
       return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (!user.passwordHash.includes(':')) {
+      await storage.updateUserPassword(user.id, hashPassword(password));
     }
 
     (req.session as any).userId = user.id;

@@ -22,7 +22,7 @@ The backend is a Node.js Express application written in TypeScript (ESM). It use
 PostgreSQL is the primary database, managed via Drizzle ORM. The schema defines tables for Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, WalletlessUsers, and WalletlessKeys.
 
 ### Authentication & Authorization
-Admin users utilize cookie-based session authentication. Claim sessions employ cryptographically hashed tokens for one-time NFT minting. The walletless flow involves encrypted custodial keys (AES-256-CBC) and email verification.
+Admin users utilize cookie-based session authentication with PostgreSQL-backed session storage (connect-pg-simple). Admin passwords are hashed using scrypt with random salt (auto-migrated from plaintext on login). Default admin: `admin@mintoria.xyz` / `Mintoria2026!`. Claim sessions employ cryptographically hashed tokens for one-time NFT minting. The walletless flow involves encrypted custodial keys (AES-256-CBC) and email verification.
 
 ### Blockchain Integration
 The platform integrates with Solana, EVM-compatible chains, and Stellar for NFT minting.
@@ -35,7 +35,7 @@ All integrations support server-side keypair generation and automatic funding fo
 For email-based minting, the system generates and encrypts real keypairs for each blockchain (Solana, EVM, Stellar), storing them in the database. Public addresses receive NFTs minted by the server on the user's behalf.
 
 ### PWA and Embed Features
-The application functions as a PWA with a manifest and service worker. It offers two embed options for third-party sites: a direct iFrame (`/embed/:locationId`) and a script widget (`widget.js`) for modal integration.
+The application functions as a PWA with manifest, service worker (registered in `client/src/main.tsx`), and network-first caching strategy. It offers two embed options for third-party sites: a direct iFrame (`/embed/:locationId`) and a script widget (`widget.js`) for modal integration.
 
 ### Core Features
 - **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitors.
