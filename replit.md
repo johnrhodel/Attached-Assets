@@ -25,14 +25,11 @@ PostgreSQL is the primary database, managed via Drizzle ORM. The schema defines 
 Admin users utilize cookie-based session authentication with PostgreSQL-backed session storage (connect-pg-simple). Admin passwords are hashed using scrypt with random salt (auto-migrated from plaintext on login). Default admin: `admin@mintoria.xyz` / `Mintoria2026!`. Claim sessions employ cryptographically hashed tokens for one-time NFT minting. The walletless flow involves encrypted custodial keys (AES-256-CBC) and email verification.
 
 ### Blockchain Integration
-The platform integrates with Solana, EVM-compatible chains, and Stellar for NFT minting.
-- **Solana**: Uses Metaplex Umi + mpl-core.
-- **EVM**: Employs ethers.js v6 for wallet and contract interaction, supporting various testnets and ERC-1155 contracts.
-- **Stellar**: Leverages stellar-sdk for Horizon API interaction and uses `manageData` operations for on-chain NFT metadata storage.
-All integrations support server-side keypair generation and automatic funding for test environments. The system also tracks chain health and implements automatic fallback if a preferred chain fails during minting.
+The platform exclusively uses the **Stellar blockchain** for NFT minting. Solana and EVM routes exist in the codebase but return 503 (disabled).
+- **Stellar**: Leverages stellar-sdk for Horizon API interaction and uses `manageData` operations for on-chain NFT metadata storage. Supports server-side keypair generation and automatic funding for the Stellar testnet.
 
 ### Custodial Wallet System
-For email-based minting, the system generates and encrypts real keypairs for each blockchain (Solana, EVM, Stellar), storing them in the database. Public addresses receive NFTs minted by the server on the user's behalf.
+For email-based minting, the system generates and encrypts Stellar keypairs (AES-256-CBC), storing them in the database. The server mints NFTs on the user's behalf using the custodial wallet's public address. No crypto wallet is required from the end user.
 
 ### PWA and Embed Features
 The application functions as a PWA with manifest, service worker (registered in `client/src/main.tsx`), and network-first caching strategy. It offers two embed options for third-party sites: a direct iFrame (`/embed/:locationId`) and a script widget (`widget.js`) for modal integration.
@@ -44,9 +41,11 @@ The application functions as a PWA with manifest, service worker (registered in 
 - **Admin Dashboard**: Comprehensive `/admin/dashboard` with metrics, project, location, and drop management.
 - **API Endpoints**: Provide blockchain status, admin statistics, gallery data, user NFT lookups, QR code generation, and public stats (`/api/public/stats`).
 - **Email Service**: For verification codes and mint confirmations via Resend (sender: `noreply@mintoria.xyz` via `EMAIL_FROM` env var). Default fallback: `onboarding@resend.dev`.
-- **Landing Page**: Pricing section (3 tiers: Starter R$500, Professional R$1,497, Enterprise R$4,997), live platform stats, team section, and access code entry.
+- **Landing Page**: Pricing section (3 tiers: Starter R$599, Professional R$1.497, Enterprise R$4.997), live platform stats, team section, and access code entry.
+- **Demo Locations**: 4 pre-seeded locations with access codes — Paris (PARIS2026), Rio de Janeiro (RIO2026), Curitiba (CURITIBA2026), Foz do Iguaçu (FOZ2026). Location images served from `client/public/images/`.
+- **Admin Features**: Dashboard with analytics charts, reset mints button (with confirmation), back-to-home button on login page.
 - **Rate Limiting**: In-memory rate limiting on `/api/walletless/start` — max 3 per email per 10 min, max 10 per IP per 10 min.
-- **Full i18n**: All toast messages, chain names, pricing text, and UI strings use the i18n system (EN/PT/ES). No hardcoded English in user-facing hooks or components.
+- **Full i18n**: All toast messages, chain names, pricing text, and UI strings use the i18n system (EN/PT/ES). No hardcoded English in user-facing hooks or components. Automatic language detection via `navigator.language`.
 
 ## External Dependencies
 
@@ -76,15 +75,17 @@ The application functions as a PWA with manifest, service worker (registered in 
 - Event access codes as alternative to QR scanning (`/access` page)
 - `accessCode` field on drops table (optional, uppercase, auto-converted)
 - `email` field on mints table for duplicate tracking
+- Admin-only mint reset capability with confirmation guard
+- Robust seed logic: access codes auto-fixed on every server startup regardless of project IDs
 
 ---
 
 ## Product Roadmap / Roadmap do Produto
 
 ### Current State / Estado Atual (v1.0)
-**EN:** Mintoria is a fully functional commemorative NFT minting platform built on Stellar classic. Core features include: QR code claim flow, email-based custodial wallets (no crypto wallet required), admin dashboard with analytics, multi-language support (EN/PT/ES), PWA for mobile, and embeddable widget for third-party sites. Mint uniqueness is enforced per email per drop. Event access codes provide an alternative to QR scanning.
+**EN:** Mintoria is a fully functional commemorative NFT minting platform built on Stellar classic. Core features include: QR code claim flow, email-based custodial wallets (no crypto wallet required), admin dashboard with analytics and charts, multi-language support (EN/PT/ES) with automatic language detection, PWA for mobile, and embeddable widget for third-party sites. Mint uniqueness is enforced per email per drop. Event access codes provide an alternative to QR scanning. 4 demo locations pre-seeded (Paris, Rio de Janeiro, Curitiba, Foz do Iguaçu). Admin features include mint reset capability and back-to-home navigation on login. Location images served locally for reliable production deployment.
 
-**PT:** Mintoria é uma plataforma funcional de mintagem de NFTs comemorativos construída na Stellar classic. Funcionalidades principais: fluxo de resgate por QR code, carteiras custodiais via email (sem necessidade de carteira cripto), painel admin com analytics, suporte multi-idioma (EN/PT/ES), PWA para mobile, e widget embutível para sites de terceiros. Unicidade de mint é garantida por email por drop. Códigos de acesso por evento oferecem alternativa ao QR code.
+**PT:** Mintoria é uma plataforma funcional de mintagem de NFTs comemorativos construída na Stellar classic. Funcionalidades principais: fluxo de resgate por QR code, carteiras custodiais via email (sem necessidade de carteira cripto), painel admin com analytics e gráficos, suporte multi-idioma (EN/PT/ES) com detecção automática de idioma, PWA para mobile, e widget embutível para sites de terceiros. Unicidade de mint é garantida por email por drop. Códigos de acesso por evento oferecem alternativa ao QR code. 4 locais demo pré-configurados (Paris, Rio de Janeiro, Curitiba, Foz do Iguaçu). Funcionalidades admin incluem reset de mints e botão de voltar na tela de login. Imagens dos locais servidas localmente para deploy confiável em produção.
 
 ### Short-term / Curto Prazo (v1.1 — Q2 2026)
 **EN:**
@@ -141,15 +142,15 @@ The application functions as a PWA with manifest, service worker (registered in 
 **EN:**
 - **Target Market**: Tourism operators, event organizers, museums, parks, festivals
 - **Pricing Tiers**:
-  - Starter: R$500/event (up to 500 mints)
-  - Professional: R$1,497/month (unlimited mints, 5 locations)
-  - Enterprise: R$4,997/month (unlimited everything, white-label, API access, dedicated support)
+  - Starter: R$599/event (up to 500 mints)
+  - Professional: R$1.497/month (unlimited mints, 5 locations)
+  - Enterprise: R$4.997/month (unlimited everything, white-label, API access, dedicated support)
 - **Revenue Streams**: SaaS subscriptions, per-mint fees at scale, white-label licensing, marketplace commissions (v2.0+)
 
 **PT:**
 - **Mercado Alvo**: Operadores de turismo, organizadores de eventos, museus, parques, festivais
 - **Faixas de Preço**:
-  - Starter: R$500/evento (até 500 mints)
+  - Starter: R$599/evento (até 500 mints)
   - Profissional: R$1.497/mês (mints ilimitados, 5 locais)
   - Enterprise: R$4.997/mês (tudo ilimitado, white-label, acesso API, suporte dedicado)
 - **Fontes de Receita**: Assinaturas SaaS, taxas por mint em escala, licenciamento white-label, comissões de marketplace (v2.0+)
