@@ -45,6 +45,7 @@ export interface IStorage {
   createClaimSession(session: InsertClaimSession): Promise<ClaimSession>;
   getClaimSession(tokenHash: string): Promise<ClaimSession | undefined>;
   markSessionConsumed(id: number): Promise<void>;
+  cleanupExpiredSessions(): Promise<number>;
 
   // Mints
   createMint(mint: InsertMint): Promise<Mint>;
@@ -214,6 +215,15 @@ export class DatabaseStorage implements IStorage {
     await db.update(claimSessions)
       .set({ status: "consumed", consumedAt: new Date() })
       .where(eq(claimSessions.id, id));
+  }
+  async cleanupExpiredSessions(): Promise<number> {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const result = await db.delete(claimSessions)
+      .where(and(
+        eq(claimSessions.status, "active"),
+        sql`${claimSessions.expiresAt} < ${cutoff}`
+      ));
+    return (result as any).rowCount || 0;
   }
 
   // Mints

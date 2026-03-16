@@ -16,44 +16,53 @@ Preferred communication style: Simple, everyday language. User speaks Portuguese
 The frontend is built with React 18 and TypeScript, using Wouter for routing, TanStack React Query for state management, and Tailwind CSS with shadcn/ui for styling. Framer Motion handles animations. It's a Vite-based PWA with a custom i18n system supporting English, Portuguese, and Spanish, using a blue-based professional color scheme.
 
 ### Backend
-The backend is a Node.js Express application written in TypeScript (ESM). It manages claim sessions, anti-fraud tokens, blockchain minting, and custodial wallet management. RESTful endpoints are defined with Zod schema validation.
+The backend is a Node.js Express application written in TypeScript (ESM). It manages claim sessions, anti-fraud tokens, blockchain minting, and custodial wallet management. RESTful endpoints are defined with Zod schema validation. Express `trust proxy` is enabled for production deployments behind reverse proxies.
 
 ### Data Storage
-PostgreSQL is the primary database, managed via Drizzle ORM. The schema includes tables for Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, WalletlessUsers, WalletlessKeys, PricingPlans, ActivityLogs, PlatformSettings, and Notifications.
+PostgreSQL is the primary database, managed via Drizzle ORM. The schema includes tables for Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, WalletlessUsers, WalletlessKeys, PricingPlans, ActivityLogs, PlatformSettings, and Notifications. Development and production use separate databases.
 
 ### Authentication & Authorization
-Admin users utilize cookie-based session authentication with PostgreSQL-backed session storage. Admin passwords are hashed using scrypt. Claim sessions employ cryptographically hashed tokens for one-time NFT minting. The walletless flow involves encrypted custodial keys and email verification.
+Admin users utilize cookie-based session authentication with PostgreSQL-backed session storage. Admin passwords are hashed using scrypt. Claim sessions employ cryptographically hashed tokens for one-time NFT minting. The walletless flow involves encrypted custodial keys and email verification. Login rate limiting only counts failed attempts and resets on success.
 
 ### Blockchain Integration
-The platform exclusively uses the **Stellar blockchain** for NFT minting, leveraging `stellar-sdk` for Horizon API interaction and `manageData` operations for on-chain NFT metadata storage. It supports server-side keypair generation and automatic funding for the Stellar testnet.
+The platform exclusively uses the **Stellar blockchain** for NFT minting (Solana/EVM routes return 503 "not supported"). It leverages `stellar-sdk` for Horizon API interaction and `manageData` operations for on-chain NFT metadata storage. Server-side keypair generation with automatic testnet funding. In production, `STELLAR_SERVER_SECRET_KEY` environment variable is required (server refuses to start without it); in development, keys can fall back to local file storage (`.stellar-server-key`).
 
 ### Custodial Wallet System
-For email-based minting, the system generates and encrypts Stellar keypairs, storing them in the database. The server mints NFTs on the user's behalf using the custodial wallet's public address, requiring no crypto wallet from the end user.
+For email-based minting, the system generates and encrypts Stellar keypairs (AES-256-CBC via `WALLET_ENCRYPTION_SECRET`), storing them in the database. The server mints NFTs on the user's behalf using the custodial wallet's public address, requiring no crypto wallet from the end user. The encryption secret must never be changed after real users are created.
+
+### Mint Reliability
+- Supply checks before blockchain calls prevent over-minting beyond drop limits.
+- Orphaned transaction handling: if Stellar TX succeeds but DB update fails, the transaction hash is logged for manual recovery (HTTP response still succeeds).
+- Expired claim sessions (older than 24h) are automatically cleaned up on server startup.
+- Toast error notifications on the frontend for failed claim session creation.
 
 ### PWA and Embed Features
-The application functions as a PWA with manifest and service worker. It offers two embed options: a direct iFrame (`/embed/:locationId`) and a script widget (`widget.js`).
+The application functions as a PWA with manifest and service worker. It offers two embed options: a direct iFrame (`/embed/:locationId`) and a script widget (`widget.js`). Helmet frameguard is enabled (X-Frame-Options: SAMEORIGIN) with CSP frame-ancestors set to 'self'.
 
 ### Core Features
 - **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitors.
 - **NFT Gallery**: `/gallery/:locationId` to display minted NFTs.
 - **User NFT Lookup**: `/my-nfts` allows users to find their NFTs by email.
-- **Admin Dashboard**: Comprehensive `/admin/dashboard` with analytics charts, project/location/drop management, and Reset Mints button (with confirmation guard).
+- **Admin Dashboard**: Comprehensive `/admin/dashboard` with analytics charts, project/location/drop management, and Reset Mints button (with confirmation guard). Drop publishing protected with `requireAuth`.
 - **Admin Login**: `/admin/login` page includes a back-to-home button.
 - **Email Service**: For verification codes and mint confirmations via Resend.
 - **Landing Page**: Pricing section with 3 tiers (Starter R$599/event, Professional R$1.497/month, Enterprise R$4.997/month), live platform stats, team section, and access code entry via `/access` page.
 - **Demo Locations**: 4 pre-seeded locations with access codes — Paris (PARIS2026), Rio de Janeiro (RIO2026), Curitiba (CURITIBA2026), Foz do Iguaçu (FOZ2026). Location images served from `client/public/images/`.
-- **Full i18n**: All user-facing text translated (EN/PT/ES) with automatic language detection via `navigator.language` (pt→PT, es→ES, else EN). Pricing plan names, descriptions, and features are fully localized.
+- **Full i18n**: All user-facing text translated (EN/PT/ES) with automatic language detection via `navigator.language` (pt→PT, es→ES, else EN). Pricing plan names, descriptions, and features are fully localized with typed `PricingTranslations` interfaces (no `any` casts).
 
 ### Security Features
-- Helmet middleware for HTTP security headers.
+- Helmet middleware for HTTP security headers (frameguard + CSP frame-ancestors).
 - Session cookies with `httpOnly`, `secure` (production), and `sameSite: 'lax'`.
-- Admin route authentication middleware (`requireAuth`).
-- Login rate limiting.
-- Production secrets enforcement.
-- Sanitized error responses in production.
+- Admin route authentication middleware (`requireAuth`) on all admin endpoints including drop publishing.
+- Login rate limiting (counts failures only, resets on success).
+- Production secrets enforcement (`SESSION_SECRET`, `WALLET_ENCRYPTION_SECRET`, `STELLAR_SERVER_SECRET_KEY`).
+- Stellar key restricted to environment variable in production (no file fallback).
+- Sanitized error responses in production via `safeErrorMessage()`.
 - Cryptographically secure verification tokens.
 - Mint uniqueness enforced per email per drop.
+- Supply check before blockchain calls to prevent over-minting.
 - In-memory rate limiting on `/api/walletless/start`.
+- `trust proxy` enabled for correct client IP detection behind reverse proxies.
 
 ## External Dependencies
 
@@ -84,7 +93,7 @@ The application functions as a PWA with manifest and service worker. It offers t
 ## Roadmap
 
 ### Current State (v1.0)
-Fully functional commemorative NFT minting on Stellar classic. QR code claim flow, email-based custodial wallets, admin dashboard with analytics, i18n (EN/PT/ES) with auto-detection, PWA, embeddable widget, access codes, 4 demo locations, security hardened (Helmet, session protection, rate limiting, auth middleware, secrets enforcement, sanitized errors, secure tokens). Pricing fully translated.
+Fully functional commemorative NFT minting on Stellar classic. QR code claim flow, email-based custodial wallets, admin dashboard with analytics, i18n (EN/PT/ES) with auto-detection, PWA, embeddable widget, access codes, 4 demo locations, security hardened (Helmet, session protection, rate limiting, auth middleware, secrets enforcement, sanitized errors, secure tokens, supply checks, orphaned TX logging, expired session cleanup). Pricing fully translated with typed i18n. Stellar key security enforced in production. Frontend accessibility improvements (aria-labels, toast error feedback).
 
 ### Short-term (v1.1)
 Enhanced analytics, multi-image drops, social sharing, webhooks, branded email templates.

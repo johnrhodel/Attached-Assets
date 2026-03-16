@@ -99,6 +99,7 @@ export default function MyNfts() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-9"
+                aria-label={t.myNfts.emailPlaceholder}
                 data-testid="input-email"
               />
             </div>

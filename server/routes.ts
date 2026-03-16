@@ -387,25 +387,35 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Drop not found" });
       }
 
+      if (drop.supply > 0 && drop.mintedCount >= drop.supply) {
+        return res.status(429).json({ message: "Drop supply exhausted" });
+      }
+
+      const recipientAddress = recipient || stellarService.getServerPublicKey();
+
       const result = await stellarService.mintNFT({
-        recipientAddress: recipient || stellarService.getServerPublicKey(),
+        recipientAddress,
         name: drop.title,
         uri: drop.metadataUrl,
       });
 
-      await storage.markSessionConsumed(session.id);
-      await storage.incrementMintCount(session.dropId);
+      try {
+        await storage.markSessionConsumed(session.id);
+        await storage.incrementMintCount(session.dropId);
 
-      const mint = await storage.createMint({
-        dropId: session.dropId,
-        chain: "stellar",
-        recipient: recipient || stellarService.getServerPublicKey(),
-        txHash: result.txHash,
-        status: "confirmed",
-      });
+        await storage.createMint({
+          dropId: session.dropId,
+          chain: "stellar",
+          recipient: recipientAddress,
+          txHash: result.txHash,
+          status: "confirmed",
+        });
+      } catch (dbErr: any) {
+        console.error("[STELLAR_MINT] Blockchain TX succeeded but DB update failed. TxHash:", result.txHash, "Error:", dbErr.message);
+      }
 
-      await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: mint.dropId, details: `NFT minted on ${mint.chain} to ${mint.recipient}` });
-      await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${mint.recipient} on ${mint.chain}` });
+      await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: session.dropId, details: `NFT minted on stellar to ${recipientAddress}` }).catch(() => {});
+      await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${recipientAddress} on stellar` }).catch(() => {});
 
       res.json({
         xdr: result.txHash,
@@ -578,6 +588,10 @@ export async function registerRoutes(
         return res.status(409).json({ message: "ALREADY_MINTED" });
       }
 
+      if (drop.supply > 0 && drop.mintedCount >= drop.supply) {
+        return res.status(429).json({ message: "Drop supply exhausted" });
+      }
+
       const secret = decrypt(key.encryptedSecret);
       const result = await stellarService.mintNFTWithCustodialWallet({
         custodialSecretKey: secret,
@@ -588,24 +602,28 @@ export async function registerRoutes(
       const txHash = result.txHash;
       const recipientAddress = result.recipientAddress;
 
-      await storage.markSessionConsumed(session.id);
-      await storage.incrementMintCount(session.dropId);
+      try {
+        await storage.markSessionConsumed(session.id);
+        await storage.incrementMintCount(session.dropId);
 
-      const mint = await storage.createMint({
-        dropId: session.dropId,
-        chain,
-        recipient: recipientAddress,
-        txHash,
-        status: "confirmed",
-        email,
-      });
+        await storage.createMint({
+          dropId: session.dropId,
+          chain,
+          recipient: recipientAddress,
+          txHash,
+          status: "confirmed",
+          email,
+        });
+      } catch (dbErr: any) {
+        console.error("[WALLETLESS_MINT] Blockchain TX succeeded but DB update failed. TxHash:", txHash, "Error:", dbErr.message);
+      }
 
-      await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: mint.dropId, details: `NFT minted on ${mint.chain} to ${mint.recipient}` });
-      await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${mint.recipient} on ${mint.chain}` });
+      await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: session.dropId, details: `NFT minted on ${chain} to ${recipientAddress}` }).catch(() => {});
+      await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${recipientAddress} on ${chain}` }).catch(() => {});
 
       const explorerUrl = stellarService.getStellarExplorerUrl(txHash);
 
-      console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: stellar | Email: ${email} | Recipient: ${recipientAddress} | TxHash: ${txHash} | MintID: ${mint?.id || 'unknown'} | Explorer: ${explorerUrl || 'N/A'}`);
+      console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: stellar | Email: ${email} | Recipient: ${recipientAddress} | TxHash: ${txHash} | Explorer: ${explorerUrl || 'N/A'}`);
 
       sendMintConfirmationEmail(email, {
         dropTitle: drop.title,
@@ -1185,6 +1203,10 @@ export async function registerRoutes(
   }
 
   seed().catch(console.error);
+
+  storage.cleanupExpiredSessions().then((count) => {
+    if (count > 0) console.log(`[CLEANUP] Removed ${count} expired claim sessions`);
+  }).catch(console.error);
 
   console.log("[BLOCKCHAIN] Initializing Stellar service...");
   console.log(`[STELLAR] Server: ${stellarService.getServerPublicKey()}`);

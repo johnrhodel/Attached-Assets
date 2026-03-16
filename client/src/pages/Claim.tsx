@@ -10,6 +10,7 @@ import { LanguageSelector } from "@/components/language-selector";
 import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, ExternalLink, ChevronLeft, Sparkles, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/context";
+import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import claimBg from "../assets/images/claim-bg.jpg";
 
@@ -93,6 +94,7 @@ export default function Claim() {
   const [, params] = useRoute("/claim/:locationId");
   const locationId = Number(params?.locationId);
   const { t } = useI18n();
+  const { toast } = useToast();
   
   const { data: drop, isLoading, error } = useDropByIdOrActive(locationId);
   const { mutateAsync: createSession } = useCreateClaimSession();
@@ -133,6 +135,11 @@ export default function Claim() {
       setView("email");
     } catch (e: any) {
       console.error("[Claim] Start error:", e);
+      toast({
+        title: t.common.error,
+        description: e?.message || t.claim.noActiveDrop,
+        variant: "destructive",
+      });
     } finally {
       setIsStarting(false);
     }

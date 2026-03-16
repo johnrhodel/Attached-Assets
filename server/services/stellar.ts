@@ -25,6 +25,8 @@ function tryLoadSecret(secret: string): StellarSdk.Keypair | null {
   }
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 function getServerKeypair(): StellarSdk.Keypair {
   if (serverKeypair) return serverKeypair;
 
@@ -32,8 +34,13 @@ function getServerKeypair(): StellarSdk.Keypair {
   const envKp = tryLoadSecret(envSecret);
   if (envKp) {
     serverKeypair = envKp;
-    console.log(`[STELLAR] Loaded persistent server keypair from env. Public key: ${serverKeypair.publicKey()}`);
+    console.log(`[STELLAR] Key loaded from environment variable. Public key: ${serverKeypair.publicKey()}`);
     return serverKeypair;
+  }
+
+  if (isProduction) {
+    console.error('[STELLAR] STELLAR_SERVER_SECRET_KEY must be set in production! Server will not start.');
+    process.exit(1);
   }
 
   if (existsSync(KEYPAIR_FILE)) {
@@ -42,7 +49,7 @@ function getServerKeypair(): StellarSdk.Keypair {
       const fileKp = tryLoadSecret(fileSecret);
       if (fileKp) {
         serverKeypair = fileKp;
-        console.log(`[STELLAR] Loaded persistent server keypair from file. Public key: ${serverKeypair.publicKey()}`);
+        console.log(`[STELLAR] Key loaded from local file (development only). Public key: ${serverKeypair.publicKey()}`);
         return serverKeypair;
       }
     } catch {}
@@ -51,9 +58,9 @@ function getServerKeypair(): StellarSdk.Keypair {
   serverKeypair = StellarSdk.Keypair.random();
   try {
     writeFileSync(KEYPAIR_FILE, serverKeypair.secret(), 'utf-8');
-    console.log(`[STELLAR] Generated and saved new server keypair. Public key: ${serverKeypair.publicKey()}`);
+    console.log(`[STELLAR] Generated new keypair, saved to local file (development only). Public key: ${serverKeypair.publicKey()}`);
   } catch {
-    console.log(`[STELLAR] Generated server keypair (not persisted). Public key: ${serverKeypair.publicKey()}`);
+    console.log(`[STELLAR] Generated keypair (not persisted). Public key: ${serverKeypair.publicKey()}`);
   }
 
   return serverKeypair;
@@ -142,7 +149,7 @@ export async function mintNFT(params: {
     const result = await server.submitTransaction(transaction);
     return { txHash: (result as any).hash || (result as any).id };
   } catch (err: any) {
-    console.error("[STELLAR] Mint failed:", err);
+    console.error("[STELLAR] Mint failed:", err.message || "Unknown error");
     throw new Error(`Stellar mint failed: ${err.message || "Unknown error"}`);
   }
 }

@@ -88,6 +88,7 @@ export default function AccessCode() {
                 onKeyDown={e => e.key === "Enter" && code && handleSubmit()}
                 className="text-center tracking-widest font-mono text-lg uppercase"
                 autoFocus
+                aria-label={t.accessCode.placeholder}
                 data-testid="input-access-code"
               />
 
@@ -101,7 +102,7 @@ export default function AccessCode() {
                 {t.accessCode.submit}
               </Button>
 
-              <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1.5">
+              <p className="text-xs text-center text-muted-foreground/80 flex items-center justify-center gap-1.5">
                 <QrCode className="w-3 h-3" />
                 {t.accessCode.or}
               </p>

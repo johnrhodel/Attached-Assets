@@ -251,6 +251,7 @@ export default function Home() {
               <button
                 key={index}
                 onClick={() => setCurrentImage(index)}
+                aria-label={`Go to slide ${index + 1}`}
                 className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${
                   currentImage === index ? 'bg-white' : 'bg-white/40'
                 }`}
