@@ -171,18 +171,20 @@ export async function registerRoutes(
     if (attempt && now < attempt.resetAt && attempt.count >= LOGIN_RATE_LIMIT) {
       return res.status(429).json({ message: "Too many login attempts. Please try again later." });
     }
-    if (!attempt || now >= attempt.resetAt) {
-      loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_RATE_WINDOW });
-    } else {
-      attempt.count++;
-    }
 
     const { email, password } = api.auth.login.input.parse(req.body);
     const user = await storage.getUserByEmail(email);
 
     if (!user || !verifyPassword(password, user.passwordHash)) {
+      if (!attempt || now >= attempt.resetAt) {
+        loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_RATE_WINDOW });
+      } else {
+        attempt.count++;
+      }
       return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    loginAttempts.delete(ip);
 
     if (!user.passwordHash.includes(':')) {
       await storage.updateUserPassword(user.id, hashPassword(password));

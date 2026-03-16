@@ -25,7 +25,7 @@ PostgreSQL is the primary database, managed via Drizzle ORM. The schema includes
 Admin users utilize cookie-based session authentication with PostgreSQL-backed session storage. Admin passwords are hashed using scrypt. Claim sessions employ cryptographically hashed tokens for one-time NFT minting. The walletless flow involves encrypted custodial keys and email verification.
 
 ### Blockchain Integration
-The platform exclusively uses the **Stellar blockchain** for NFT minting, leveraging `stellar-sdk` for Horizon API interaction and `manageData` operations for on-chain NFT metadata storage. It supports server-side keypair generation and automatic funding for the Stellar testnet. Routes for EVM and Solana chains return HTTP 503 (not supported).
+The platform exclusively uses the **Stellar blockchain** for NFT minting, leveraging `stellar-sdk` for Horizon API interaction and `manageData` operations for on-chain NFT metadata storage. It supports server-side keypair generation and automatic funding for the Stellar testnet.
 
 ### Custodial Wallet System
 For email-based minting, the system generates and encrypts Stellar keypairs, storing them in the database. The server mints NFTs on the user's behalf using the custodial wallet's public address, requiring no crypto wallet from the end user.
