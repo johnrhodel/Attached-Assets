@@ -2,9 +2,9 @@
 
 ## Overview
 
-Mintoria is a plug-and-play platform for minting commemorative NFTs for visitors at tourist locations or events. It enables quick NFT claims via QR code on mobile devices and exclusively utilizes the Stellar blockchain. The platform includes an admin interface for creating monthly "drops" across various locations and supports internationalization (English, Spanish, Portuguese). Key capabilities include email-based custodial minting (no crypto wallet required), embeddable widget integration, and PWA functionality for mobile installation.
+Mintoria is a plug-and-play platform for minting commemorative NFTs on the Stellar blockchain, designed for tourist locations and events. It enables quick NFT claims via QR code on mobile devices, offering an email-based custodial minting process that doesn't require users to have a crypto wallet. The platform includes an admin interface for creating monthly "drops" across various locations and supports internationalization (English, Spanish, Portuguese). Key features include an embeddable widget, PWA functionality, and robust security measures.
 
-The project's vision is to leverage Stellar's efficiency for low-cost, fast, and energy-efficient NFT minting, targeting the tourism and event industries. Future ambitions include migrating to Soroban smart contracts, developing an NFT marketplace, and implementing advanced features like MPC custody and AI-powered NFT generation.
+The project's vision is to leverage Stellar's efficiency for low-cost, fast, and energy-efficient NFT minting, aiming to become a leading solution in the tourism and event industries. Future plans involve migrating to Soroban smart contracts, developing an NFT marketplace, and implementing advanced features like MPC custody and AI-powered NFT generation.
 
 ## User Preferences
 
@@ -12,101 +12,36 @@ Preferred communication style: Simple, everyday language. User speaks Portuguese
 
 ## System Architecture
 
-### Frontend
-The frontend is built with React 18 and TypeScript, using Wouter for routing, TanStack React Query for state management, and Tailwind CSS with shadcn/ui for styling. Framer Motion handles animations. It's a Vite-based PWA with a custom i18n system supporting English, Portuguese, and Spanish, using a blue-based professional color scheme.
+The Mintoria platform is built with a clear separation between frontend and backend, integrating with the Stellar blockchain and external services.
 
-### Backend
-The backend is a Node.js Express application written in TypeScript (ESM). It manages claim sessions, anti-fraud tokens, blockchain minting, and custodial wallet management. RESTful endpoints are defined with Zod schema validation. Express `trust proxy` is enabled for production deployments behind reverse proxies.
+### UI/UX Decisions
+The frontend is a Vite-based Progressive Web App (PWA) built with React 18 and TypeScript. It uses Tailwind CSS and shadcn/ui for a professional, blue-based aesthetic. Animations are handled by Framer Motion. The application supports internationalization (EN/PT/ES) with automatic language detection, ensuring a localized experience.
 
-### Data Storage
-PostgreSQL is the primary database, managed via Drizzle ORM. The schema includes tables for Users (admins), Projects, Locations, Drops, ClaimSessions, Mints, WalletlessUsers, WalletlessKeys, PricingPlans, ActivityLogs, PlatformSettings, and Notifications. Development and production use separate databases.
+### Technical Implementations
+- **Frontend**: React 18, TypeScript, Wouter for routing, TanStack Query for state management.
+- **Backend**: Node.js and Express in TypeScript (ESM) manage API endpoints, claim sessions, anti-fraud measures, and custodial wallet operations. Zod is used for schema validation.
+- **Data Storage**: PostgreSQL, accessed via Drizzle ORM, stores all application data including users, projects, locations, drops, and mint records.
+- **Authentication**: Admin users use cookie-based session authentication. Claim sessions and walletless flows employ cryptographically hashed tokens and email verification. Login rate limiting is implemented.
+- **Blockchain Integration**: Exclusively uses the Stellar blockchain for NFT minting, leveraging `stellar-sdk` for Horizon API interaction. NFT metadata is stored on-chain using `manageData` operations.
+- **Custodial Wallet System**: Generates and encrypts Stellar keypairs for users who claim NFTs via email, enabling server-side minting without requiring a user-owned crypto wallet. Keypairs are encrypted using AES-256-CBC.
+- **Mint Reliability**: Includes supply checks to prevent over-minting, logging of orphaned transactions for recovery, and automatic cleanup of expired claim sessions.
+- **Embed Features**: Offers an iFrame embed and a script widget (`widget.js`) for integration into external websites.
 
-### Authentication & Authorization
-Admin users utilize cookie-based session authentication with PostgreSQL-backed session storage. Admin passwords are hashed using scrypt. Claim sessions employ cryptographically hashed tokens for one-time NFT minting. The walletless flow involves encrypted custodial keys and email verification. Login rate limiting only counts failed attempts and resets on success.
-
-### Blockchain Integration
-The platform exclusively uses the **Stellar blockchain** for NFT minting (Solana/EVM routes return 503 "not supported"). It leverages `stellar-sdk` for Horizon API interaction and `manageData` operations for on-chain NFT metadata storage. Server-side keypair generation with automatic testnet funding. In production, `STELLAR_SERVER_SECRET_KEY` environment variable is required (server refuses to start without it); in development, keys can fall back to local file storage (`.stellar-server-key`).
-
-### Custodial Wallet System
-For email-based minting, the system generates and encrypts Stellar keypairs (AES-256-CBC via `WALLET_ENCRYPTION_SECRET`), storing them in the database. The server mints NFTs on the user's behalf using the custodial wallet's public address, requiring no crypto wallet from the end user. The encryption secret must never be changed after real users are created.
-
-### Mint Reliability
-- Supply checks before blockchain calls prevent over-minting beyond drop limits.
-- Orphaned transaction handling: if Stellar TX succeeds but DB update fails, the transaction hash is logged for manual recovery (HTTP response still succeeds).
-- Expired claim sessions (older than 24h) are automatically cleaned up on server startup.
-- Toast error notifications on the frontend for failed claim session creation.
-
-### PWA and Embed Features
-The application functions as a PWA with manifest and service worker. It offers two embed options: a direct iFrame (`/embed/:locationId`) and a script widget (`widget.js`). Helmet frameguard is enabled (X-Frame-Options: SAMEORIGIN) with CSP frame-ancestors set to 'self'.
-
-### Core Features
-- **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitors.
-- **NFT Gallery**: `/gallery/:locationId` to display minted NFTs.
-- **User NFT Lookup**: `/my-nfts` allows users to find their NFTs by email.
-- **Admin Dashboard**: Comprehensive `/admin/dashboard` with analytics charts, project/location/drop management, and Reset Mints button (with confirmation guard). Drop publishing protected with `requireAuth`.
-- **Admin Login**: `/admin/login` page includes a back-to-home button.
-- **Email Service**: For verification codes and mint confirmations via Resend.
-- **Landing Page**: Pricing section with 3 tiers (Starter R$599/event, Professional R$1.497/month, Enterprise R$4.997/month), live platform stats, team section, and access code entry via `/access` page.
-- **Demo Locations**: 4 pre-seeded locations with access codes — Paris (PARIS2026), Rio de Janeiro (RIO2026), Curitiba (CURITIBA2026), Foz do Iguaçu (FOZ2026). Location images served from `client/public/images/`.
-- **Full i18n**: All user-facing text translated (EN/PT/ES) with automatic language detection via `navigator.language` (pt→PT, es→ES, else EN). Pricing plan names, descriptions, and features are fully localized with typed `PricingTranslations` interfaces (no `any` casts).
-
-### Security Features
-- Helmet middleware for HTTP security headers (frameguard + CSP frame-ancestors).
-- Session cookies with `httpOnly`, `secure` (production), and `sameSite: 'lax'`.
-- Admin route authentication middleware (`requireAuth`) on all admin endpoints including drop publishing.
-- Login rate limiting (counts failures only, resets on success).
-- Production secrets enforcement (`SESSION_SECRET`, `WALLET_ENCRYPTION_SECRET`, `STELLAR_SERVER_SECRET_KEY`).
-- Stellar key restricted to environment variable in production (no file fallback).
-- Sanitized error responses in production via `safeErrorMessage()`.
-- Cryptographically secure verification tokens.
-- Mint uniqueness enforced per email per drop.
-- Supply check before blockchain calls to prevent over-minting.
-- In-memory rate limiting on `/api/walletless/start`.
-- `trust proxy` enabled for correct client IP detection behind reverse proxies.
+### Feature Specifications
+- **Public Claim Pages**: Dedicated pages for visitors to claim NFTs at specific locations (`/claim/:locationId`, `/embed/:locationId`).
+- **NFT Gallery**: Displays minted NFTs for a given location (`/gallery/:locationId`).
+- **User NFT Lookup**: Allows users to find their minted NFTs by email (`/my-nfts`).
+- **Admin Dashboard**: Comprehensive dashboard for managing projects, locations, and NFT drops, including analytics and a "Reset Mints" feature.
+- **Email Service**: Handles sending verification codes and mint confirmations.
+- **Landing Page**: Includes pricing tiers, live platform statistics, and an access code entry page (`/access`).
+- **Social Sharing**: Enables sharing minted NFTs on Twitter/X and Instagram, and direct image download.
+- **NFT Metadata API**: Provides on-chain metadata for NFTs (`/api/metadata/:locationSlug/:dropSlug`).
 
 ## External Dependencies
 
-### Database
-- PostgreSQL
-- Drizzle ORM
-
-### Blockchain SDKs
-- `stellar-sdk`
-
-### UI Component Libraries
-- shadcn/ui
-- Lucide React
-- Embla Carousel
-- Recharts
-
-### Security
-- `helmet`
-
-### Email Service
-- Resend
-
-### Development Tools
-- Vite
-- ESBuild
-- TypeScript
-
-## Roadmap
-
-### Current State (v1.0)
-Fully functional commemorative NFT minting on Stellar classic. QR code claim flow, email-based custodial wallets, admin dashboard with analytics, i18n (EN/PT/ES) with auto-detection, PWA, embeddable widget, access codes, 4 demo locations, security hardened (Helmet, session protection, rate limiting, auth middleware, secrets enforcement, sanitized errors, secure tokens, supply checks, orphaned TX logging, expired session cleanup). Pricing fully translated with typed i18n. Stellar key security enforced in production. Frontend accessibility improvements (aria-labels, toast error feedback).
-
-### Short-term (v1.1)
-Enhanced analytics, multi-image drops, social sharing, webhooks, branded email templates.
-
-### Medium-term (v2.0)
-Soroban smart contract migration, NFT marketplace, multi-admin RBAC, white-label solution, API access, advanced reporting.
-
-### Long-term (v3.0+)
-MPC custody, multi-chain expansion (Ethereum/Solana), AI-powered NFT generation, decentralized storage (IPFS/Arweave), mobile SDK, enterprise SSO.
-
-## Business Model
-- **Target**: Tourism operators, event organizers, museums, parks, festivals
-- **Starter**: R$599/event (up to 500 mints, 1 location)
-- **Professional**: R$1.497/month (unlimited mints, 5 locations, custom branding)
-- **Enterprise**: R$4.997/month (unlimited everything, white-label, API access, dedicated support)
-- **Revenue**: SaaS subscriptions, per-mint fees at scale, white-label licensing, marketplace commissions (v2.0+)
+-   **Database**: PostgreSQL
+-   **ORM**: Drizzle ORM
+-   **Blockchain SDK**: `stellar-sdk`
+-   **UI Libraries**: shadcn/ui, Lucide React, react-icons, Embla Carousel, Recharts
+-   **Security Middleware**: `helmet`
+-   **Email Service**: Resend
