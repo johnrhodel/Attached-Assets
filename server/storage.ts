@@ -292,6 +292,9 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteAllMints(): Promise<void> {
     await db.delete(mints);
+    await db.delete(walletlessKeys);
+    await db.delete(walletlessUsers);
+    await db.delete(claimSessions);
     await db.update(drops).set({ mintedCount: 0 });
   }
   async getMintsByLocation(locationId: number): Promise<Mint[]> {
