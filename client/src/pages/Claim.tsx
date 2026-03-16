@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClaimCard } from "@/components/ClaimCard";
 import { LanguageSelector } from "@/components/language-selector";
-import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, ExternalLink, ChevronLeft, Sparkles, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, ExternalLink, ChevronLeft, Sparkles, AlertTriangle, Share2 } from "lucide-react";
+import { SiX, SiInstagram } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/context";
 import { useToast } from "@/hooks/use-toast";
@@ -340,6 +341,32 @@ function SuccessScreen({ drop, mintResult, onBack }: { drop: any; mintResult: Mi
       </div>
 
       <div className="flex flex-col gap-3 max-w-xs mx-auto">
+        <p className="text-white/50 text-xs text-center uppercase tracking-wider flex items-center gap-2 justify-center">
+          <Share2 className="w-3 h-3" />
+          Share
+        </p>
+        <div className="flex gap-3">
+          <Button
+            size="lg"
+            variant="outline"
+            className="flex-1 bg-black/80 border-white/20 text-white hover:bg-black"
+            onClick={() => handleShareTwitter(drop.title, mintResult.explorerUrl || '', t.claim.shareText)}
+            data-testid="button-share-twitter"
+          >
+            <SiX className="w-4 h-4 mr-2" />
+            {t.claim.shareTwitter}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="flex-1 bg-gradient-to-r from-purple-600/80 to-pink-500/80 border-white/20 text-white hover:from-purple-600 hover:to-pink-500"
+            onClick={() => handleShareInstagram(drop.imageUrl, drop.title)}
+            data-testid="button-share-instagram"
+          >
+            <SiInstagram className="w-4 h-4 mr-2" />
+            {t.claim.shareInstagram}
+          </Button>
+        </div>
         <Button 
           size="lg"
           className="w-full font-semibold"
@@ -385,6 +412,25 @@ function handleDownloadImage(imageUrl: string, title: string) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+function handleShareTwitter(dropTitle: string, explorerUrl: string, shareTemplate: string) {
+  const text = shareTemplate.replace("{location}", dropTitle);
+  const url = explorerUrl || "https://mintoria.xyz";
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  window.open(twitterUrl, "_blank", "noopener,noreferrer");
+}
+
+function handleShareInstagram(imageUrl: string, title: string) {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) {
+    handleDownloadImage(imageUrl, title);
+    setTimeout(() => {
+      window.location.href = "instagram://app";
+    }, 500);
+  } else {
+    handleDownloadImage(imageUrl, title);
+  }
 }
 
 function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult | "ALREADY_MINTED") => void; onBack: () => void }) {
