@@ -42,3 +42,4 @@ waitForPort = 5000
 
 [userenv.shared]
 EMAIL_FROM = "Mintoria <noreply@mintoria.xyz>"
+WALLET_ENCRYPTION_SECRET = "2a7cc9f04798c83fa005c01923bbb358329f21de7587ad9e0df3964e82c6b1e0"
