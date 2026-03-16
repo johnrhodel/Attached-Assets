@@ -56,18 +56,18 @@ The backend is a Node.js Express application in TypeScript (ESM), providing REST
 PostgreSQL, managed by Drizzle ORM, is the primary database, storing all application data including user, project, location, drop, and mint records.
 
 ### Blockchain Interaction
-Mintoria integrates exclusively with the Stellar blockchain via `stellar-sdk` and the Horizon API. NFTs are minted by storing metadata on-chain using `manageData` operations. The platform supports server-side keypair generation and custodial wallet management for email-based minting.
+Mintoria integrates exclusively with the Stellar blockchain via `stellar-sdk` and the Horizon API (testnet). NFTs are minted by storing metadata on-chain using `manageData` operations. The platform supports server-side keypair generation and custodial wallet management for email-based minting. EVM and Solana routes exist but return 503 (disabled), directing users to Stellar.
 
 ### Core Features
 - **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitor NFT claims.
 - **NFT Gallery**: `/gallery/:locationId` displays minted NFTs for a location.
 - **User NFT Lookup**: `/my-nfts` allows users to find their NFTs by email.
-- **Admin Dashboard**: `/admin/dashboard` with analytics charts, project/location/drop management, and Reset Mints button.
+- **Admin Dashboard**: `/admin/dashboard` with analytics charts, project/location/drop management, and Reset Mints button (clears mints, walletless keys/users, and claim sessions).
 - **Email Service**: For sending verification codes and mint confirmations via Resend.
 - **Landing Page**: Includes pricing tiers, live platform stats, team section, and access code entry.
 - **Internationalization (i18n)**: Full support for English, Portuguese, and Spanish with automatic language detection.
 - **NFT Metadata API**: Serves on-chain NFT metadata resolved from the database.
-- **Custodial Wallet System**: Generates and encrypts Stellar keypairs for server-side minting without user crypto wallets.
+- **Custodial Wallet System**: Generates and encrypts Stellar keypairs (AES-256-CBC) for server-side minting without user crypto wallets. Keypairs stored in `walletless_keys` table, user records in `walletless_users`.
 - **Mint Reliability**: Supply checks before blockchain calls, orphaned transaction logging, automatic cleanup of expired claim sessions.
 - **PWA & Embed**: PWA with manifest/service worker, iFrame embed, and script widget.
 - **Social Sharing**: Allows sharing of minted NFTs to Twitter/X and Instagram, and direct image download.
@@ -81,6 +81,7 @@ Mintoria integrates exclusively with the Stellar blockchain via `stellar-sdk` an
 - Mint uniqueness enforced per email per drop, and supply check before blockchain calls.
 - In-memory rate limiting on `/api/walletless/start`.
 - Email format validation and normalization.
+- Admin reset endpoint clears all mints, custodial wallets, and claim sessions (with double confirmation in UI).
 
 ## Visitor Mint Flow (Step-by-Step)
 
@@ -92,7 +93,7 @@ Mintoria integrates exclusively with the Stellar blockchain via `stellar-sdk` an
 
 ## Admin Operation Flow (Step-by-Step)
 
-1. **Login** — `/admin/login` with email + password (scrypt verify, session cookie created)
+1. **Login** — `/admin/login` with email + password (scrypt verify, session cookie created, back button to landing page)
 2. **Create Project** — `POST /api/projects` (organization-level container)
 3. **Create Location** — `POST /api/projects/:id/locations` (physical place with image)
 4. **Create Drop** — `POST /api/drops` (title, image, supply limit, month/year, access code)
@@ -145,7 +146,7 @@ Location images served from `client/public/images/`.
 ## Roadmap
 
 ### Current State (v1.0)
-Fully functional commemorative NFT minting on Stellar classic. QR code claim flow, email-based custodial wallets, admin dashboard with analytics, i18n (EN/PT/ES) with auto-detection, PWA, embeddable widget, access codes, 4 demo locations, social sharing (Twitter/X + Instagram), NFT metadata API. Production security hardened.
+Fully functional commemorative NFT minting on Stellar classic (testnet). QR code claim flow, email-based custodial wallets, admin dashboard with analytics and full data reset, i18n (EN/PT/ES) with browser auto-detection, PWA, embeddable widget, access codes, 4 demo locations (Paris/Rio/Curitiba/Foz do Iguaçu), social sharing (Twitter/X + Instagram), NFT metadata API. Location images served locally from `client/public/images/`. Production deployed and security hardened. EVM/Solana routes disabled (503).
 
 ### Short-term (v1.1)
 Enhanced analytics, multi-image drops, webhooks, branded email templates.
