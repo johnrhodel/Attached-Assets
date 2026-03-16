@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClaimCard } from "@/components/ClaimCard";
 import { LanguageSelector } from "@/components/language-selector";
-import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, ExternalLink, ChevronLeft, Sparkles, AlertTriangle, Share2 } from "lucide-react";
+import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, Download, ExternalLink, ChevronLeft, Sparkles, AlertTriangle, Share2 } from "lucide-react";
 import { SiX, SiInstagram } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/context";
@@ -294,6 +294,7 @@ function MintingAnimation({ dropTitle }: { dropTitle: string }) {
 
 function SuccessScreen({ drop, mintResult, onBack }: { drop: any; mintResult: MintResult; onBack: () => void }) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const chainName = mintResult.chain === "solana" ? t.chains.solana : mintResult.chain === "evm" ? t.chains.evm : mintResult.chain === "stellar" ? t.chains.stellar : t.chains.stellar;
   const shortTx = mintResult.txHash.length > 16 ? `${mintResult.txHash.slice(0, 8)}...${mintResult.txHash.slice(-6)}` : mintResult.txHash;
   const shortAddr = mintResult.address.length > 16 ? `${mintResult.address.slice(0, 8)}...${mintResult.address.slice(-6)}` : mintResult.address;
@@ -340,43 +341,61 @@ function SuccessScreen({ drop, mintResult, onBack }: { drop: any; mintResult: Mi
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 max-w-xs mx-auto">
-        <p className="text-white/50 text-xs text-center uppercase tracking-wider flex items-center gap-2 justify-center">
-          <Share2 className="w-3 h-3" />
-          Share
-        </p>
-        <div className="flex gap-3">
+      <div className="flex flex-col gap-4 max-w-xs mx-auto">
+        <div className="flex items-center gap-2 justify-center">
+          <div className="h-px flex-1 bg-white/10" />
+          <p className="text-white/40 text-[10px] uppercase tracking-widest font-medium flex items-center gap-1.5">
+            <Share2 className="w-3 h-3" />
+            {t.claim.shareLabel}
+          </p>
+          <div className="h-px flex-1 bg-white/10" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
           <Button
             size="lg"
             variant="outline"
-            className="flex-1 bg-black/80 border-white/20 text-white hover:bg-black"
+            className="bg-black/90 border-white/10 text-white hover:bg-black hover:border-white/25 transition-all h-12"
             onClick={() => handleShareTwitter(drop.title, mintResult.explorerUrl || '', t.claim.shareText)}
             data-testid="button-share-twitter"
           >
-            <SiX className="w-4 h-4 mr-2" />
-            {t.claim.shareTwitter}
+            <SiX className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">{t.claim.shareTwitter}</span>
           </Button>
           <Button
             size="lg"
             variant="outline"
-            className="flex-1 bg-gradient-to-r from-purple-600/80 to-pink-500/80 border-white/20 text-white hover:from-purple-600 hover:to-pink-500"
-            onClick={() => handleShareInstagram(drop.imageUrl, drop.title)}
+            className="bg-gradient-to-r from-purple-600 to-pink-500 border-transparent text-white hover:from-purple-500 hover:to-pink-400 transition-all h-12"
+            onClick={() => handleShareInstagram(drop.imageUrl, drop.title, toast, t.claim.instagramSaved)}
             data-testid="button-share-instagram"
           >
-            <SiInstagram className="w-4 h-4 mr-2" />
-            {t.claim.shareInstagram}
+            <SiInstagram className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">{t.claim.shareInstagram}</span>
           </Button>
         </div>
-        <Button 
+
+        <Button
           size="lg"
-          className="w-full font-semibold"
+          variant="outline"
+          className="w-full bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white transition-all h-11"
           onClick={() => handleDownloadImage(drop.imageUrl, drop.title)}
           data-testid="button-download-image"
         >
-          <ImageDown className="w-5 h-5 mr-2" />
+          <Download className="w-4 h-4 mr-2" />
           {t.claim.downloadImage}
         </Button>
-        <Button onClick={onBack} variant="outline" className="bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-claim-another">{t.common.back}</Button>
+
+        <div className="pt-1">
+          <Button
+            onClick={onBack}
+            variant="ghost"
+            className="w-full text-white/40 hover:text-white/70 hover:bg-white/5 text-sm h-10"
+            data-testid="button-claim-another"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            {t.common.back}
+          </Button>
+        </div>
       </div>
     </>
   );
@@ -421,16 +440,35 @@ function handleShareTwitter(dropTitle: string, explorerUrl: string, shareTemplat
   window.open(twitterUrl, "_blank", "noopener,noreferrer");
 }
 
-function handleShareInstagram(imageUrl: string, title: string) {
+async function handleShareInstagram(imageUrl: string, title: string, toastFn: (opts: { title: string; description: string }) => void, instagramSavedMsg: string) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isMobile && navigator.share) {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `${title.replace(/\s+/g, "-").toLowerCase()}-mintoria.png`, { type: blob.type });
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        throw new Error("canShare unsupported");
+      }
+      await navigator.share({
+        title: `${title} - Mintoria`,
+        text: title,
+        files: [file],
+      });
+      return;
+    } catch (e: any) {
+      if (e?.name === "AbortError") return;
+    }
+  }
+
+  handleDownloadImage(imageUrl, title);
   if (isMobile) {
-    handleDownloadImage(imageUrl, title);
     setTimeout(() => {
       window.location.href = "instagram://app";
-    }, 500);
-  } else {
-    handleDownloadImage(imageUrl, title);
+    }, 600);
   }
+  toastFn({ title: "Instagram", description: instagramSavedMsg });
 }
 
 function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult | "ALREADY_MINTED") => void; onBack: () => void }) {
