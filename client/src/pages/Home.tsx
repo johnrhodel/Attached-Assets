@@ -58,17 +58,17 @@ interface PricingTranslations {
   starterDesc: string;
   starterPrice: string;
   starterPer: string;
-  starterFeatures: string[];
+  starterFeatures: readonly string[];
   professional: string;
   professionalDesc: string;
   professionalPrice: string;
   professionalPer: string;
-  professionalFeatures: string[];
+  professionalFeatures: readonly string[];
   enterprise: string;
   enterpriseDesc: string;
   enterprisePrice: string;
   enterprisePer: string;
-  enterpriseFeatures: string[];
+  enterpriseFeatures: readonly string[];
   popular: string;
   contact: string;
 }
@@ -107,7 +107,7 @@ function getLocalizedPlan(plan: PublicPricingPlan, pricing: PricingTranslations)
     description: String(pricing[map.desc]) || plan.description,
     price: String(pricing[map.price]) || plan.price,
     pricePer: String(pricing[map.per]) || plan.pricePer,
-    features: Array.isArray(pricing[map.features]) ? pricing[map.features] as string[] : plan.features,
+    features: Array.isArray(pricing[map.features]) ? [...pricing[map.features] as readonly string[]] : plan.features,
   };
 }
 

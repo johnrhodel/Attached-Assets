@@ -74,6 +74,10 @@ export async function registerRoutes(
 
   (global as any).__serverStartTime = Date.now();
 
+  if (isProduction) {
+    app.set('trust proxy', 1);
+  }
+
   app.use(session({
     cookie: {
       maxAge: 86400000,
