@@ -17,11 +17,10 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https://horizon-testnet.stellar.org", "https://friendbot.stellar.org"],
       frameSrc: ["'self'"],
-      frameAncestors: ["*"],
+      frameAncestors: ["'self'"],
     },
   },
   crossOriginEmbedderPolicy: false,
-  frameguard: false,
 }));
 
 declare module "http" {

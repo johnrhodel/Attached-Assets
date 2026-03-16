@@ -51,13 +51,45 @@ interface PublicPricingPlan {
   sortOrder: number;
 }
 
-const PLAN_I18N_MAP: Record<string, { name: keyof any; desc: keyof any; price: keyof any; per: keyof any; features: keyof any }> = {
+interface PricingTranslations {
+  title: string;
+  subtitle: string;
+  starter: string;
+  starterDesc: string;
+  starterPrice: string;
+  starterPer: string;
+  starterFeatures: string[];
+  professional: string;
+  professionalDesc: string;
+  professionalPrice: string;
+  professionalPer: string;
+  professionalFeatures: string[];
+  enterprise: string;
+  enterpriseDesc: string;
+  enterprisePrice: string;
+  enterprisePer: string;
+  enterpriseFeatures: string[];
+  popular: string;
+  contact: string;
+}
+
+type PlanKey = 'starter' | 'professional' | 'enterprise';
+
+interface PlanI18nMapping {
+  name: keyof PricingTranslations;
+  desc: keyof PricingTranslations;
+  price: keyof PricingTranslations;
+  per: keyof PricingTranslations;
+  features: keyof PricingTranslations;
+}
+
+const PLAN_I18N_MAP: Record<PlanKey, PlanI18nMapping> = {
   starter: { name: 'starter', desc: 'starterDesc', price: 'starterPrice', per: 'starterPer', features: 'starterFeatures' },
   professional: { name: 'professional', desc: 'professionalDesc', price: 'professionalPrice', per: 'professionalPer', features: 'professionalFeatures' },
   enterprise: { name: 'enterprise', desc: 'enterpriseDesc', price: 'enterprisePrice', per: 'enterprisePer', features: 'enterpriseFeatures' },
 };
 
-function getPlanKey(name: string): string | null {
+function getPlanKey(name: string): PlanKey | null {
   const lower = name.toLowerCase();
   if (lower === 'starter') return 'starter';
   if (lower === 'professional' || lower === 'profissional' || lower === 'profesional') return 'professional';
@@ -65,17 +97,17 @@ function getPlanKey(name: string): string | null {
   return null;
 }
 
-function getLocalizedPlan(plan: PublicPricingPlan, pricing: any): PublicPricingPlan {
+function getLocalizedPlan(plan: PublicPricingPlan, pricing: PricingTranslations): PublicPricingPlan {
   const key = getPlanKey(plan.name);
-  if (!key || !PLAN_I18N_MAP[key]) return plan;
+  if (!key) return plan;
   const map = PLAN_I18N_MAP[key];
   return {
     ...plan,
-    name: (pricing as any)[map.name as string] || plan.name,
-    description: (pricing as any)[map.desc as string] || plan.description,
-    price: (pricing as any)[map.price as string] || plan.price,
-    pricePer: (pricing as any)[map.per as string] || plan.pricePer,
-    features: (pricing as any)[map.features as string] || plan.features,
+    name: String(pricing[map.name]) || plan.name,
+    description: String(pricing[map.desc]) || plan.description,
+    price: String(pricing[map.price]) || plan.price,
+    pricePer: String(pricing[map.per]) || plan.pricePer,
+    features: Array.isArray(pricing[map.features]) ? pricing[map.features] as string[] : plan.features,
   };
 }
 
