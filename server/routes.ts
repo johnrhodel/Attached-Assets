@@ -317,7 +317,7 @@ export async function registerRoutes(
     res.json({ message: "Drop deleted" });
   });
 
-  app.post(api.drops.publish.path, async (req, res) => {
+  app.post(api.drops.publish.path, requireAuth, async (req, res) => {
     const drop = await storage.updateDropStatus(Number(req.params.id), "published");
     res.json(drop);
   });
@@ -1149,7 +1149,7 @@ export async function registerRoutes(
       await storage.createPricingPlan({
         name: "Starter",
         description: "Perfeito para eventos individuais",
-        price: "R$500",
+        price: "R$599",
         pricePer: "/evento",
         features: ["Up to 500 mints", "1 location", "QR code generation", "Email support", "Basic analytics"],
         highlighted: false,
