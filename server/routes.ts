@@ -359,6 +359,45 @@ export async function registerRoutes(
     });
   });
 
+  app.get("/api/metadata/:locationSlug/:dropSlug", async (req, res) => {
+    const { locationSlug, dropSlug } = req.params;
+    const host = `${req.protocol}://${req.get("host")}`;
+
+    const projects = await storage.getProjects();
+    let matchedDrop = null;
+    let matchedLocation = null;
+    for (const project of projects) {
+      const locations = await storage.getLocations(project.id);
+      const location = locations.find(l => l.slug === locationSlug);
+      if (location) {
+        matchedLocation = location;
+        const drops = await storage.getDrops(location.id);
+        matchedDrop = drops[0] || null;
+        break;
+      }
+    }
+
+    const imageUrl = matchedDrop?.imageUrl
+      ? (matchedDrop.imageUrl.startsWith("http") ? matchedDrop.imageUrl : `${host}${matchedDrop.imageUrl}`)
+      : `${host}/images/${locationSlug}.png`;
+    const locationName = matchedLocation?.name || locationSlug.replace(/-/g, " ");
+    const dropTitle = matchedDrop?.title || dropSlug;
+    const galleryUrl = matchedLocation ? `${host}/gallery/${matchedLocation.id}` : `${host}`;
+
+    res.json({
+      name: `Mintoria - ${dropTitle}`,
+      description: `Commemorative NFT from ${locationName}`,
+      image: imageUrl,
+      external_url: galleryUrl,
+      attributes: [
+        { trait_type: "Location", value: locationName },
+        { trait_type: "Collection", value: dropTitle },
+        { trait_type: "Platform", value: "Mintoria" },
+        { trait_type: "Chain", value: "Stellar" },
+      ],
+    });
+  });
+
   // === MINT ROUTES ===
 
   // 1. EVM Permit (EIP-712) - Real signing
@@ -485,20 +524,27 @@ export async function registerRoutes(
       if (!email || typeof email !== "string" || !email.trim()) {
         return res.status(400).json({ message: "Email is required" });
       }
+      const normalizedEmail = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedEmail)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
       const ip = req.ip || req.socket.remoteAddress || "unknown";
 
-      if (!checkRateLimit(email.trim().toLowerCase(), rateLimitByEmail, MAX_PER_EMAIL) || !checkRateLimit(ip, rateLimitByIp, MAX_PER_IP)) {
+      if (!checkRateLimit(normalizedEmail, rateLimitByEmail, MAX_PER_EMAIL) || !checkRateLimit(ip, rateLimitByIp, MAX_PER_IP)) {
         return res.status(429).json({ message: "Too many requests. Please wait a few minutes." });
       }
       const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-      await sendVerificationEmail(email, code);
-      verificationCodes.set(email, code);
-      console.log(`[DEV] Verification code for ${email}: ${code}`);
+      await sendVerificationEmail(normalizedEmail, code);
+      verificationCodes.set(normalizedEmail, code);
+      if (!isProduction) {
+        console.log(`[DEV] Verification code for ${email}: ${code}`);
+      }
 
-      let user = await storage.getWalletlessUser(email);
+      let user = await storage.getWalletlessUser(normalizedEmail);
       if (!user) {
-        user = await storage.createWalletlessUser({ email });
+        user = await storage.createWalletlessUser({ email: normalizedEmail });
       }
 
       try {
@@ -514,7 +560,9 @@ export async function registerRoutes(
             encryptedSecret
           });
 
-          console.log(`[WALLETLESS] Created stellar wallet for ${email}: ${wallet.address}`);
+          if (!isProduction) {
+            console.log(`[WALLETLESS] Created stellar wallet for ${email}: ${wallet.address}`);
+          }
         }
       } catch (walletErr: any) {
         console.error(`[WALLETLESS] Failed to create stellar wallet for ${email}: ${walletErr.message}`);
@@ -529,14 +577,15 @@ export async function registerRoutes(
 
   app.post(api.walletless.verify.path, async (req, res) => {
     const { email, code } = req.body;
+    const normalizedEmail = (email || "").trim().toLowerCase();
 
-    if (verificationCodes.get(email) !== code) {
+    if (verificationCodes.get(normalizedEmail) !== code) {
       return res.status(400).json({ message: "Invalid code", verified: false });
     }
 
-    verificationCodes.delete(email);
+    verificationCodes.delete(normalizedEmail);
 
-    const user = await storage.getWalletlessUser(email);
+    const user = await storage.getWalletlessUser(normalizedEmail);
     if (user) {
       await storage.markWalletlessUserVerified(user.id);
     }
@@ -551,22 +600,23 @@ export async function registerRoutes(
     try {
       const { email, code, claimToken } = req.body;
       const chain = "stellar";
+      const normalizedEmail = (email || "").trim().toLowerCase();
 
       if (!code) {
         return res.status(400).json({ message: "Verification code is required" });
       }
 
-      if (verificationCodes.get(email) !== code) {
+      if (verificationCodes.get(normalizedEmail) !== code) {
         return res.status(400).json({ message: "Invalid verification code" });
       }
 
-      verificationCodes.delete(email);
-      const userToVerify = await storage.getWalletlessUser(email);
+      verificationCodes.delete(normalizedEmail);
+      const userToVerify = await storage.getWalletlessUser(normalizedEmail);
       if (userToVerify) {
         await storage.markWalletlessUserVerified(userToVerify.id);
       }
 
-      const user = await storage.getWalletlessUser(email);
+      const user = await storage.getWalletlessUser(normalizedEmail);
       if (!user) return res.status(400).json({ message: "User not found" });
 
       const key = await storage.getWalletlessKey(user.id, chain);
@@ -612,7 +662,7 @@ export async function registerRoutes(
           recipient: recipientAddress,
           txHash,
           status: "confirmed",
-          email,
+          email: normalizedEmail,
         });
       } catch (dbErr: any) {
         console.error("[WALLETLESS_MINT] Blockchain TX succeeded but DB update failed. TxHash:", txHash, "Error:", dbErr.message);
@@ -623,9 +673,9 @@ export async function registerRoutes(
 
       const explorerUrl = stellarService.getStellarExplorerUrl(txHash);
 
-      console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: stellar | Email: ${email} | Recipient: ${recipientAddress} | TxHash: ${txHash} | Explorer: ${explorerUrl || 'N/A'}`);
+      console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: stellar | Email: ${normalizedEmail} | Recipient: ${recipientAddress} | TxHash: ${txHash} | Explorer: ${explorerUrl || 'N/A'}`);
 
-      sendMintConfirmationEmail(email, {
+      sendMintConfirmationEmail(normalizedEmail, {
         dropTitle: drop.title,
         chain,
         txHash,
@@ -1085,7 +1135,7 @@ export async function registerRoutes(
         month: "February",
         year: 2026,
         imageUrl: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=1000",
-        metadataUrl: "https://example.com/metadata.json",
+        metadataUrl: "/api/metadata/eiffel/paris-2026",
         supply: 1000,
         enabledChains: ["evm", "solana", "stellar"],
         status: "published"
@@ -1120,7 +1170,7 @@ export async function registerRoutes(
         month: "February",
         year: 2026,
         imageUrl: "/images/rio-cristo-redentor.png",
-        metadataUrl: "https://example.com/metadata-rio.json",
+        metadataUrl: "/api/metadata/cristo-redentor/rio-2026",
         supply: 1000,
         enabledChains: ["stellar"],
         status: "published",
@@ -1138,7 +1188,7 @@ export async function registerRoutes(
         month: "February",
         year: 2026,
         imageUrl: "/images/curitiba-jardim-botanico.png",
-        metadataUrl: "https://example.com/metadata-curitiba.json",
+        metadataUrl: "/api/metadata/palacio-cristal/curitiba-2026",
         supply: 1000,
         enabledChains: ["stellar"],
         status: "published",
@@ -1156,7 +1206,7 @@ export async function registerRoutes(
         month: "February",
         year: 2026,
         imageUrl: "/images/foz-cataratas.png",
-        metadataUrl: "https://example.com/metadata-foz.json",
+        metadataUrl: "/api/metadata/cataratas-do-iguacu/foz-2026",
         supply: 1000,
         enabledChains: ["stellar"],
         status: "published",

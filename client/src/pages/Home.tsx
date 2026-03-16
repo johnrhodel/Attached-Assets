@@ -348,8 +348,10 @@ export default function Home() {
                         </li>
                       ))}
                     </ul>
-                    <Button variant={plan.highlighted ? "default" : "outline"} className="w-full" data-testid={`button-pricing-${plan.id}`}>
-                      {t.pricing.contact}
+                    <Button variant={plan.highlighted ? "default" : "outline"} className="w-full" asChild data-testid={`button-pricing-${plan.id}`}>
+                      <a href="mailto:contato@mintoria.xyz">
+                        {t.pricing.contact}
+                      </a>
                     </Button>
                   </CardContent>
                 </Card>

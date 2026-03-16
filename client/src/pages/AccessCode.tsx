@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClaimCard } from "@/components/ClaimCard";
 import { LanguageSelector } from "@/components/language-selector";
-import { Loader2, KeyRound, ArrowRight, Layers, QrCode, ChevronLeft } from "lucide-react";
+import { Loader2, KeyRound, ArrowRight, Layers, MapPin, ChevronLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n/context";
 import { Link } from "wouter";
@@ -103,7 +103,7 @@ export default function AccessCode() {
               </Button>
 
               <p className="text-xs text-center text-muted-foreground/80 flex items-center justify-center gap-1.5">
-                <QrCode className="w-3 h-3" />
+                <MapPin className="w-3 h-3" />
                 {t.accessCode.or}
               </p>
             </div>

@@ -70,7 +70,7 @@ export const translations = {
       placeholder: 'Enter your event code',
       submit: 'Find Event',
       invalidCode: 'Invalid access code. Please check and try again.',
-      or: 'or scan the QR code at the event',
+      or: 'find the code at the event location',
     },
     email: {
       enterEmail: 'Enter your email',
@@ -82,7 +82,7 @@ export const translations = {
       codeSent: 'Code sent! Check your email',
       codeSentTo: 'Code sent to',
       codeInvalid: 'Invalid code',
-      devNote: '(Dev: check server console for code)',
+      devNote: 'Check your email inbox and spam folder',
     },
     walletSuggestions: {
       title: 'Get a Wallet',
@@ -385,7 +385,7 @@ export const translations = {
       placeholder: 'Entre o código do seu evento',
       submit: 'Buscar Evento',
       invalidCode: 'Código de acesso inválido. Verifique e tente novamente.',
-      or: 'ou escaneie o QR code no evento',
+      or: 'encontre o código no local do evento',
     },
     email: {
       enterEmail: 'Digite seu email',
@@ -397,7 +397,7 @@ export const translations = {
       codeSent: 'Código enviado! Verifique seu email',
       codeSentTo: 'Código enviado para',
       codeInvalid: 'Código inválido',
-      devNote: '(Dev: verifique o console do servidor)',
+      devNote: 'Verifique sua caixa de entrada e pasta de spam',
     },
     walletSuggestions: {
       title: 'Obtenha uma Carteira',
@@ -624,7 +624,7 @@ export const translations = {
       feature_admin_desc: 'Gerencie projetos, locais e drops com análises',
       feature_security: 'Proteção Anti-Fraude',
       feature_security_desc: 'Tokens únicos, limite de taxa e teto de supply',
-      copyright: 'Mintoria. All rights reserved.',
+      copyright: 'Mintoria. Todos os direitos reservados.',
       team_title: 'Conheça o Time',
       team_subtitle: 'As pessoas por trás do Mintoria',
       team_founder: 'Fundador',
@@ -700,7 +700,7 @@ export const translations = {
       placeholder: 'Ingrese el código de su evento',
       submit: 'Buscar Evento',
       invalidCode: 'Código de acceso inválido. Verifique e intente nuevamente.',
-      or: 'o escanea el código QR en el evento',
+      or: 'encuentra el código en la ubicación del evento',
     },
     email: {
       enterEmail: 'Ingresa tu email',
@@ -712,7 +712,7 @@ export const translations = {
       codeSent: '¡Código enviado! Revisa tu email',
       codeSentTo: 'Código enviado a',
       codeInvalid: 'Código inválido',
-      devNote: '(Dev: revisa la consola del servidor)',
+      devNote: 'Revisa tu bandeja de entrada y carpeta de spam',
     },
     walletSuggestions: {
       title: 'Obtén una Billetera',
@@ -939,7 +939,7 @@ export const translations = {
       feature_admin_desc: 'Gestione proyectos, ubicaciones y drops con análisis',
       feature_security: 'Protección Anti-Fraude',
       feature_security_desc: 'Tokens únicos, limitación de tasa y topes de suministro',
-      copyright: 'Mintoria. All rights reserved.',
+      copyright: 'Mintoria. Todos los derechos reservados.',
       team_title: 'Conoce al Equipo',
       team_subtitle: 'Las personas detrás de Mintoria',
       team_founder: 'Fundador',

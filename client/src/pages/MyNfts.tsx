@@ -22,10 +22,8 @@ function truncateHash(hash: string): string {
 }
 
 function getChainLabel(chain: string): string {
-  if (chain === "solana") return "Solana";
-  if (chain === "evm") return "EVM";
-  if (chain === "stellar") return "Stellar";
-  return chain;
+  const labels: Record<string, string> = { solana: "Solana", evm: "Ethereum", stellar: "Stellar" };
+  return labels[chain] || chain;
 }
 
 interface MintItem {
