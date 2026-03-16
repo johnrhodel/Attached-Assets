@@ -59,17 +59,66 @@ PostgreSQL, managed by Drizzle ORM, is the primary database, storing all applica
 Mintoria integrates exclusively with the Stellar blockchain via `stellar-sdk` and the Horizon API. NFTs are minted by storing metadata on-chain using `manageData` operations. The platform supports server-side keypair generation and custodial wallet management for email-based minting.
 
 ### Core Features
-- **Public Claim Pages**: For visitor NFT claims and embedded widgets.
-- **NFT Gallery**: Displays minted NFTs.
-- **User NFT Lookup**: Allows users to find their NFTs by email.
-- **Admin Dashboard**: Provides analytics, project/location/drop management, and a "Reset Mints" function.
-- **Email Service**: For sending verification codes and mint confirmations.
-- **Landing Page**: Features pricing tiers, live stats, and an access code entry.
-- **Internationalization (i18n)**: Full support for English, Portuguese, and Spanish.
-- **NFT Metadata API**: Serves on-chain NFT metadata.
-- **Custodial Wallet System**: Generates and encrypts Stellar keypairs for server-side minting.
-- **Mint Reliability**: Includes supply checks, orphaned transaction handling, and session cleanup.
-- **PWA & Embed**: Supports PWA features and provides iframe and script widget embedding.
+- **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitor NFT claims.
+- **NFT Gallery**: `/gallery/:locationId` displays minted NFTs for a location.
+- **User NFT Lookup**: `/my-nfts` allows users to find their NFTs by email.
+- **Admin Dashboard**: `/admin/dashboard` with analytics charts, project/location/drop management, and Reset Mints button.
+- **Email Service**: For sending verification codes and mint confirmations via Resend.
+- **Landing Page**: Includes pricing tiers, live platform stats, team section, and access code entry.
+- **Internationalization (i18n)**: Full support for English, Portuguese, and Spanish with automatic language detection.
+- **NFT Metadata API**: Serves on-chain NFT metadata resolved from the database.
+- **Custodial Wallet System**: Generates and encrypts Stellar keypairs for server-side minting without user crypto wallets.
+- **Mint Reliability**: Supply checks before blockchain calls, orphaned transaction logging, automatic cleanup of expired claim sessions.
+- **PWA & Embed**: PWA with manifest/service worker, iFrame embed, and script widget.
+- **Social Sharing**: Allows sharing of minted NFTs to Twitter/X and Instagram, and direct image download.
+
+### Security Features
+- Helmet middleware for HTTP security headers (frameguard + CSP frame-ancestors).
+- Session cookies with `httpOnly`, `secure` (production), and `sameSite: 'lax'`.
+- Admin route authentication middleware (`requireAuth`) on all admin endpoints.
+- Login rate limiting, production secrets enforcement, and sanitized error responses.
+- Cryptographically secure verification tokens.
+- Mint uniqueness enforced per email per drop, and supply check before blockchain calls.
+- In-memory rate limiting on `/api/walletless/start`.
+- Email format validation and normalization.
+
+## Visitor Mint Flow (Step-by-Step)
+
+1. **Scan QR** — Visitor scans QR code at location, opens `/claim/:locationId`
+2. **Click Claim** — Creates anti-fraud claim session (5-min expiry token)
+3. **Enter Email** — `POST /api/walletless/start`: validates/normalizes email, rate-limits, generates 6-digit OTP, sends via Resend, creates custodial Stellar wallet (AES-256-CBC encrypted keypair)
+4. **Enter Code** — `POST /api/walletless/mine`: verifies OTP, checks supply limit + mint uniqueness, decrypts custodial key, builds Stellar TX with `manageData`, submits to network
+5. **Success** — Returns txHash + explorer URL. Visitor can view on Stellar Explorer, share on Twitter/X, share on Instagram, or download NFT image
+
+## Admin Operation Flow (Step-by-Step)
+
+1. **Login** — `/admin/login` with email + password (scrypt verify, session cookie created)
+2. **Create Project** — `POST /api/projects` (organization-level container)
+3. **Create Location** — `POST /api/projects/:id/locations` (physical place with image)
+4. **Create Drop** — `POST /api/drops` (title, image, supply limit, month/year, access code)
+5. **Publish Drop** — `PATCH /api/drops/:id/publish` (changes status to published)
+6. **Generate QR** — Creates QR code pointing to `/claim/:locationId`
+7. **Monitor** — `/admin/dashboard`: total mints, mints by location chart, activity log, Stellar health, Reset Mints (double confirm)
+
+## Social Sharing (Twitter/X and Instagram)
+
+After minting, visitors can share their commemorative NFT:
+- **Twitter/X**: Opens pre-formatted tweet with drop title + Stellar explorer link. Share text translated (EN/PT/ES).
+- **Instagram**: Downloads NFT image to device, opens Instagram app via mobile deep link for posting.
+- **Download**: Saves NFT image directly to device.
+
+Icons use `react-icons/si` (SiX, SiInstagram). Share text templates are fully translated across all three languages.
+
+## Demo Locations
+
+| Location | Access Code | Claim URL |
+|----------|-------------|-----------|
+| Paris (Eiffel Tower) | PARIS2026 | `/claim/1` |
+| Rio de Janeiro (Cristo Redentor) | RIO2026 | `/claim/3` |
+| Curitiba (Palácio de Cristal) | CURITIBA2026 | `/claim/4` |
+| Foz do Iguaçu (Cataratas) | FOZ2026 | `/claim/5` |
+
+Location images served from `client/public/images/`.
 
 ## External Dependencies
 
@@ -92,3 +141,24 @@ Mintoria integrates exclusively with the Stellar blockchain via `stellar-sdk` an
 
 ### Email Service
 - Resend
+
+## Roadmap
+
+### Current State (v1.0)
+Fully functional commemorative NFT minting on Stellar classic. QR code claim flow, email-based custodial wallets, admin dashboard with analytics, i18n (EN/PT/ES) with auto-detection, PWA, embeddable widget, access codes, 4 demo locations, social sharing (Twitter/X + Instagram), NFT metadata API. Production security hardened.
+
+### Short-term (v1.1)
+Enhanced analytics, multi-image drops, webhooks, branded email templates.
+
+### Medium-term (v2.0)
+Soroban smart contract migration, NFT marketplace, multi-admin RBAC, white-label solution, API access, advanced reporting.
+
+### Long-term (v3.0+)
+MPC custody, multi-chain expansion (Ethereum/Solana), AI-powered NFT generation, decentralized storage (IPFS/Arweave), mobile SDK, enterprise SSO.
+
+## Business Model
+- **Target**: Tourism operators, event organizers, museums, parks, festivals
+- **Starter**: R$599/event (up to 500 mints, 1 location)
+- **Professional**: R$1.497/month (unlimited mints, 5 locations, custom branding)
+- **Enterprise**: R$4.997/month (unlimited everything, white-label, API access, dedicated support)
+- **Revenue**: SaaS subscriptions, per-mint fees at scale, white-label licensing, marketplace commissions (v2.0+)
