@@ -1,10 +1,28 @@
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://horizon-testnet.stellar.org", "https://friendbot.stellar.org"],
+      frameSrc: ["'self'"],
+      frameAncestors: ["*"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  frameguard: false,
+}));
 
 declare module "http" {
   interface IncomingMessage {
@@ -65,13 +83,15 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
     console.error("Internal Server Error:", err);
 
     if (res.headersSent) {
       return next(err);
     }
+
+    const message = process.env.NODE_ENV === 'production'
+      ? "Internal Server Error"
+      : (err.message || "Internal Server Error");
 
     return res.status(status).json({ message });
   });

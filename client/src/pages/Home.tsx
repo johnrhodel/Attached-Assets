@@ -51,6 +51,34 @@ interface PublicPricingPlan {
   sortOrder: number;
 }
 
+const PLAN_I18N_MAP: Record<string, { name: keyof any; desc: keyof any; price: keyof any; per: keyof any; features: keyof any }> = {
+  starter: { name: 'starter', desc: 'starterDesc', price: 'starterPrice', per: 'starterPer', features: 'starterFeatures' },
+  professional: { name: 'professional', desc: 'professionalDesc', price: 'professionalPrice', per: 'professionalPer', features: 'professionalFeatures' },
+  enterprise: { name: 'enterprise', desc: 'enterpriseDesc', price: 'enterprisePrice', per: 'enterprisePer', features: 'enterpriseFeatures' },
+};
+
+function getPlanKey(name: string): string | null {
+  const lower = name.toLowerCase();
+  if (lower === 'starter') return 'starter';
+  if (lower === 'professional' || lower === 'profissional' || lower === 'profesional') return 'professional';
+  if (lower === 'enterprise') return 'enterprise';
+  return null;
+}
+
+function getLocalizedPlan(plan: PublicPricingPlan, pricing: any): PublicPricingPlan {
+  const key = getPlanKey(plan.name);
+  if (!key || !PLAN_I18N_MAP[key]) return plan;
+  const map = PLAN_I18N_MAP[key];
+  return {
+    ...plan,
+    name: (pricing as any)[map.name as string] || plan.name,
+    description: (pricing as any)[map.desc as string] || plan.description,
+    price: (pricing as any)[map.price as string] || plan.price,
+    pricePer: (pricing as any)[map.per as string] || plan.pricePer,
+    features: (pricing as any)[map.features as string] || plan.features,
+  };
+}
+
 function usePublicStats() {
   return useQuery({
     queryKey: ["/api/public/stats"],
@@ -263,7 +291,7 @@ export default function Home() {
             </p>
 
             <div className={`grid gap-6 grid-cols-1 max-w-5xl mx-auto ${pricingPlans.length === 1 ? 'md:grid-cols-1 max-w-md' : pricingPlans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3'}`}>
-              {pricingPlans.map((plan) => (
+              {pricingPlans.map((plan) => getLocalizedPlan(plan, t.pricing)).map((plan) => (
                 <Card
                   key={plan.id}
                   className={`relative ${plan.highlighted ? 'border-primary shadow-md ring-2 ring-primary/20' : 'border-border/50 shadow-sm'}`}

@@ -36,10 +36,16 @@ function verifyPassword(password: string, storedHash: string): boolean {
 }
 
 const ALGORITHM = 'aes-256-cbc';
-const encryptionSecret = process.env.WALLET_ENCRYPTION_SECRET || process.env.SESSION_SECRET || 'dev-only-encryption-key';
-if (!process.env.WALLET_ENCRYPTION_SECRET && process.env.NODE_ENV === 'production') {
-  console.error('[SECURITY] WALLET_ENCRYPTION_SECRET must be set in production!');
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction && !process.env.SESSION_SECRET) {
+  console.error('[SECURITY] SESSION_SECRET must be set in production! Server will not start.');
+  process.exit(1);
 }
+if (isProduction && !process.env.WALLET_ENCRYPTION_SECRET) {
+  console.error('[SECURITY] WALLET_ENCRYPTION_SECRET must be set in production! Server will not start.');
+  process.exit(1);
+}
+const encryptionSecret = process.env.WALLET_ENCRYPTION_SECRET || process.env.SESSION_SECRET || 'dev-only-encryption-key';
 const ENCRYPTION_KEY = scryptSync(encryptionSecret, 'mintoria-custodial-v1', 32);
 const IV_LENGTH = 16;
 
@@ -69,7 +75,12 @@ export async function registerRoutes(
   (global as any).__serverStartTime = Date.now();
 
   app.use(session({
-    cookie: { maxAge: 86400000 },
+    cookie: {
+      maxAge: 86400000,
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+    },
     store: new PgSession({
       conString: process.env.DATABASE_URL,
       tableName: "session",
@@ -80,6 +91,22 @@ export async function registerRoutes(
     saveUninitialized: false,
     secret: process.env.SESSION_SECRET || "dev_secret",
   }));
+
+  const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+  const LOGIN_RATE_LIMIT = 5;
+  const LOGIN_RATE_WINDOW = 15 * 60 * 1000;
+
+  function requireAuth(req: any, res: any, next: any) {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    next();
+  }
+
+  function safeErrorMessage(err: any, context: string): string {
+    console.error(`[${context}]`, err);
+    if (isProduction) return "An internal error occurred";
+    return err.message || "An internal error occurred";
+  }
 
   const uploadsDir = path.join(process.cwd(), "server", "public", "uploads");
   if (!existsSync(uploadsDir)) {
@@ -116,7 +143,7 @@ export async function registerRoutes(
 
       res.json({ url: `/uploads/${uniqueName}` });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -138,6 +165,18 @@ export async function registerRoutes(
 
   // === AUTH ROUTES ===
   app.post(api.auth.login.path, async (req, res) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const attempt = loginAttempts.get(ip);
+    if (attempt && now < attempt.resetAt && attempt.count >= LOGIN_RATE_LIMIT) {
+      return res.status(429).json({ message: "Too many login attempts. Please try again later." });
+    }
+    if (!attempt || now >= attempt.resetAt) {
+      loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_RATE_WINDOW });
+    } else {
+      attempt.count++;
+    }
+
     const { email, password } = api.auth.login.input.parse(req.body);
     const user = await storage.getUserByEmail(email);
 
@@ -173,12 +212,10 @@ export async function registerRoutes(
     res.json(projects);
   });
 
-  app.post(api.projects.create.path, async (req, res) => {
+  app.post(api.projects.create.path, requireAuth, async (req, res) => {
     const userId = (req.session as any).userId;
     const project = await storage.createProject(req.body);
-    if (userId) {
-      await storage.createActivityLog({ userId, action: "create", entity: "project", entityId: project.id, details: `Created project "${project.name}"` });
-    }
+    await storage.createActivityLog({ userId, action: "create", entity: "project", entityId: project.id, details: `Created project "${project.name}"` });
     res.status(201).json(project);
   });
 
@@ -187,15 +224,13 @@ export async function registerRoutes(
     res.json(locations);
   });
 
-  app.post(api.locations.create.path, async (req, res) => {
+  app.post(api.locations.create.path, requireAuth, async (req, res) => {
     const userId = (req.session as any).userId;
     const location = await storage.createLocation({
       ...req.body,
       projectId: Number(req.params.projectId)
     });
-    if (userId) {
-      await storage.createActivityLog({ userId, action: "create", entity: "location", entityId: location.id, details: `Created location "${location.name}"` });
-    }
+    await storage.createActivityLog({ userId, action: "create", entity: "location", entityId: location.id, details: `Created location "${location.name}"` });
     res.status(201).json(location);
   });
 
@@ -210,15 +245,13 @@ export async function registerRoutes(
     res.json(drops);
   });
 
-  app.post(api.drops.create.path, async (req, res) => {
+  app.post(api.drops.create.path, requireAuth, async (req, res) => {
     const userId = (req.session as any).userId;
     const drop = await storage.createDrop({
       ...req.body,
       locationId: Number(req.params.locationId)
     });
-    if (userId) {
-      await storage.createActivityLog({ userId, action: "create", entity: "drop", entityId: drop.id, details: `Created drop "${drop.title}"` });
-    }
+    await storage.createActivityLog({ userId, action: "create", entity: "drop", entityId: drop.id, details: `Created drop "${drop.title}"` });
     res.status(201).json(drop);
   });
 
@@ -375,7 +408,7 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       console.error("[STELLAR_MINT] Error:", err.message);
-      res.status(500).json({ message: `Stellar minting failed: ${err.message}` });
+      res.status(500).json({ message: safeErrorMessage(err, "STELLAR_MINT") });
     }
   });
 
@@ -493,7 +526,7 @@ export async function registerRoutes(
     }
 
     res.json({
-      token: `verified_${createHash('sha256').update(email + Date.now()).digest('hex').slice(0, 16)}`,
+      token: `verified_${randomBytes(16).toString('hex')}`,
       verified: true
     });
   });
@@ -583,7 +616,7 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       console.error(`[WALLETLESS_MINT] Error: ${err.message}`);
-      res.status(500).json({ message: `Minting failed: ${err.message}` });
+      res.status(500).json({ message: safeErrorMessage(err, "WALLETLESS_MINT") });
     }
   });
 
@@ -607,7 +640,7 @@ export async function registerRoutes(
 
       res.json({ locationId: drop.locationId, drop });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -641,7 +674,7 @@ export async function registerRoutes(
       cachedStatus = { data, timestamp: Date.now() };
       res.json(data);
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -724,7 +757,7 @@ export async function registerRoutes(
         recentMints,
       });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -746,7 +779,7 @@ export async function registerRoutes(
         totalMinted: mintsList.length,
       });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -756,7 +789,7 @@ export async function registerRoutes(
       const plans = await storage.getActivePricingPlans();
       res.json(plans);
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -774,7 +807,7 @@ export async function registerRoutes(
         activeDrops,
       });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -785,7 +818,7 @@ export async function registerRoutes(
       const userMints = await storage.getMintsForEmail(email);
       res.json(userMints);
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -809,7 +842,7 @@ export async function registerRoutes(
         res.send(png);
       }
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -878,7 +911,7 @@ export async function registerRoutes(
       const plans = await storage.getPricingPlans();
       res.json(plans);
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -892,7 +925,7 @@ export async function registerRoutes(
       res.status(201).json(plan);
     } catch (err: any) {
       if (err.name === "ZodError") return res.status(400).json({ message: "Invalid data", errors: err.errors });
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -907,7 +940,7 @@ export async function registerRoutes(
       res.json(plan);
     } catch (err: any) {
       if (err.name === "ZodError") return res.status(400).json({ message: "Invalid data", errors: err.errors });
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -919,7 +952,7 @@ export async function registerRoutes(
       await storage.createActivityLog({ userId, action: "delete", entity: "pricing_plan", entityId: Number(req.params.id), details: "Deleted pricing plan" });
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1011,7 +1044,7 @@ export async function registerRoutes(
         uptimeMs,
       });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
