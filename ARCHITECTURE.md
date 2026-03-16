@@ -43,8 +43,8 @@ The platform is designed for **tourism operators and event organizers** who want
 │          │                                                       │
 │   ┌──────▼────────────────────────────────────────────────────┐  │
 │   │                   SECURITY LAYER                          │  │
-│   │  Helmet · Rate Limiting · Session Auth · CSRF Protection  │  │
-│   │  Scrypt Hashing · AES-256 Encryption · Token Validation   │  │
+│   │  Helmet · Rate Limiting · Session Auth · Token Validation  │  │
+│   │  Scrypt Hashing · AES-256 Encryption · Supply Checks      │  │
 │   └───────────────────────────────────────────────────────────┘  │
 │          │                          │                             │
 │   ┌──────▼───────────┐    ┌────────▼─────────────────────────┐  │
@@ -147,7 +147,7 @@ Export user data
 - **Project Management**: Organize locations into projects (e.g., "Museum Chain 2026")
 - **Drop Configuration**: Set title, image, supply limit, month/year, and optional access code
 - **QR Code Generation**: Create downloadable QR codes (SVG/PNG) for each location
-- **Analytics Dashboard**: Real-time charts showing mints over time, by location, and by chain
+- **Analytics Dashboard**: Real-time charts showing mints over time and by location
 - **User Export**: Download custodial user data as CSV for marketing/CRM integration
 - **Reset Mints**: Development tool to reset all mint data (protected with double confirmation)
 - **Stellar Health Monitor**: Live status of the Stellar network, server balance, and uptime
