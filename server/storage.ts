@@ -600,8 +600,8 @@ export class DatabaseStorage implements IStorage {
 
   // Admin Organizer Management
   async getAllOrganizers(filters?: { planSlug?: string; search?: string; since?: string; page?: number; limit?: number }) {
-    const page = filters?.page ?? 1;
-    const limit = filters?.limit ?? 20;
+    const page = Math.max(1, filters?.page ?? 1);
+    const limit = Math.min(100, Math.max(1, filters?.limit ?? 20));
     const offset = (page - 1) * limit;
 
     let allOrganizers = await db.select().from(users).where(eq(users.role, "organizer")).orderBy(desc(users.createdAt));
