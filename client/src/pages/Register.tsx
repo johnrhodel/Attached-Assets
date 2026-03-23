@@ -43,9 +43,11 @@ export default function Register() {
         throw new Error(error.message || "Registration failed");
       }
 
+      const data = await res.json();
       toast({ title: t.auth.registrationSuccess, description: t.auth.registrationSuccessAutoLogin });
       await queryClient.invalidateQueries({ queryKey: [api.auth.me.path] });
-      setLocation("/organizer/dashboard");
+      const redirectPath = data.role === "admin" ? "/admin/dashboard" : "/organizer/dashboard";
+      setLocation(redirectPath);
     } catch (err: any) {
       toast({ variant: "destructive", title: t.auth.registrationFailed, description: err.message });
     } finally {
