@@ -58,13 +58,16 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 - **Social Sharing**: Twitter/X, Instagram, download NFT image after minting.
 - **Plan-Based Limits**: Server-side enforcement — mint limits per drop and location limits per plan. Admin bypasses limits. Structured error codes: `PLAN_MINT_LIMIT`, `PLAN_LOCATION_LIMIT`.
 - **Reset Mints**: Admin-only endpoint (`POST /api/admin/reset-mints`).
+- **Clear Activity Logs**: Admin-only endpoint (`DELETE /api/admin/activity`) with AlertDialog confirmation in UI. Clears all activity logs.
 - **Demo Locations**: 4 seeded locations — Paris (PARIS2026), Rio de Janeiro (RIO2026), Curitiba (CURITIBA2026), Foz do Iguaçu (FOZ2026).
+- **QR Code with Embedded Access Code**: `/api/qr/:locationId` generates QR codes that include `?accessCode=XXX` when the active drop has an access code. Claim page auto-detects the code from URL and bypasses manual entry.
+- **Pricing Plan Ordering**: Plans are sorted by `sortOrder` column (Free=0, Starter=1, Professional=2, Enterprise=3) for consistent display order across landing page and admin views.
 
 ### Key Flows
 
 **Visitor Mint Flow**:
-1. Visitor scans QR code → opens `/claim/:locationId`
-2. Enters access code (if required by drop)
+1. Visitor scans QR code → opens `/claim/:locationId?accessCode=XXX` (access code auto-embedded in QR)
+2. Access code auto-verified from URL (no manual entry needed); falls back to manual entry if missing
 3. Clicks "Claim Your Memory" → system creates anti-fraud session (5-min expiry)
 4. Enters email → system sends 6-digit verification code
 5. Enters code → system validates
@@ -113,7 +116,7 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 
 **v1.0 — Complete**: Core visitor flow (QR → Claim → Email → Verify → Mint → Share), custodial Stellar wallets, admin dashboard, 4 demo locations, social sharing, i18n (EN/PT/ES), PWA, embeddable widget, production security.
 
-**v1.5 — Complete (Multi-Tenant)**: Self-service organizer registration, freemium model (Free plan default), dedicated organizer dashboard, plan-based enforcement (server-side limits with structured error codes), admin organizer management panel (list/filter/search/detail/activate/deactivate), platform metrics (organizer stats, conversion rates), data isolation via ownership middleware, full i18n for organizer features, auto-login after registration, password recovery flow (email → 6-digit code → new password), landing page Login/Register navigation buttons.
+**v1.5 — Complete (Multi-Tenant)**: Self-service organizer registration, freemium model (Free plan default), dedicated organizer dashboard, plan-based enforcement (server-side limits with structured error codes), admin organizer management panel (list/filter/search/detail/activate/deactivate), platform metrics (organizer stats, conversion rates), data isolation via ownership middleware, full i18n for organizer features, auto-login after registration, password recovery flow (email → 6-digit code → new password), landing page Login/Register navigation buttons, pricing plan sortOrder enforcement, admin activity log clearing with confirmation dialog, QR codes with embedded access codes for seamless claim flow.
 
 **v2.0 — Next**: Enhanced analytics, multi-image drops, webhook notifications, branded email templates, Stripe payment integration for plan upgrades.
 
