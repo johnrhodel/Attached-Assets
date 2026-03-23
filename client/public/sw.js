@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mintoria-v1';
+const CACHE_NAME = 'mintoria-v2';
 const STATIC_ASSETS = [
   '/',
   '/favicon.png',
@@ -45,7 +45,9 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        return caches.match(event.request);
+        return caches.match(event.request).then((cached) => {
+          return cached || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+        });
       })
   );
 });
