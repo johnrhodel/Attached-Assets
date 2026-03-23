@@ -41,11 +41,11 @@ Mintoria operates as a multi-tenant platform with two distinct user roles:
 │                                                                  │
 │   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐        │
 │   │ Organizer A  │   │ Organizer B  │   │ Organizer C  │  ...   │
-│   │ (Free Plan)  │   │ (Starter)    │   │ (Pro)        │        │
+│   │ (Free Plan)  │   │ (Starter)    │   │ (Professional)│        │
 │   │              │   │              │   │              │        │
 │   │ 1 Project    │   │ 2 Projects   │   │ 5 Projects   │        │
 │   │ 1 Location   │   │ 1 Location   │   │ 5 Locations  │        │
-│   │ 50 mints/drop│   │ 500 mints    │   │ Unlimited    │        │
+│   │ 50 mints/drop│   │ 500 mints/drop│   │ Unlimited    │        │
 │   └──────────────┘   └──────────────┘   └──────────────┘        │
 │                                                                  │
 │   Data Isolation: Each organizer only sees their own resources   │
@@ -170,15 +170,15 @@ error code                          │                   sent to visitor
 Any organizer can register for free and start creating events immediately:
 
 ```
-Step 1: REGISTER            Step 2: DASHBOARD           Step 3: CREATE
+Step 1: REGISTER            Step 2: LOGIN               Step 3: CREATE
 ────────────────            ─────────────────           ──────────────
 Visit /register      →      Redirected to        →     Create a Project
-Enter name, email,          organizer dashboard         (organization)
-password                    See plan usage stats              │
-        │                   (mints, locations)          Create a Location
-Assigned Free plan                                      (physical place)
-(50 mints/drop,                                               │
- 1 location)                                            Create a Drop
+Enter name, email,          /admin/login                (organization)
+password                    Login with credentials            │
+        │                   Redirected to               Create a Location
+Assigned Free plan          /organizer/dashboard        (physical place)
+(50 mints/drop,             See plan usage stats              │
+ 1 location)                (mints, locations)          Create a Drop
                                                         (NFT collection)
 
 Step 4: DEPLOY              Step 5: MONITOR             Step 6: GROW
@@ -199,8 +199,8 @@ Platform admin has full visibility and control over all organizers:
 Step 1: OVERVIEW             Step 2: FILTER              Step 3: MANAGE
 ────────────────             ──────────────              ──────────────
 View total organizers  →     Filter by plan        →     View organizer
-Active count                 (Free/Starter/Pro/          detail page
-New this month               Enterprise)                       │
+Active count                 (Free/Starter/              detail page
+New this month               Professional/Enterprise)                       │
 Free→Paid conversion         Search by email/name        See their projects,
 Plan distribution            Filter by date              locations, drops,
                                                          and mint counts
@@ -228,8 +228,8 @@ Plan distribution            Filter by date              locations, drops,
 
 | Plan | Price | Mints/Drop | Locations | Features |
 |------|-------|------------|-----------|----------|
-| **Free** | R$0 | 50 | 1 | QR code, basic dashboard, community support |
-| **Starter** | R$599/event | 500 | 1 | QR codes, basic analytics, email support |
+| **Free** | R$0 | 50/drop | 1 | QR code, basic dashboard, community support |
+| **Starter** | R$599/event | 500/drop | 1 | QR codes, basic analytics, email support |
 | **Professional** | R$1,497/month | Unlimited | 5 | Advanced analytics, priority support, custom branding, embeddable widget |
 | **Enterprise** | R$4,997/month | Unlimited | Unlimited | White-label, API access, dedicated support, custom integrations, SLA |
 
@@ -284,11 +284,11 @@ Mintoria generates key SaaS metrics automatically:
 | **Total Organizers** | Number of registered organizers | `GET /api/admin/organizers/stats` |
 | **Active Organizers** | Organizers with `isActive: true` | Same endpoint |
 | **New This Month** | Registrations in last 30 days | Same endpoint |
-| **Plan Distribution** | Count per plan (Free/Starter/Pro/Enterprise) | Same endpoint |
+| **Plan Distribution** | Count per plan (Free/Starter/Professional/Enterprise) | Same endpoint |
 | **Free→Paid Conversion** | Percentage of organizers on paid plans | Calculated server-side |
-| **Total Platform Mints** | All confirmed mints across all organizers | Same endpoint |
-| **Events Created** | Total drops published across platform | Admin stats |
-| **NFTs Minted** | Total confirmed mints on Stellar | Admin stats |
+| **Total Platform Mints** | All confirmed mints across all organizers | `GET /api/admin/organizers/stats` |
+| **Events Created** | Total drops published across platform | `GET /api/admin/stats` |
+| **NFTs Minted** | Total confirmed mints on Stellar | `GET /api/admin/stats` |
 
 These metrics are surfaced in the admin dashboard as summary cards and are available via the organizer management panel for detailed analysis.
 

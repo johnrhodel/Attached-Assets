@@ -46,8 +46,8 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 - **User NFT Lookup**: `/my-nfts` allows users to find their NFTs by email.
 - **Admin Dashboard**: Project/location/drop management, analytics (mints by month, by location), Stellar health monitor, mint reset, CSV export, organizer summary cards (total organizers, active, conversion rate).
 - **Admin Organizer Panel**: `/admin/organizers` — list all organizers with filters (plan, search, date), pagination, activate/deactivate. `/admin/organizers/:id` — organizer detail with projects/locations/drops/mints hierarchy. Global stats: total, active, new this month, plan distribution, free→paid conversion.
-- **Organizer Dashboard**: `/organizer` — stat cards, plan usage bar, projects list, create project, mints chart, drops overview, recent mints. Organizers only see their own data.
-- **Organizer Registration**: Self-registration at `/register` with email/password/name. Assigned Free plan. Role-based redirects (admin → `/admin`, organizer → `/organizer`).
+- **Organizer Dashboard**: `/organizer/dashboard` — stat cards, plan usage bar, projects list, create project, mints chart, drops overview, recent mints. Organizers only see their own data.
+- **Organizer Registration**: Self-registration at `/register` with email/password/name. Assigned Free plan. Redirected to login page (`/admin/login`). After login, role-based redirects (admin → `/admin/dashboard`, organizer → `/organizer/dashboard`).
 - **Email Service**: Verification codes and mint confirmations via Resend.
 - **Internationalization (i18n)**: Full EN/PT/ES with automatic browser language detection.
 - **Custodial Wallet System**: Stellar keypairs encrypted with AES-256-CBC for server-side minting.
@@ -72,9 +72,10 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 **Organizer Registration Flow**:
 1. Visits `/register` → enters name, email, password
 2. System creates user with `role: "organizer"`, `planSlug: "free"`, `isActive: true`
-3. Redirected to organizer dashboard (`/organizer`)
-4. Creates projects → locations → drops within plan limits
-5. Generates QR codes, monitors mints on their dashboard
+3. Redirected to login page (`/admin/login`)
+4. Logs in → role-based redirect to `/organizer/dashboard`
+5. Creates projects → locations → drops within plan limits
+6. Generates QR codes, monitors mints on their dashboard
 
 **Admin Organizer Management Flow**:
 1. Admin views `/admin/organizers` → sees all organizers with metrics
@@ -99,6 +100,16 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 - Data isolation: organizers only access their own projects/locations/drops via ownership middleware.
 - Organizer detail API strips `passwordHash` from responses.
 - Organizer toggle validates target role before status change.
+
+### Current State & Roadmap
+
+**v1.0 — Complete**: Core visitor flow (QR → Claim → Email → Verify → Mint → Share), custodial Stellar wallets, admin dashboard, 4 demo locations, social sharing, i18n (EN/PT/ES), PWA, embeddable widget, production security.
+
+**v1.5 — Complete (Multi-Tenant)**: Self-service organizer registration, freemium model (Free plan default), dedicated organizer dashboard, plan-based enforcement (server-side limits with structured error codes), admin organizer management panel (list/filter/search/detail/activate/deactivate), platform metrics (organizer stats, conversion rates), data isolation via ownership middleware, full i18n for organizer features.
+
+**v2.0 — Next**: Enhanced analytics, multi-image drops, webhook notifications, branded email templates, Stripe payment integration for plan upgrades.
+
+**v3.0 — Future**: Soroban smart contracts, NFT marketplace, white-label solution, public API, advanced reporting.
 
 ### Key Credentials (Dev/Seed)
 - Seeded admin and demo location access codes exist for development testing.
