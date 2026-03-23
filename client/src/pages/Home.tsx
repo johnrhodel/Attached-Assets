@@ -335,14 +335,17 @@ export default function Home() {
               {t.pricing.subtitle}
             </p>
 
-            <div className={`grid gap-6 grid-cols-1 max-w-5xl mx-auto ${pricingPlans.length === 1 ? 'md:grid-cols-1 max-w-md' : pricingPlans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3'}`}>
-              {pricingPlans.map((plan) => getLocalizedPlan(plan, t.pricing)).map((plan) => (
+            <div className={`grid gap-6 grid-cols-1 max-w-6xl mx-auto ${pricingPlans.length === 1 ? 'sm:grid-cols-1 max-w-md' : pricingPlans.length === 2 ? 'sm:grid-cols-2 max-w-3xl' : pricingPlans.length === 3 ? 'sm:grid-cols-2 lg:grid-cols-3 max-w-5xl' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
+              {pricingPlans
+                .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                .map((plan) => getLocalizedPlan(plan, t.pricing))
+                .map((plan) => (
                 <Card
                   key={plan.id}
-                  className={`relative ${plan.highlighted ? 'border-primary shadow-md ring-2 ring-primary/20' : 'border-border/50 shadow-sm'}`}
+                  className={`relative flex flex-col ${plan.highlighted ? 'border-primary shadow-md ring-2 ring-primary/20' : 'border-border/50 shadow-sm'}`}
                   data-testid={`card-pricing-${plan.id}`}
                 >
-                  <CardContent className="pt-6 pb-6">
+                  <CardContent className="pt-6 pb-6 flex flex-col flex-1">
                     {plan.highlighted && (
                       <Badge className="absolute -top-3 left-1/2 -translate-x-1/2" data-testid={`badge-popular-${plan.id}`}>{t.pricing.popular}</Badge>
                     )}
@@ -352,7 +355,7 @@ export default function Home() {
                       <span className="text-3xl font-bold">{plan.price}</span>
                       <span className="text-muted-foreground text-sm">{plan.pricePer}</span>
                     </div>
-                    <ul className="space-y-2.5 mb-6">
+                    <ul className="space-y-2.5 mb-6 flex-1">
                       {plan.features.map((f, i) => (
                         <li key={i} className="flex items-center gap-2 text-sm">
                           <Check className="w-4 h-4 text-green-500 shrink-0" />
@@ -360,7 +363,7 @@ export default function Home() {
                         </li>
                       ))}
                     </ul>
-                    <Button variant={plan.highlighted ? "default" : "outline"} className="w-full" asChild data-testid={`button-pricing-${plan.id}`}>
+                    <Button variant={plan.highlighted ? "default" : "outline"} className="w-full mt-auto" asChild data-testid={`button-pricing-${plan.id}`}>
                       <a href="mailto:contato@mintoria.xyz">
                         {t.pricing.contact}
                       </a>

@@ -76,6 +76,7 @@ export interface IStorage {
 
   // Activity Logs
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
+  deleteAllActivityLogs(): Promise<void>;
   getActivityLogs(limit?: number): Promise<Array<ActivityLog & { userEmail?: string }>>;
 
   // Platform Settings
@@ -420,6 +421,9 @@ export class DatabaseStorage implements IStorage {
   async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
     const [entry] = await db.insert(activityLogs).values(log).returning();
     return entry;
+  }
+  async deleteAllActivityLogs(): Promise<void> {
+    await db.delete(activityLogs);
   }
   async getActivityLogs(limit = 100): Promise<Array<ActivityLog & { userEmail?: string }>> {
     const results = await db.select({

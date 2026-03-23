@@ -1,8 +1,12 @@
 import { AdminLayout } from "@/components/AdminLayout";
 import { useI18n } from "@/lib/i18n/context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useState } from "react";
 
 interface ActivityLog {
   id: number;
@@ -28,18 +32,74 @@ function getActionBadgeVariant(action: string): "default" | "secondary" | "destr
 
 export default function Activity() {
   const { t } = useI18n();
+  const { toast } = useToast();
+  const [confirmStep, setConfirmStep] = useState(0);
 
   const { data: activities, isLoading } = useQuery<ActivityLog[]>({
     queryKey: ["/api/admin/activity"],
   });
 
+  const clearMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", "/api/admin/activity");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/activity"] });
+      setConfirmStep(0);
+      toast({ title: t.admin.clearActivitySuccess });
+    },
+    onError: () => {
+      setConfirmStep(0);
+      toast({ title: t.admin.clearActivityFailed, variant: "destructive" });
+    },
+  });
+
+  const handleClearClick = () => {
+    if (confirmStep === 0) {
+      setConfirmStep(1);
+    } else if (confirmStep === 1) {
+      setConfirmStep(2);
+    } else {
+      clearMutation.mutate();
+    }
+  };
+
+  const handleCancelClear = () => {
+    setConfirmStep(0);
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-8">
-        <div>
+        <div className="flex items-center justify-between">
           <h2 className="text-3xl font-serif font-bold text-foreground" data-testid="text-activity-title">
             {t.admin.activityLog}
           </h2>
+          {activities && activities.length > 0 && (
+            <div className="flex items-center gap-2">
+              {confirmStep > 0 && (
+                <Button variant="outline" size="sm" onClick={handleCancelClear} data-testid="button-cancel-clear-activity">
+                  {t.common.cancel}
+                </Button>
+              )}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleClearClick}
+                disabled={clearMutation.isPending}
+                data-testid="button-clear-activity"
+              >
+                {clearMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                {confirmStep === 0 && t.admin.clearActivity}
+                {confirmStep === 1 && t.admin.clearActivityConfirm}
+                {confirmStep === 2 && t.admin.clearActivityFinal}
+              </Button>
+            </div>
+          )}
         </div>
 
         {isLoading ? (

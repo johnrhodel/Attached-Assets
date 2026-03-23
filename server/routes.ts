@@ -1253,6 +1253,15 @@ export async function registerRoutes(
     res.json(logs);
   });
 
+  app.delete("/api/admin/activity", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteAllActivityLogs();
+      res.json({ message: "Activity logs cleared" });
+    } catch (err: any) {
+      res.status(500).json({ message: safeErrorMessage(err, "DELETE_ACTIVITY") });
+    }
+  });
+
   // === PLATFORM SETTINGS ===
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
@@ -1658,19 +1667,18 @@ export async function registerRoutes(
       });
       console.log("Pricing plans seeded.");
     } else {
-      const limitsMap: Record<string, { maxMintsPerDrop: number | null; maxLocations: number | null }> = {
-        free: { maxMintsPerDrop: 50, maxLocations: 1 },
-        starter: { maxMintsPerDrop: 500, maxLocations: 1 },
-        professional: { maxMintsPerDrop: null, maxLocations: 5 },
-        enterprise: { maxMintsPerDrop: null, maxLocations: null },
+      const limitsMap: Record<string, { maxMintsPerDrop: number | null; maxLocations: number | null; sortOrder: number }> = {
+        free: { maxMintsPerDrop: 50, maxLocations: 1, sortOrder: 0 },
+        starter: { maxMintsPerDrop: 500, maxLocations: 1, sortOrder: 1 },
+        professional: { maxMintsPerDrop: null, maxLocations: 5, sortOrder: 2 },
+        enterprise: { maxMintsPerDrop: null, maxLocations: null, sortOrder: 3 },
       };
       for (const plan of existingPlans) {
         const slug = plan.slug || plan.name.toLowerCase();
-        const expectedLimits = limitsMap[slug];
-        if (!plan.slug || (expectedLimits && (plan.maxMintsPerDrop === undefined || plan.maxLocations === undefined || plan.maxMintsPerDrop !== expectedLimits.maxMintsPerDrop || plan.maxLocations !== expectedLimits.maxLocations))) {
-          const limits = expectedLimits || { maxMintsPerDrop: 50, maxLocations: 1 };
-          await storage.updatePricingPlan(plan.id, { slug, maxMintsPerDrop: limits.maxMintsPerDrop, maxLocations: limits.maxLocations });
-          console.log(`[SEED] Backfilled plan "${plan.name}" with slug="${slug}"`);
+        const expected = limitsMap[slug];
+        if (expected && (!plan.slug || plan.maxMintsPerDrop !== expected.maxMintsPerDrop || plan.maxLocations !== expected.maxLocations || plan.sortOrder !== expected.sortOrder)) {
+          await storage.updatePricingPlan(plan.id, { slug, maxMintsPerDrop: expected.maxMintsPerDrop, maxLocations: expected.maxLocations, sortOrder: expected.sortOrder });
+          console.log(`[SEED] Backfilled plan "${plan.name}" with slug="${slug}", sortOrder=${expected.sortOrder}`);
         }
       }
       const hasFree = existingPlans.some(p => p.slug === "free" || p.name.toLowerCase() === "free");
