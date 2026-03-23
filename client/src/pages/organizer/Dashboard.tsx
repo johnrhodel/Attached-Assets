@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { OrganizerLayout } from "@/components/OrganizerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
-import { Box, MapPin, Layers, Zap, ExternalLink, AlertTriangle, Plus } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Box, MapPin, Layers, Zap, ExternalLink, AlertTriangle, Plus, FolderOpen } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useI18n } from "@/lib/i18n/context";
@@ -10,7 +11,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface OrganizerStats {
   totalMints: number;
@@ -37,6 +48,14 @@ interface OrganizerMint {
   createdAt: string;
   dropTitle: string;
   locationName: string;
+}
+
+interface OrganizerProject {
+  id: number;
+  name: string;
+  slug: string;
+  userId: number | null;
+  createdAt: string;
 }
 
 const FREE_PLAN_LIMIT = 50;
@@ -88,6 +107,9 @@ function StatCard({ icon: Icon, label, value, isLoading }: { icon: LucideIcon; l
 export default function OrganizerDashboard() {
   const { t } = useI18n();
   const org = t.organizer;
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [projectName, setProjectName] = useState("");
 
   const { data: stats, isLoading: statsLoading } = useQuery<OrganizerStats>({
     queryKey: ["/api/organizer/stats"],
@@ -96,6 +118,33 @@ export default function OrganizerDashboard() {
   const { data: recentMints, isLoading: mintsLoading } = useQuery<OrganizerMint[]>({
     queryKey: ["/api/organizer/mints"],
   });
+
+  const { data: projects, isLoading: projectsLoading } = useQuery<OrganizerProject[]>({
+    queryKey: ["/api/organizer/projects"],
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: { name: string; slug: string }) => {
+      const res = await apiRequest("POST", "/api/projects", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizer/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/organizer/stats"] });
+      setDialogOpen(false);
+      setProjectName("");
+      toast({ title: t.common.success, description: org.projectCreated });
+    },
+    onError: () => {
+      toast({ variant: "destructive", title: t.common.error, description: org.projectCreateFailed });
+    },
+  });
+
+  const handleCreateProject = () => {
+    if (!projectName.trim()) return;
+    const slug = projectName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    createProjectMutation.mutate({ name: projectName.trim(), slug });
+  };
 
   const planUsagePercent = stats ? Math.min((stats.totalMints / FREE_PLAN_LIMIT) * 100, 100) : 0;
   const isNearLimit = stats ? stats.totalMints >= FREE_PLAN_LIMIT * 0.8 : false;
@@ -125,12 +174,39 @@ export default function OrganizerDashboard() {
               {org.dashboardSubtitle}
             </p>
           </div>
-          <Link href="/admin/projects">
-            <Button data-testid="button-create-project" className="gap-2">
-              <Plus className="w-4 h-4" />
-              {org.createProject}
-            </Button>
-          </Link>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-project" className="gap-2">
+                <Plus className="w-4 h-4" />
+                {org.createProject}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{org.createProject}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="project-name">{org.projectName}</Label>
+                  <Input
+                    id="project-name"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    placeholder={org.projectNamePlaceholder}
+                    data-testid="input-project-name"
+                  />
+                </div>
+                <Button
+                  onClick={handleCreateProject}
+                  disabled={!projectName.trim() || createProjectMutation.isPending}
+                  className="w-full"
+                  data-testid="button-confirm-create-project"
+                >
+                  {createProjectMutation.isPending ? t.common.loading : t.common.create}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {isNearLimit && !isAtLimit && (
@@ -181,6 +257,40 @@ export default function OrganizerDashboard() {
                 <p className="text-xs text-muted-foreground">
                   {org.remainingMints}: {Math.max(FREE_PLAN_LIMIT - (stats?.totalMints || 0), 0)}
                 </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-projects-list">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <FolderOpen className="w-4 h-4" />
+              {org.myProjects}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {projectsLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map(i => <Skeleton key={i} className="h-14 w-full" />)}
+              </div>
+            ) : projects && projects.length > 0 ? (
+              <div className="space-y-3">
+                {projects.map(project => (
+                  <div key={project.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/50" data-testid={`project-row-${project.id}`}>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm">{project.name}</p>
+                      <p className="text-xs text-muted-foreground">/{project.slug}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {new Date(project.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
+                {org.noProjects}
               </div>
             )}
           </CardContent>
