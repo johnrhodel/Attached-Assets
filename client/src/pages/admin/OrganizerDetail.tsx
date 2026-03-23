@@ -66,6 +66,8 @@ export default function OrganizerDetail() {
       apiRequest("PATCH", `/api/admin/organizers/${id}`, { active }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/organizers", organizerId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/organizers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/organizers/stats"] });
       toast({ title: t.admin.statusChanged });
     },
     onError: () => {
