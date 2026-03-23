@@ -115,6 +115,8 @@ export function useWalletless() {
     onError: (error: Error) => {
       if (error.message === "PLAN_MINT_LIMIT") {
         toast({ title: t.planLimits?.mintLimitReached || "Mint limit reached", description: t.planLimits?.upgradePrompt || "Upgrade your plan", variant: "destructive" });
+      } else {
+        toast({ title: t.toasts.claimError, description: t.toasts.claimErrorDesc, variant: "destructive" });
       }
     },
   });
@@ -150,6 +152,8 @@ export function useConfirmMint() {
     onError: (error: Error) => {
       if (error.message === "PLAN_MINT_LIMIT") {
         toast({ title: t.planLimits?.mintLimitReached || "Mint limit reached", description: t.planLimits?.upgradePrompt || "Upgrade your plan", variant: "destructive" });
+      } else {
+        toast({ title: t.toasts.claimError, description: t.toasts.claimErrorDesc, variant: "destructive" });
       }
     },
   });
