@@ -1561,58 +1561,50 @@ export async function registerRoutes(
     }
 
     const allLocations = projectId ? await storage.getLocations(projectId) : [];
-    if (projectId && !allLocations.find(l => l.slug === "cristo-redentor")) {
-      console.log("[SEED] Creating Cristo Redentor location...");
-      const rioLocation = await storage.createLocation({ name: "Cristo Redentor", slug: "cristo-redentor", projectId });
-      await storage.createDrop({
-        locationId: rioLocation.id,
-        title: "Rio de Janeiro 2026",
-        month: "February",
-        year: 2026,
-        imageUrl: "/images/rio-cristo-redentor.png",
-        metadataUrl: "/api/metadata/cristo-redentor/rio-2026",
-        supply: 1000,
-        enabledChains: ["stellar"],
-        status: "published",
-        accessCode: "RIO2026",
-      });
-      console.log(`[SEED] Created Cristo Redentor with access code RIO2026`);
-    }
 
-    if (projectId && !allLocations.find(l => l.slug === "palacio-cristal")) {
-      console.log("[SEED] Creating Palácio de Cristal location...");
-      const cwbLocation = await storage.createLocation({ name: "Palácio de Cristal", slug: "palacio-cristal", projectId });
-      await storage.createDrop({
-        locationId: cwbLocation.id,
-        title: "Curitiba 2026",
-        month: "February",
-        year: 2026,
-        imageUrl: "/images/curitiba-jardim-botanico.png",
-        metadataUrl: "/api/metadata/palacio-cristal/curitiba-2026",
-        supply: 1000,
-        enabledChains: ["stellar"],
-        status: "published",
-        accessCode: "CURITIBA2026",
-      });
-      console.log(`[SEED] Created Palácio de Cristal with access code CURITIBA2026`);
-    }
+    const seedLocations = [
+      {
+        slug: "cristo-redentor",
+        name: "Cristo Redentor",
+        drop: { title: "Rio de Janeiro 2026", imageUrl: "/images/rio-cristo-redentor.png", metadataUrl: "/api/metadata/cristo-redentor/rio-2026", accessCode: "RIO2026" },
+      },
+      {
+        slug: "palacio-cristal",
+        name: "Palácio de Cristal",
+        drop: { title: "Curitiba 2026", imageUrl: "/images/curitiba-jardim-botanico.png", metadataUrl: "/api/metadata/palacio-cristal/curitiba-2026", accessCode: "CURITIBA2026" },
+      },
+      {
+        slug: "cataratas-do-iguacu",
+        name: "Cataratas do Iguaçu",
+        drop: { title: "Foz do Iguaçu 2026", imageUrl: "/images/foz-cataratas.png", metadataUrl: "/api/metadata/cataratas-do-iguacu/foz-2026", accessCode: "FOZ2026" },
+      },
+    ];
 
-    if (projectId && !allLocations.find(l => l.slug === "cataratas-do-iguacu")) {
-      console.log("[SEED] Creating Cataratas do Iguaçu location...");
-      const fozLocation = await storage.createLocation({ name: "Cataratas do Iguaçu", slug: "cataratas-do-iguacu", projectId });
-      await storage.createDrop({
-        locationId: fozLocation.id,
-        title: "Foz do Iguaçu 2026",
-        month: "February",
-        year: 2026,
-        imageUrl: "/images/foz-cataratas.png",
-        metadataUrl: "/api/metadata/cataratas-do-iguacu/foz-2026",
-        supply: 1000,
-        enabledChains: ["stellar"],
-        status: "published",
-        accessCode: "FOZ2026",
-      });
-      console.log(`[SEED] Created Cataratas do Iguaçu with access code FOZ2026`);
+    for (const loc of seedLocations) {
+      if (projectId && !allLocations.find(l => l.slug === loc.slug)) {
+        try {
+          const created = await storage.createLocation({ name: loc.name, slug: loc.slug, projectId });
+          await storage.createDrop({
+            locationId: created.id,
+            title: loc.drop.title,
+            month: "February",
+            year: 2026,
+            imageUrl: loc.drop.imageUrl,
+            metadataUrl: loc.drop.metadataUrl,
+            supply: 1000,
+            enabledChains: ["stellar"],
+            status: "published",
+            accessCode: loc.drop.accessCode,
+          });
+          console.log(`[SEED] Created ${loc.name} with access code ${loc.drop.accessCode}`);
+        } catch (err: any) {
+          if (err?.code === "23505") {
+            console.log(`[SEED] ${loc.name} already exists, skipping.`);
+          } else {
+            throw err;
+          }
+        }
+      }
     }
 
     const existingPlans = await storage.getPricingPlans();
