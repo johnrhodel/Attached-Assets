@@ -101,8 +101,8 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 - Helmet middleware for HTTP security headers.
 - Session cookies with `httpOnly`, `secure`, and `sameSite: 'lax'`.
 - Middleware chain: `requireAuth`, `requireAdmin`, `requireOrganizerOrAdmin`, `requireProjectOwnership`, `requireDropOwnership`.
-- Login rate limiting (5 attempts/15min), registration rate limiting, production secrets enforcement, sanitized error responses.
-- Cryptographically secure verification tokens.
+- Login rate limiting (5 attempts/15min), registration rate limiting (5 attempts/15min), forgot-password rate limiting (3 requests/15min, max 5 code attempts), production secrets enforcement, sanitized error responses.
+- Cryptographically secure verification tokens and OTP codes (`crypto.randomInt`).
 - Admin-only mint reset capability.
 - Plan-based enforcement with structured error codes.
 - Data isolation: organizers only access their own projects/locations/drops via ownership middleware.
@@ -113,7 +113,7 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 
 **v1.0 — Complete**: Core visitor flow (QR → Claim → Email → Verify → Mint → Share), custodial Stellar wallets, admin dashboard, 4 demo locations, social sharing, i18n (EN/PT/ES), PWA, embeddable widget, production security.
 
-**v1.5 — Complete (Multi-Tenant)**: Self-service organizer registration, freemium model (Free plan default), dedicated organizer dashboard, plan-based enforcement (server-side limits with structured error codes), admin organizer management panel (list/filter/search/detail/activate/deactivate), platform metrics (organizer stats, conversion rates), data isolation via ownership middleware, full i18n for organizer features.
+**v1.5 — Complete (Multi-Tenant)**: Self-service organizer registration, freemium model (Free plan default), dedicated organizer dashboard, plan-based enforcement (server-side limits with structured error codes), admin organizer management panel (list/filter/search/detail/activate/deactivate), platform metrics (organizer stats, conversion rates), data isolation via ownership middleware, full i18n for organizer features, auto-login after registration, password recovery flow (email → 6-digit code → new password), landing page Login/Register navigation buttons.
 
 **v2.0 — Next**: Enhanced analytics, multi-image drops, webhook notifications, branded email templates, Stripe payment integration for plan upgrades.
 
