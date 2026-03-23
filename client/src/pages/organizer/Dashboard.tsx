@@ -278,13 +278,13 @@ export default function OrganizerDashboard() {
                   {hasMintLimit && stats?.mintsByDrop && stats.mintsByDrop.length > 0 && (
                     <div className="space-y-1">
                       {stats.mintsByDrop.map(d => {
-                        const supply = d.supply || mintLimitPerDrop;
-                        const pct = supply > 0 ? Math.min((d.mintCount / supply) * 100, 100) : 0;
+                        const cap = mintLimitPerDrop;
+                        const pct = cap > 0 ? Math.min((d.mintCount / cap) * 100, 100) : 0;
                         return (
                           <div key={d.dropId} className="space-y-1">
                             <div className="flex justify-between text-xs text-muted-foreground">
                               <span className="truncate max-w-[60%]">{d.dropTitle}</span>
-                              <span>{d.mintCount} / {supply}</span>
+                              <span>{d.mintCount} / {cap}</span>
                             </div>
                             <Progress 
                               value={pct} 
