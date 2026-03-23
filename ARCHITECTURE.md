@@ -287,8 +287,8 @@ Mintoria generates key SaaS metrics automatically:
 | **Plan Distribution** | Count per plan (Free/Starter/Professional/Enterprise) | Same endpoint |
 | **Free→Paid Conversion** | Percentage of organizers on paid plans | Calculated server-side |
 | **Total Platform Mints** | All confirmed mints across all organizers | `GET /api/admin/organizers/stats` |
-| **Published Drops** | Active drops published across platform | `GET /api/admin/stats` (publishedDrops count) |
-| **Total Confirmed Mints** | Confirmed mints on Stellar network | `GET /api/admin/stats` (totalMinted count) |
+| **Active Drops** | Published drops across platform | `GET /api/admin/stats` (activeDrops) |
+| **Total Mints** | Confirmed mints on Stellar network | `GET /api/admin/stats` (totalMints) |
 
 These metrics are surfaced in the admin dashboard as summary cards and are available via the organizer management panel for detailed analysis.
 
