@@ -115,6 +115,8 @@ export function useCreateLocation() {
     onError: (error: Error) => {
       if (error.message === "PLAN_LOCATION_LIMIT") {
         toast({ title: t.planLimits?.locationLimitReached || "Location limit reached", description: t.planLimits?.upgradePrompt || "Upgrade your plan", variant: "destructive" });
+      } else {
+        toast({ title: t.common?.error || "Error", description: error.message, variant: "destructive" });
       }
     },
   });
