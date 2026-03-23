@@ -5,7 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { randomBytes, createHash, createCipheriv, createDecipheriv } from "crypto";
+import { randomBytes, randomInt, createHash, createCipheriv, createDecipheriv } from "crypto";
 import { scryptSync, timingSafeEqual } from "crypto";
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import path from "path";
@@ -361,7 +361,7 @@ export async function registerRoutes(
       if (!user) {
         return res.json({ message: "If the email exists, a code has been sent" });
       }
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const code = randomInt(100000, 1000000).toString();
       passwordResetCodes.set(normalizedEmail, { code, expiresAt: Date.now() + 5 * 60 * 1000, attempts: 0, verified: false });
       await sendVerificationEmail(normalizedEmail, code);
       res.json({ message: "If the email exists, a code has been sent" });
