@@ -951,12 +951,21 @@ export async function registerRoutes(
   });
 
   // === ORGANIZER DASHBOARD ===
-  app.get("/api/organizer/stats", requireAuth, async (req, res) => {
+  async function requireOrganizerOrAdmin(req: any, res: any, next: any) {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getUser(userId);
+    if (!user || !user.isActive) return res.status(403).json({ message: "Account deactivated" });
+    if (user.role !== "organizer" && user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    (req as any).user = user;
+    next();
+  }
+
+  app.get("/api/organizer/stats", requireOrganizerOrAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
-      if (user.role !== "organizer" && user.role !== "admin") {
-        return res.status(403).json({ message: "Access denied" });
-      }
       const stats = await storage.getOrganizerStats(user.id);
       res.json(stats);
     } catch (err: any) {
@@ -964,12 +973,9 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/organizer/projects", requireAuth, async (req, res) => {
+  app.get("/api/organizer/projects", requireOrganizerOrAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
-      if (user.role !== "organizer" && user.role !== "admin") {
-        return res.status(403).json({ message: "Access denied" });
-      }
       const userProjects = await storage.getProjectsByUserId(user.id);
       res.json(userProjects);
     } catch (err: any) {
@@ -977,12 +983,9 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/organizer/mints", requireAuth, async (req, res) => {
+  app.get("/api/organizer/mints", requireOrganizerOrAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
-      if (user.role !== "organizer" && user.role !== "admin") {
-        return res.status(403).json({ message: "Access denied" });
-      }
       const limit = Math.min(Number(req.query.limit) || 20, 100);
       const recentMints = await storage.getOrganizerMints(user.id, limit);
       res.json(recentMints);

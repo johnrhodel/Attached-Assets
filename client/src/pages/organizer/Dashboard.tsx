@@ -1,13 +1,16 @@
 import { OrganizerLayout } from "@/components/OrganizerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { Box, MapPin, Layers, Zap, ExternalLink, AlertTriangle } from "lucide-react";
+import { Box, MapPin, Layers, Zap, ExternalLink, AlertTriangle, Plus } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useI18n } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 
 interface OrganizerStats {
   totalMints: number;
@@ -38,7 +41,14 @@ interface OrganizerMint {
 
 const FREE_PLAN_LIMIT = 50;
 
-function formatRelativeTime(dateStr: string): string {
+interface RelativeTimeLabels {
+  justNow: string;
+  minutesAgo: string;
+  hoursAgo: string;
+  daysAgo: string;
+}
+
+function formatRelativeTime(dateStr: string, labels: RelativeTimeLabels): string {
   const now = new Date();
   const date = new Date(dateStr);
   const diffMs = now.getTime() - date.getTime();
@@ -46,14 +56,14 @@ function formatRelativeTime(dateStr: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 30) return `${diffDays}d ago`;
+  if (diffMins < 1) return labels.justNow;
+  if (diffMins < 60) return `${diffMins}${labels.minutesAgo}`;
+  if (diffHours < 24) return `${diffHours}${labels.hoursAgo}`;
+  if (diffDays < 30) return `${diffDays}${labels.daysAgo}`;
   return date.toLocaleDateString();
 }
 
-function StatCard({ icon: Icon, label, value, isLoading }: { icon: any; label: string; value: number | string; isLoading: boolean }) {
+function StatCard({ icon: Icon, label, value, isLoading }: { icon: LucideIcon; label: string; value: number | string; isLoading: boolean }) {
   return (
     <Card>
       <CardContent className="p-4 md:p-6">
@@ -77,7 +87,7 @@ function StatCard({ icon: Icon, label, value, isLoading }: { icon: any; label: s
 
 export default function OrganizerDashboard() {
   const { t } = useI18n();
-  const org = t.organizer || {} as any;
+  const org = t.organizer;
 
   const { data: stats, isLoading: statsLoading } = useQuery<OrganizerStats>({
     queryKey: ["/api/organizer/stats"],
@@ -96,23 +106,38 @@ export default function OrganizerDashboard() {
     mints: d.mintCount,
   })) || [];
 
+  const timeLabels: RelativeTimeLabels = {
+    justNow: org.justNow,
+    minutesAgo: org.minutesAgo,
+    hoursAgo: org.hoursAgo,
+    daysAgo: org.daysAgo,
+  };
+
   return (
     <OrganizerLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-organizer-dashboard-title">
-            {org.dashboardTitle || "Organizer Dashboard"}
-          </h1>
-          <p className="text-muted-foreground mt-1" data-testid="text-organizer-dashboard-subtitle">
-            {org.dashboardSubtitle || "Manage your events and track your mints"}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-organizer-dashboard-title">
+              {org.dashboardTitle}
+            </h1>
+            <p className="text-muted-foreground mt-1" data-testid="text-organizer-dashboard-subtitle">
+              {org.dashboardSubtitle}
+            </p>
+          </div>
+          <Link href="/admin/projects">
+            <Button data-testid="button-create-project" className="gap-2">
+              <Plus className="w-4 h-4" />
+              {org.createProject}
+            </Button>
+          </Link>
         </div>
 
         {isNearLimit && !isAtLimit && (
           <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950" data-testid="alert-near-limit">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800 dark:text-orange-200">
-              {org.nearLimitWarning || `You've used ${stats?.totalMints} of ${FREE_PLAN_LIMIT} mints on your free plan. Consider upgrading for unlimited mints.`}
+              {org.nearLimitWarning}
             </AlertDescription>
           </Alert>
         )}
@@ -121,21 +146,21 @@ export default function OrganizerDashboard() {
           <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950" data-testid="alert-at-limit">
             <AlertTriangle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800 dark:text-red-200">
-              {org.atLimitWarning || `You've reached the ${FREE_PLAN_LIMIT} mint limit on your free plan. Upgrade to continue minting.`}
+              {org.atLimitWarning}
             </AlertDescription>
           </Alert>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <StatCard icon={Zap} label={org.totalMints || "Total Mints"} value={stats?.totalMints || 0} isLoading={statsLoading} />
-          <StatCard icon={Layers} label={org.activeDrops || "Active Drops"} value={stats?.activeDrops || 0} isLoading={statsLoading} />
-          <StatCard icon={MapPin} label={org.totalLocations || "Locations"} value={stats?.totalLocations || 0} isLoading={statsLoading} />
-          <StatCard icon={Box} label={org.totalProjects || "Projects"} value={stats?.totalProjects || 0} isLoading={statsLoading} />
+          <StatCard icon={Zap} label={org.totalMints} value={stats?.totalMints || 0} isLoading={statsLoading} />
+          <StatCard icon={Layers} label={org.activeDrops} value={stats?.activeDrops || 0} isLoading={statsLoading} />
+          <StatCard icon={MapPin} label={org.totalLocations} value={stats?.totalLocations || 0} isLoading={statsLoading} />
+          <StatCard icon={Box} label={org.totalProjects} value={stats?.totalProjects || 0} isLoading={statsLoading} />
         </div>
 
         <Card data-testid="card-plan-usage">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium">{org.planUsage || "Plan Usage"}</CardTitle>
+            <CardTitle className="text-base font-medium">{org.planUsage}</CardTitle>
           </CardHeader>
           <CardContent>
             {statsLoading ? (
@@ -143,9 +168,9 @@ export default function OrganizerDashboard() {
             ) : (
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">{org.freePlan || "Free Plan"}</span>
+                  <span className="text-muted-foreground">{org.freePlan}</span>
                   <span className="font-medium" data-testid="text-plan-usage-count">
-                    {stats?.totalMints || 0} / {FREE_PLAN_LIMIT} {org.mintsUsed || "mints used"}
+                    {stats?.totalMints || 0} / {FREE_PLAN_LIMIT} {org.mintsUsed}
                   </span>
                 </div>
                 <Progress 
@@ -154,7 +179,7 @@ export default function OrganizerDashboard() {
                   data-testid="progress-plan-usage"
                 />
                 <p className="text-xs text-muted-foreground">
-                  {org.remainingMints || "Remaining"}: {Math.max(FREE_PLAN_LIMIT - (stats?.totalMints || 0), 0)}
+                  {org.remainingMints}: {Math.max(FREE_PLAN_LIMIT - (stats?.totalMints || 0), 0)}
                 </p>
               </div>
             )}
@@ -164,7 +189,7 @@ export default function OrganizerDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <Card data-testid="card-mints-by-drop">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-medium">{org.mintsByEvent || "Mints by Event"}</CardTitle>
+              <CardTitle className="text-base font-medium">{org.mintsByEvent}</CardTitle>
             </CardHeader>
             <CardContent>
               {statsLoading ? (
@@ -180,7 +205,7 @@ export default function OrganizerDashboard() {
                 </ResponsiveContainer>
               ) : (
                 <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-                  {org.noData || "No data yet"}
+                  {org.noData}
                 </div>
               )}
             </CardContent>
@@ -188,7 +213,7 @@ export default function OrganizerDashboard() {
 
           <Card data-testid="card-drops-detail">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-medium">{org.dropsOverview || "Drops Overview"}</CardTitle>
+              <CardTitle className="text-base font-medium">{org.dropsOverview}</CardTitle>
             </CardHeader>
             <CardContent>
               {statsLoading ? (
@@ -213,7 +238,7 @@ export default function OrganizerDashboard() {
                 </div>
               ) : (
                 <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-                  {org.noDrops || "No drops yet"}
+                  {org.noDrops}
                 </div>
               )}
             </CardContent>
@@ -222,7 +247,7 @@ export default function OrganizerDashboard() {
 
         <Card data-testid="card-recent-mints">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium">{org.recentMints || "Recent Mints"}</CardTitle>
+            <CardTitle className="text-base font-medium">{org.recentMints}</CardTitle>
           </CardHeader>
           <CardContent>
             {mintsLoading ? (
@@ -246,7 +271,7 @@ export default function OrganizerDashboard() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground">{formatRelativeTime(mint.createdAt)}</span>
+                      <span className="text-xs text-muted-foreground">{formatRelativeTime(mint.createdAt, timeLabels)}</span>
                       {mint.txHash && (
                         <a
                           href={`https://stellar.expert/explorer/testnet/tx/${mint.txHash}`}
@@ -264,7 +289,7 @@ export default function OrganizerDashboard() {
               </div>
             ) : (
               <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-                {org.noMints || "No mints yet"}
+                {org.noMints}
               </div>
             )}
           </CardContent>
