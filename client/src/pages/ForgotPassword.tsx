@@ -22,6 +22,17 @@ export default function ForgotPassword() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
+  const localizeError = (msg: string): string => {
+    const map: Record<string, string> = {
+      "Invalid code": t.email.codeInvalid,
+      "Invalid or expired code": t.email.codeInvalid,
+      "Too many attempts. Request a new code.": t.toasts.rateLimitedDesc,
+      "Password must be at least 8 characters": t.auth.passwordMin,
+      "Too many requests. Please try again later.": t.toasts.rateLimitedDesc,
+    };
+    return map[msg] || msg;
+  };
+
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -60,7 +71,7 @@ export default function ForgotPassword() {
       }
       setStep("newPassword");
     } catch (err: any) {
-      toast({ variant: "destructive", title: t.common.error, description: err.message });
+      toast({ variant: "destructive", title: t.common.error, description: localizeError(err.message) });
     } finally {
       setIsSubmitting(false);
     }
@@ -81,7 +92,7 @@ export default function ForgotPassword() {
       }
       setStep("done");
     } catch (err: any) {
-      toast({ variant: "destructive", title: t.common.error, description: err.message });
+      toast({ variant: "destructive", title: t.common.error, description: localizeError(err.message) });
     } finally {
       setIsSubmitting(false);
     }
