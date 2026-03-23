@@ -23,6 +23,8 @@ import Activity from "@/pages/admin/Activity";
 import Settings from "@/pages/admin/Settings";
 import Notifications from "@/pages/admin/Notifications";
 
+import OrganizerDashboard from "@/pages/organizer/Dashboard";
+
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -52,20 +54,6 @@ function ProtectedRoute({ component: Component, requiredRole }: { component: Rea
   }
 
   return <Component />;
-}
-
-function OrganizerDashboardPlaceholder() {
-  const { user, logout } = useAuth();
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="text-center space-y-4">
-        <h1 className="text-2xl font-bold" data-testid="text-organizer-title">Organizer Dashboard</h1>
-        <p className="text-muted-foreground" data-testid="text-organizer-coming-soon">Coming soon! Your organizer dashboard is being built.</p>
-        <p className="text-sm text-muted-foreground" data-testid="text-organizer-email">Logged in as: {user?.email}</p>
-        <button onClick={() => logout()} className="text-primary underline" data-testid="button-organizer-logout">Logout</button>
-      </div>
-    </div>
-  );
 }
 
 function Router() {
@@ -101,7 +89,7 @@ function Router() {
       </Route>
 
       <Route path="/organizer/dashboard">
-        {() => <ProtectedRoute component={OrganizerDashboardPlaceholder} />}
+        {() => <ProtectedRoute component={OrganizerDashboard} requiredRole="organizer" />}
       </Route>
 
       <Route component={NotFound} />

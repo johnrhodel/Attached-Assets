@@ -96,6 +96,27 @@ export interface IStorage {
   createPricingPlan(plan: InsertPricingPlan): Promise<PricingPlan>;
   updatePricingPlan(id: number, data: Partial<InsertPricingPlan>): Promise<PricingPlan>;
   deletePricingPlan(id: number): Promise<void>;
+
+  // Organizer Dashboard
+  getOrganizerStats(userId: number): Promise<{
+    totalMints: number;
+    activeDrops: number;
+    totalLocations: number;
+    totalProjects: number;
+    mintsByDrop: Array<{ dropId: number; dropTitle: string; locationName: string; mintCount: number; supply: number | null }>;
+  }>;
+  getOrganizerMints(userId: number, limit: number): Promise<Array<{
+    id: number;
+    dropId: number;
+    chain: string;
+    recipient: string;
+    txHash: string | null;
+    status: string;
+    email: string | null;
+    createdAt: Date;
+    dropTitle: string;
+    locationName: string;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -437,6 +458,93 @@ export class DatabaseStorage implements IStorage {
   }
   async deletePricingPlan(id: number): Promise<void> {
     await db.delete(pricingPlans).where(eq(pricingPlans.id, id));
+  }
+
+  // Organizer Dashboard
+  async getOrganizerStats(userId: number) {
+    const userProjects = await db.select().from(projects).where(eq(projects.userId, userId));
+    const projectIds = userProjects.map(p => p.id);
+
+    if (projectIds.length === 0) {
+      return { totalMints: 0, activeDrops: 0, totalLocations: 0, totalProjects: 0, mintsByDrop: [] };
+    }
+
+    const userLocations = await db.select().from(locations).where(inArray(locations.projectId, projectIds));
+    const locationIds = userLocations.map(l => l.id);
+
+    if (locationIds.length === 0) {
+      return { totalMints: 0, activeDrops: 0, totalLocations: 0, totalProjects: userProjects.length, mintsByDrop: [] };
+    }
+
+    const userDrops = await db.select().from(drops).where(inArray(drops.locationId, locationIds));
+    const dropIds = userDrops.map(d => d.id);
+    const activeDrops = userDrops.filter(d => d.status === "published").length;
+
+    let totalMints = 0;
+    const mintsByDrop: Array<{ dropId: number; dropTitle: string; locationName: string; mintCount: number; supply: number | null }> = [];
+
+    if (dropIds.length > 0) {
+      const userMints = await db.select().from(mints).where(inArray(mints.dropId, dropIds));
+      const confirmedMints = userMints.filter(m => m.status === "confirmed");
+      totalMints = confirmedMints.length;
+
+      for (const drop of userDrops) {
+        const dropMints = confirmedMints.filter(m => m.dropId === drop.id).length;
+        const loc = userLocations.find(l => l.id === drop.locationId);
+        mintsByDrop.push({
+          dropId: drop.id,
+          dropTitle: drop.title,
+          locationName: loc?.name || "Unknown",
+          mintCount: dropMints,
+          supply: drop.supply,
+        });
+      }
+    }
+
+    return {
+      totalMints,
+      activeDrops,
+      totalLocations: userLocations.length,
+      totalProjects: userProjects.length,
+      mintsByDrop,
+    };
+  }
+
+  async getOrganizerMints(userId: number, limit: number) {
+    const userProjects = await db.select().from(projects).where(eq(projects.userId, userId));
+    const projectIds = userProjects.map(p => p.id);
+
+    if (projectIds.length === 0) return [];
+
+    const userLocations = await db.select().from(locations).where(inArray(locations.projectId, projectIds));
+    const locationIds = userLocations.map(l => l.id);
+
+    if (locationIds.length === 0) return [];
+
+    const userDrops = await db.select().from(drops).where(inArray(drops.locationId, locationIds));
+    const dropIds = userDrops.map(d => d.id);
+
+    if (dropIds.length === 0) return [];
+
+    const results = await db.select({
+      id: mints.id,
+      dropId: mints.dropId,
+      chain: mints.chain,
+      recipient: mints.recipient,
+      txHash: mints.txHash,
+      status: mints.status,
+      email: mints.email,
+      createdAt: mints.createdAt,
+      dropTitle: drops.title,
+      locationName: locations.name,
+    }).from(mints)
+      .innerJoin(drops, eq(mints.dropId, drops.id))
+      .innerJoin(locations, eq(drops.locationId, locations.id))
+      .where(inArray(mints.dropId, dropIds))
+      .orderBy(desc(mints.createdAt))
+      .limit(limit);
+
+    return results;
   }
 }
 

@@ -950,6 +950,47 @@ export async function registerRoutes(
     }
   });
 
+  // === ORGANIZER DASHBOARD ===
+  app.get("/api/organizer/stats", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (user.role !== "organizer" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const stats = await storage.getOrganizerStats(user.id);
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_STATS") });
+    }
+  });
+
+  app.get("/api/organizer/projects", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (user.role !== "organizer" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const userProjects = await storage.getProjectsByUserId(user.id);
+      res.json(userProjects);
+    } catch (err: any) {
+      res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_PROJECTS") });
+    }
+  });
+
+  app.get("/api/organizer/mints", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (user.role !== "organizer" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const limit = Math.min(Number(req.query.limit) || 20, 100);
+      const recentMints = await storage.getOrganizerMints(user.id, limit);
+      res.json(recentMints);
+    } catch (err: any) {
+      res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_MINTS") });
+    }
+  });
+
   // === PUBLIC GALLERY ===
   app.get("/api/gallery/:locationId", async (req, res) => {
     try {
