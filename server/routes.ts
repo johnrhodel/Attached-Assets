@@ -224,6 +224,17 @@ export async function registerRoutes(
     console.log(`[AUTH] Migrated admin password to hashed format`);
   }
 
+  // === BACKFILL: Assign orphan projects to admin ===
+  if (existingAdmin) {
+    const { projects: projectsTable } = await import("@shared/schema");
+    const { isNull } = await import("drizzle-orm");
+    const orphanProjects = await db.select().from(projectsTable).where(isNull(projectsTable.userId));
+    if (orphanProjects.length > 0) {
+      await db.update(projectsTable).set({ userId: existingAdmin.id }).where(isNull(projectsTable.userId));
+      console.log(`[MIGRATION] Assigned ${orphanProjects.length} orphan project(s) to admin user`);
+    }
+  }
+
   // === AUTH ROUTES ===
   app.post(api.auth.login.path, async (req, res) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
@@ -267,17 +278,18 @@ export async function registerRoutes(
       return res.status(429).json({ message: "Too many registration attempts. Please try again later." });
     }
 
+    if (!attempt || now >= attempt.resetAt) {
+      registerAttempts.set(ip, { count: 1, resetAt: now + REGISTER_RATE_WINDOW });
+    } else {
+      attempt.count++;
+    }
+
     try {
       const { email, password, name } = api.auth.register.input.parse(req.body);
       const normalizedEmail = email.toLowerCase().trim();
 
       const existing = await storage.getUserByEmail(normalizedEmail);
       if (existing) {
-        if (!attempt || now >= attempt.resetAt) {
-          registerAttempts.set(ip, { count: 1, resetAt: now + REGISTER_RATE_WINDOW });
-        } else {
-          attempt.count++;
-        }
         return res.status(409).json({ message: "Email already registered" });
       }
 
@@ -289,7 +301,6 @@ export async function registerRoutes(
         isActive: true,
       });
 
-      registerAttempts.delete(ip);
       res.status(201).json({ message: "Account created successfully" });
     } catch (err: any) {
       if (err.name === 'ZodError') {
@@ -334,7 +345,7 @@ export async function registerRoutes(
     res.status(201).json(project);
   });
 
-  app.get(api.locations.list.path, async (req, res) => {
+  app.get(api.locations.list.path, requireAuth, requireProjectOwnership, async (req, res) => {
     const locations = await storage.getLocations(Number(req.params.projectId));
     res.json(locations);
   });
@@ -355,7 +366,7 @@ export async function registerRoutes(
     res.json(location);
   });
 
-  app.get(api.drops.list.path, async (req, res) => {
+  app.get(api.drops.list.path, requireAuth, requireLocationOwnership, async (req, res) => {
     const drops = await storage.getDrops(Number(req.params.locationId));
     res.json(drops);
   });
