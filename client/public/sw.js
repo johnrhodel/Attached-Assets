@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mintoria-v2';
+const CACHE_NAME = 'mintoria-v3';
 const STATIC_ASSETS = [
   '/',
   '/favicon.png',
@@ -31,11 +31,18 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
 
+  const isStaticAsset = STATIC_ASSETS.includes(url.pathname);
+  const isNavigationRequest = event.request.mode === 'navigate';
+
+  if (!isStaticAsset && !isNavigationRequest) return;
+
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
+    caches.match(event.request).then((cached) => {
+      const fetchPromise = fetch(event.request).then((response) => {
         if (response.status === 200) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -43,11 +50,8 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return response;
-      })
-      .catch(() => {
-        return caches.match(event.request).then((cached) => {
-          return cached || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-        });
-      })
+      });
+      return cached || fetchPromise;
+    })
   );
 });
