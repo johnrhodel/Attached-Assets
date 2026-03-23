@@ -313,6 +313,7 @@ export async function registerRoutes(
         role: "organizer",
         name: name || null,
         isActive: true,
+        planSlug: "free",
       });
 
       res.status(201).json({ message: "Account created successfully" });

@@ -266,7 +266,7 @@ export default function OrganizerDashboard() {
             ) : (
               <div className="space-y-4">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">{org.freePlan} — {planSlug.charAt(0).toUpperCase() + planSlug.slice(1)}</span>
+                  <span className="text-muted-foreground">{planSlug.charAt(0).toUpperCase() + planSlug.slice(1)}</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-sm">
