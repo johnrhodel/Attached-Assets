@@ -53,9 +53,8 @@ Mintoria integrates exclusively with the Stellar blockchain via `stellar-sdk` an
 - Plan-based enforcement returns structured error codes (`PLAN_MINT_LIMIT`, `PLAN_LOCATION_LIMIT`).
 
 ### Key Credentials (Dev/Seed)
-- Admin: `admin@mintoria.xyz` / `Mintoria2026!`
-- Access codes: PARIS2026, RIO2026, CURITIBA2026, FOZ2026
-- Server public key: `GD3MK6UJT54QY5HKHA4XKFITAZPREWAEECNSLX7YL4WUWNM6CBD6SFBW`
+- Seeded admin and demo location access codes exist for development testing.
+- Server keypair loaded from `STELLAR_SERVER_SECRET_KEY` environment variable.
 
 ## External Dependencies
 

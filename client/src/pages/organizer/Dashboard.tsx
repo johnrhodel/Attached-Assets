@@ -163,8 +163,8 @@ export default function OrganizerDashboard() {
   const hasLocationLimit = planLimits ? planLimits.maxLocations !== null : false;
 
   const highestDropUsage = stats?.mintsByDrop?.reduce((max, d) => {
-    const supply = d.supply || mintLimitPerDrop;
-    const usage = supply > 0 ? (d.mintCount / supply) * 100 : 0;
+    const cap = hasMintLimit ? mintLimitPerDrop : (d.supply || 0);
+    const usage = cap > 0 ? (d.mintCount / cap) * 100 : 0;
     return Math.max(max, usage);
   }, 0) ?? 0;
 
