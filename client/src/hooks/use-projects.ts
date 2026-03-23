@@ -101,12 +101,21 @@ export function useCreateLocation() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
+      if (res.status === 403) {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.message === "PLAN_LOCATION_LIMIT") throw new Error("PLAN_LOCATION_LIMIT");
+      }
       if (!res.ok) throw new Error("Failed to create location");
       return api.locations.create.responses[201].parse(await res.json());
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.locations.list.path, variables.projectId] });
       toast({ title: t.toasts.locationAdded, description: t.toasts.locationAddedDesc });
+    },
+    onError: (error: Error) => {
+      if (error.message === "PLAN_LOCATION_LIMIT") {
+        toast({ title: t.planLimits?.locationLimitReached || "Location limit reached", description: t.planLimits?.upgradePrompt || "Upgrade your plan", variant: "destructive" });
+      }
     },
   });
 }
