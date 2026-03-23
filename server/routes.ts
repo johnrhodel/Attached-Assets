@@ -225,12 +225,13 @@ export async function registerRoutes(
   }
 
   // === BACKFILL: Assign orphan projects to admin ===
-  if (existingAdmin) {
+  const adminUser = existingAdmin || await storage.getUserByEmail(defaultAdminEmail);
+  if (adminUser) {
     const { projects: projectsTable } = await import("@shared/schema");
     const { isNull } = await import("drizzle-orm");
     const orphanProjects = await db.select().from(projectsTable).where(isNull(projectsTable.userId));
     if (orphanProjects.length > 0) {
-      await db.update(projectsTable).set({ userId: existingAdmin.id }).where(isNull(projectsTable.userId));
+      await db.update(projectsTable).set({ userId: adminUser.id }).where(isNull(projectsTable.userId));
       console.log(`[MIGRATION] Assigned ${orphanProjects.length} orphan project(s) to admin user`);
     }
   }

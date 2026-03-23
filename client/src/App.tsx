@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -29,6 +30,14 @@ import { useLocation } from "wouter";
 function ProtectedRoute({ component: Component, requiredRole }: { component: React.ComponentType; requiredRole?: string }) {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const shouldRedirect = user && requiredRole && user.role !== requiredRole;
+  const redirectTarget = user?.role === "admin" ? "/admin/dashboard" : "/organizer/dashboard";
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      setLocation(redirectTarget);
+    }
+  }, [shouldRedirect, redirectTarget, setLocation]);
 
   if (isLoading) {
     return <div className="h-screen w-full flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
@@ -38,12 +47,7 @@ function ProtectedRoute({ component: Component, requiredRole }: { component: Rea
     return <AdminLogin />;
   }
 
-  if (requiredRole && user.role !== requiredRole) {
-    if (user.role === "admin") {
-      setLocation("/admin/dashboard");
-    } else {
-      setLocation("/organizer/dashboard");
-    }
+  if (shouldRedirect) {
     return null;
   }
 
