@@ -47,10 +47,24 @@ function getPlanColor(plan: string): string {
   }
 }
 
+function usePlanLabel() {
+  const { t } = useI18n();
+  return (slug: string) => {
+    const map: Record<string, string> = {
+      free: t.pricing.free,
+      starter: t.pricing.starter,
+      professional: t.pricing.professional,
+      enterprise: t.pricing.enterprise,
+    };
+    return map[slug] || slug;
+  };
+}
+
 export default function Organizers() {
   const { t } = useI18n();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const getPlanLabel = usePlanLabel();
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
@@ -155,7 +169,7 @@ export default function Organizers() {
               <div className="flex flex-wrap gap-4">
                 {Object.entries(stats.byPlan).map(([plan, count]) => (
                   <div key={plan} className="flex items-center gap-2">
-                    <Badge className={getPlanColor(plan)}>{plan}</Badge>
+                    <Badge className={getPlanColor(plan)}>{getPlanLabel(plan)}</Badge>
                     <span className="text-lg font-bold" data-testid={`text-plan-count-${plan}`}>{count}</span>
                   </div>
                 ))}
@@ -230,7 +244,7 @@ export default function Organizers() {
                     </div>
                     <div>
                       <Badge className={getPlanColor(org.planSlug || "free")} data-testid={`badge-org-plan-${org.id}`}>
-                        {org.planSlug || "free"}
+                        {getPlanLabel(org.planSlug || "free")}
                       </Badge>
                     </div>
                     <div className="text-center font-medium" data-testid={`text-org-projects-${org.id}`}>

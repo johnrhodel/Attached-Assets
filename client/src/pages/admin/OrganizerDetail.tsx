@@ -50,10 +50,24 @@ function getPlanColor(plan: string): string {
   }
 }
 
+function usePlanLabel() {
+  const { t } = useI18n();
+  return (slug: string) => {
+    const map: Record<string, string> = {
+      free: t.pricing.free,
+      starter: t.pricing.starter,
+      professional: t.pricing.professional,
+      enterprise: t.pricing.enterprise,
+    };
+    return map[slug] || slug;
+  };
+}
+
 export default function OrganizerDetail() {
   const { t } = useI18n();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const getPlanLabel = usePlanLabel();
   const params = useParams<{ id: string }>();
   const organizerId = Number(params.id);
 
@@ -119,7 +133,7 @@ export default function OrganizerDetail() {
           </div>
           <div className="flex items-center gap-2">
             <Badge className={getPlanColor(user.planSlug || "free")} data-testid="badge-detail-plan">
-              {user.planSlug || "free"}
+              {getPlanLabel(user.planSlug || "free")}
             </Badge>
             <Badge variant={user.isActive ? "default" : "destructive"} data-testid="badge-detail-status">
               {user.isActive ? t.admin.active : t.admin.inactive}
