@@ -341,8 +341,9 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
   const { t } = useI18n();
   const { toast } = useToast();
 
-  const claimUrl = `${window.location.origin}/claim/${locationId}`;
-  const qrImageUrl = `/api/qr/${locationId}`;
+  const dropLocationId = drop.locationId || locationId;
+  const claimUrl = `${window.location.origin}/claim/${dropLocationId}${drop.accessCode ? `?accessCode=${encodeURIComponent(drop.accessCode)}` : ''}`;
+  const qrImageUrl = `/api/qr/${dropLocationId}`;
 
   const handleCopyLink = async () => {
     try {
@@ -360,7 +361,7 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `qr-claim-${locationId}.png`;
+      a.download = `qr-claim-${dropLocationId}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -372,12 +373,12 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
 
   const handleDownloadSVG = async () => {
     try {
-      const response = await fetch(`/api/qr/${locationId}?format=svg`);
+      const response = await fetch(`/api/qr/${dropLocationId}?format=svg`);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `qr-claim-${locationId}.svg`;
+      a.download = `qr-claim-${dropLocationId}.svg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -548,7 +549,7 @@ function DropCard({ drop, locationId, onPublish }: { drop: any, locationId: numb
             variant="outline"
             size="sm"
             className="gap-1"
-            onClick={() => window.open(`/claim/${locationId}`, '_blank')}
+            onClick={() => window.open(`/claim/${dropLocationId}${drop.accessCode ? `?accessCode=${encodeURIComponent(drop.accessCode)}` : ''}`, '_blank')}
             data-testid={`button-preview-claim-${drop.id}`}
           >
             <ExternalLink className="w-4 h-4" />
