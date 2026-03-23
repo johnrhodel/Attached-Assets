@@ -8,6 +8,7 @@ import { useLocation, Link } from "wouter";
 import { LanguageSelector } from "@/components/language-selector";
 import { useI18n } from "@/lib/i18n/context";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 
 export default function Register() {
@@ -18,6 +19,7 @@ export default function Register() {
   const [, setLocation] = useLocation();
   const { t } = useI18n();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,8 +43,9 @@ export default function Register() {
         throw new Error(error.message || "Registration failed");
       }
 
-      toast({ title: t.auth.registrationSuccess, description: t.auth.registrationSuccessDesc });
-      setLocation("/admin/login");
+      toast({ title: t.auth.registrationSuccess, description: t.auth.registrationSuccessAutoLogin });
+      await queryClient.invalidateQueries({ queryKey: [api.auth.me.path] });
+      setLocation("/organizer/dashboard");
     } catch (err: any) {
       toast({ variant: "destructive", title: t.auth.registrationFailed, description: err.message });
     } finally {

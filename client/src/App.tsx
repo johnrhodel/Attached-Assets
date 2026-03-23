@@ -14,6 +14,7 @@ import Embed from "@/pages/Embed";
 import Gallery from "@/pages/Gallery";
 import MyNfts from "@/pages/MyNfts";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
 
 import AdminLogin from "@/pages/admin/Login";
 import Dashboard from "@/pages/admin/Dashboard";
@@ -68,6 +69,7 @@ function Router() {
       <Route path="/my-nfts" component={MyNfts} />
       <Route path="/embed/:locationId" component={Embed} />
       <Route path="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
       
       <Route path="/admin/login" component={AdminLogin} />
       

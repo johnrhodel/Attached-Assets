@@ -84,7 +84,12 @@ export default function AdminLogin() {
               {isLoggingIn ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : t.admin.loginButton}
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="mt-4 text-center">
+            <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-primary hover:underline" data-testid="link-forgot-password">
+              {t.auth.forgotPassword}
+            </Link>
+          </div>
+          <div className="mt-3 text-center text-sm text-muted-foreground">
             {t.auth.noAccount}{" "}
             <Link href="/register" className="text-primary font-medium hover:underline" data-testid="link-to-register">
               {t.auth.registerLink}

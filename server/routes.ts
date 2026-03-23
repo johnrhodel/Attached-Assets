@@ -307,7 +307,7 @@ export async function registerRoutes(
         return res.status(409).json({ message: "Email already registered" });
       }
 
-      await storage.createUser({
+      const newUser = await storage.createUser({
         email: normalizedEmail,
         passwordHash: hashPassword(password),
         role: "organizer",
@@ -316,7 +316,8 @@ export async function registerRoutes(
         planSlug: "free",
       });
 
-      res.status(201).json({ message: "Account created successfully" });
+      (req.session as any).userId = newUser.id;
+      res.status(201).json({ message: "Account created successfully", role: "organizer" });
     } catch (err: any) {
       if (err.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid registration data" });
@@ -329,6 +330,96 @@ export async function registerRoutes(
     req.session.destroy(() => {
       res.json({ message: "Logged out" });
     });
+  });
+
+  const passwordResetCodes = new Map<string, { code: string; expiresAt: number; attempts: number; verified: boolean }>();
+  const forgotPasswordAttempts = new Map<string, { count: number; resetAt: number }>();
+  const FORGOT_RATE_LIMIT = 3;
+  const FORGOT_RATE_WINDOW = 15 * 60 * 1000;
+  const MAX_CODE_ATTEMPTS = 5;
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const attempt = forgotPasswordAttempts.get(ip);
+    if (attempt && now < attempt.resetAt && attempt.count >= FORGOT_RATE_LIMIT) {
+      return res.status(429).json({ message: "Too many requests. Please try again later." });
+    }
+    if (!attempt || now >= attempt.resetAt) {
+      forgotPasswordAttempts.set(ip, { count: 1, resetAt: now + FORGOT_RATE_WINDOW });
+    } else {
+      attempt.count++;
+    }
+
+    try {
+      const { email } = req.body;
+      if (!email || typeof email !== "string") {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      const normalizedEmail = email.toLowerCase().trim();
+      const user = await storage.getUserByEmail(normalizedEmail);
+      if (!user) {
+        return res.json({ message: "If the email exists, a code has been sent" });
+      }
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      passwordResetCodes.set(normalizedEmail, { code, expiresAt: Date.now() + 5 * 60 * 1000, attempts: 0, verified: false });
+      await sendVerificationEmail(normalizedEmail, code);
+      res.json({ message: "If the email exists, a code has been sent" });
+    } catch (err: any) {
+      res.status(500).json({ message: safeErrorMessage(err, "FORGOT_PASSWORD") });
+    }
+  });
+
+  app.post("/api/auth/verify-reset-code", async (req, res) => {
+    try {
+      const { email, code } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ message: "Email and code are required" });
+      }
+      const normalizedEmail = email.toLowerCase().trim();
+      const stored = passwordResetCodes.get(normalizedEmail);
+      if (!stored || Date.now() > stored.expiresAt) {
+        return res.status(400).json({ message: "Invalid or expired code" });
+      }
+      if (stored.attempts >= MAX_CODE_ATTEMPTS) {
+        passwordResetCodes.delete(normalizedEmail);
+        return res.status(429).json({ message: "Too many attempts. Request a new code." });
+      }
+      stored.attempts++;
+      if (stored.code !== code) {
+        return res.status(400).json({ message: "Invalid code" });
+      }
+      stored.verified = true;
+      res.json({ message: "Code verified" });
+    } catch (err: any) {
+      res.status(500).json({ message: safeErrorMessage(err, "VERIFY_RESET_CODE") });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { email, code, newPassword } = req.body;
+      if (!email || !code || !newPassword) {
+        return res.status(400).json({ message: "Email, code, and new password are required" });
+      }
+      if (typeof newPassword !== "string" || newPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+      const normalizedEmail = email.toLowerCase().trim();
+      const stored = passwordResetCodes.get(normalizedEmail);
+      if (!stored || stored.code !== code || Date.now() > stored.expiresAt || !stored.verified) {
+        return res.status(400).json({ message: "Invalid or expired code" });
+      }
+      const user = await storage.getUserByEmail(normalizedEmail);
+      if (!user) {
+        return res.status(400).json({ message: "User not found" });
+      }
+      await storage.updateUserPassword(user.id, hashPassword(newPassword));
+      passwordResetCodes.delete(normalizedEmail);
+      res.json({ message: "Password updated successfully" });
+    } catch (err: any) {
+      res.status(500).json({ message: safeErrorMessage(err, "RESET_PASSWORD") });
+    }
   });
 
   app.get(api.auth.me.path, async (req, res) => {

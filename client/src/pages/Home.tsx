@@ -175,8 +175,13 @@ export default function Home() {
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <LanguageSelector />
           <Link href="/admin/login">
-            <Button variant="outline" size="sm" className="bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="link-admin-login">
-              {t.landing.admin_portal}
+            <Button variant="outline" size="sm" className="bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="link-login">
+              {t.nav.login}
+            </Button>
+          </Link>
+          <Link href="/register">
+            <Button size="sm" className="shadow-md" data-testid="link-register">
+              {t.auth.registerButton}
             </Button>
           </Link>
         </div>

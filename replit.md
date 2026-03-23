@@ -47,8 +47,10 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 - **Admin Dashboard**: Project/location/drop management, analytics (mints by month, by location), Stellar health monitor, mint reset, CSV export, organizer summary cards (total organizers, active, conversion rate).
 - **Admin Organizer Panel**: `/admin/organizers` — list all organizers with filters (plan, search, date), pagination, activate/deactivate. `/admin/organizers/:id` — organizer detail with projects/locations/drops/mints hierarchy. Global stats: total, active, new this month, plan distribution, free→paid conversion.
 - **Organizer Dashboard**: `/organizer/dashboard` — stat cards, plan usage bar, projects list, create project, mints chart, drops overview, recent mints. Organizers only see their own data.
-- **Organizer Registration**: Self-registration at `/register` with email/password/name. Assigned Free plan. Redirected to login page (`/admin/login`). After login, role-based redirects (admin → `/admin/dashboard`, organizer → `/organizer/dashboard`).
-- **Login Page**: `/admin/login` with back-to-home button, "Register here" link for new organizers, and i18n support.
+- **Organizer Registration**: Self-registration at `/register` with email/password/name. Assigned Free plan. Auto-login after registration with redirect to `/organizer/dashboard`.
+- **Login Page**: `/admin/login` with back-to-home button, "Register here" link, "Forgot password?" link, and i18n support.
+- **Password Recovery**: `/forgot-password` — email-based password reset flow using 6-digit verification codes (5-min expiry) sent via Resend. Three-step process: enter email → enter code → set new password.
+- **Landing Page Navigation**: Header includes Login and Register buttons for easy access to authentication.
 - **Email Service**: Verification codes and mint confirmations via Resend.
 - **Internationalization (i18n)**: Full EN/PT/ES with automatic browser language detection.
 - **Custodial Wallet System**: Stellar keypairs encrypted with AES-256-CBC for server-side minting.
@@ -73,10 +75,15 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 **Organizer Registration Flow**:
 1. Visits `/register` → enters name, email, password
 2. System creates user with `role: "organizer"`, `planSlug: "free"`, `isActive: true`
-3. Redirected to login page (`/admin/login`)
-4. Logs in → role-based redirect to `/organizer/dashboard`
-5. Creates projects → locations → drops within plan limits
-6. Generates QR codes, monitors mints on their dashboard
+3. Auto-login (session created server-side) → redirect to `/organizer/dashboard`
+4. Creates projects → locations → drops within plan limits
+5. Generates QR codes, monitors mints on their dashboard
+
+**Password Recovery Flow**:
+1. User clicks "Forgot password?" on login page → opens `/forgot-password`
+2. Enters email → system sends 6-digit code via Resend (5-min expiry)
+3. Enters verification code → enters new password
+4. Password updated → redirected to login page
 
 **Admin Organizer Management Flow**:
 1. Admin views `/admin/organizers` → sees all organizers with metrics
