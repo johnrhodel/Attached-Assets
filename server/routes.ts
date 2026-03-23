@@ -1534,7 +1534,7 @@ export async function registerRoutes(
         title: "Paris Visit 2026",
         month: "February",
         year: 2026,
-        imageUrl: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=1000",
+        imageUrl: "/images/paris-eiffel-tower.png",
         metadataUrl: "/api/metadata/eiffel/paris-2026",
         supply: 1000,
         enabledChains: ["evm", "solana", "stellar"],
@@ -1558,6 +1558,12 @@ export async function registerRoutes(
         await storage.updateDrop(drop.id, { accessCode: code });
         console.log(`[SEED] Fixed access code ${code} on drop "${title}"`);
       }
+    }
+
+    const parisDrops = allExistingDrops.filter(d => d.title === "Paris Visit 2026" && d.imageUrl && d.imageUrl.includes("unsplash.com"));
+    for (const parisDrop of parisDrops) {
+      await storage.updateDrop(parisDrop.id, { imageUrl: "/images/paris-eiffel-tower.png" });
+      console.log(`[SEED] Fixed Paris drop image (drop ${parisDrop.id}): replaced Unsplash URL with local image`);
     }
 
     const allLocations = projectId ? await storage.getLocations(projectId) : [];
