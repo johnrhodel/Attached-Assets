@@ -54,6 +54,11 @@ interface PublicPricingPlan {
 interface PricingTranslations {
   title: string;
   subtitle: string;
+  free: string;
+  freeDesc: string;
+  freePrice: string;
+  freePer: string;
+  freeFeatures: readonly string[];
   starter: string;
   starterDesc: string;
   starterPrice: string;
@@ -73,7 +78,7 @@ interface PricingTranslations {
   contact: string;
 }
 
-type PlanKey = 'starter' | 'professional' | 'enterprise';
+type PlanKey = 'free' | 'starter' | 'professional' | 'enterprise';
 
 interface PlanI18nMapping {
   name: keyof PricingTranslations;
@@ -84,6 +89,7 @@ interface PlanI18nMapping {
 }
 
 const PLAN_I18N_MAP: Record<PlanKey, PlanI18nMapping> = {
+  free: { name: 'free', desc: 'freeDesc', price: 'freePrice', per: 'freePer', features: 'freeFeatures' },
   starter: { name: 'starter', desc: 'starterDesc', price: 'starterPrice', per: 'starterPer', features: 'starterFeatures' },
   professional: { name: 'professional', desc: 'professionalDesc', price: 'professionalPrice', per: 'professionalPer', features: 'professionalFeatures' },
   enterprise: { name: 'enterprise', desc: 'enterpriseDesc', price: 'enterprisePrice', per: 'enterprisePer', features: 'enterpriseFeatures' },
@@ -91,6 +97,7 @@ const PLAN_I18N_MAP: Record<PlanKey, PlanI18nMapping> = {
 
 function getPlanKey(name: string): PlanKey | null {
   const lower = name.toLowerCase();
+  if (lower === 'free' || lower === 'gratuito' || lower === 'gratis') return 'free';
   if (lower === 'starter') return 'starter';
   if (lower === 'professional' || lower === 'profissional' || lower === 'profesional') return 'professional';
   if (lower === 'enterprise') return 'enterprise';

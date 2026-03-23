@@ -399,6 +399,18 @@ export async function registerRoutes(
 
   app.post(api.drops.create.path, requireAuth, requireLocationOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
+    const user = (req as any).user;
+
+    if (user && user.role !== "admin") {
+      const limits = await storage.getUserPlanLimits(userId);
+      if (limits.maxMintsPerDrop !== null) {
+        const requestedSupply = req.body.supply ? Number(req.body.supply) : 0;
+        if (requestedSupply === 0 || requestedSupply > limits.maxMintsPerDrop) {
+          req.body.supply = limits.maxMintsPerDrop;
+        }
+      }
+    }
+
     const drop = await storage.createDrop({
       ...req.body,
       locationId: Number(req.params.locationId)
@@ -1013,6 +1025,17 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/organizer/plan", requireOrganizerOrAdmin, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const limits = await storage.getUserPlanLimits(user.id);
+      const locationCount = await storage.getLocationCountByUserId(user.id);
+      res.json({ ...limits, currentLocations: locationCount });
+    } catch (err: any) {
+      res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_PLAN") });
+    }
+  });
+
   app.get("/api/organizer/projects", requireOrganizerOrAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -1418,36 +1441,89 @@ export async function registerRoutes(
     if (existingPlans.length === 0) {
       console.log("Seeding default pricing plans...");
       await storage.createPricingPlan({
+        name: "Free",
+        slug: "free",
+        description: "Para começar gratuitamente",
+        price: "R$0",
+        pricePer: "",
+        features: ["50 mints per drop", "1 location", "Basic QR code", "Community support"],
+        highlighted: false,
+        sortOrder: 0,
+        isActive: true,
+        maxMintsPerDrop: 50,
+        maxLocations: 1,
+      });
+      await storage.createPricingPlan({
         name: "Starter",
+        slug: "starter",
         description: "Perfeito para eventos individuais",
         price: "R$599",
         pricePer: "/evento",
         features: ["Up to 500 mints", "1 location", "QR code generation", "Email support", "Basic analytics"],
         highlighted: false,
-        sortOrder: 0,
+        sortOrder: 1,
         isActive: true,
+        maxMintsPerDrop: 500,
+        maxLocations: 1,
       });
       await storage.createPricingPlan({
         name: "Professional",
+        slug: "professional",
         description: "Para operadores de turismo",
         price: "R$1.497",
         pricePer: "/month",
         features: ["Unlimited mints", "5 locations", "Custom branding", "Priority support", "Advanced analytics", "Embeddable widget"],
         highlighted: true,
-        sortOrder: 1,
+        sortOrder: 2,
         isActive: true,
+        maxMintsPerDrop: null,
+        maxLocations: 5,
       });
       await storage.createPricingPlan({
         name: "Enterprise",
+        slug: "enterprise",
         description: "Solucao completa para grandes operacoes",
         price: "R$4.997",
         pricePer: "/month",
         features: ["Unlimited everything", "Unlimited locations", "White-label solution", "API access", "Dedicated support", "Custom integrations", "SLA guarantee"],
         highlighted: false,
-        sortOrder: 2,
+        sortOrder: 3,
         isActive: true,
+        maxMintsPerDrop: null,
+        maxLocations: null,
       });
       console.log("Pricing plans seeded.");
+    } else {
+      for (const plan of existingPlans) {
+        if (!plan.slug) {
+          const slug = plan.name.toLowerCase();
+          const limitsMap: Record<string, { maxMintsPerDrop: number | null; maxLocations: number | null }> = {
+            starter: { maxMintsPerDrop: 500, maxLocations: 1 },
+            professional: { maxMintsPerDrop: null, maxLocations: 5 },
+            enterprise: { maxMintsPerDrop: null, maxLocations: null },
+          };
+          const limits = limitsMap[slug] || { maxMintsPerDrop: 50, maxLocations: 1 };
+          await storage.updatePricingPlan(plan.id, { slug, maxMintsPerDrop: limits.maxMintsPerDrop, maxLocations: limits.maxLocations });
+          console.log(`[SEED] Backfilled plan "${plan.name}" with slug="${slug}"`);
+        }
+      }
+      const hasFree = existingPlans.some(p => p.slug === "free" || p.name.toLowerCase() === "free");
+      if (!hasFree) {
+        await storage.createPricingPlan({
+          name: "Free",
+          slug: "free",
+          description: "Para começar gratuitamente",
+          price: "R$0",
+          pricePer: "",
+          features: ["50 mints per drop", "1 location", "Basic QR code", "Community support"],
+          highlighted: false,
+          sortOrder: 0,
+          isActive: true,
+          maxMintsPerDrop: 50,
+          maxLocations: 1,
+        });
+        console.log("[SEED] Created Free plan");
+      }
     }
   }
 

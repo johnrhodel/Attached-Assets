@@ -58,7 +58,12 @@ interface OrganizerProject {
   createdAt: string;
 }
 
-const FREE_PLAN_LIMIT = 50;
+interface PlanLimits {
+  maxMintsPerDrop: number | null;
+  maxLocations: number | null;
+  planSlug: string;
+  currentLocations: number;
+}
 
 interface RelativeTimeLabels {
   justNow: string;
@@ -123,6 +128,10 @@ export default function OrganizerDashboard() {
     queryKey: ["/api/organizer/projects"],
   });
 
+  const { data: planLimits } = useQuery<PlanLimits>({
+    queryKey: ["/api/organizer/plan"],
+  });
+
   const createProjectMutation = useMutation({
     mutationFn: async (data: { name: string; slug: string }) => {
       const res = await apiRequest("POST", "/api/projects", data);
@@ -146,9 +155,17 @@ export default function OrganizerDashboard() {
     createProjectMutation.mutate({ name: projectName.trim(), slug });
   };
 
-  const planUsagePercent = stats ? Math.min((stats.totalMints / FREE_PLAN_LIMIT) * 100, 100) : 0;
-  const isNearLimit = stats ? stats.totalMints >= FREE_PLAN_LIMIT * 0.8 : false;
-  const isAtLimit = stats ? stats.totalMints >= FREE_PLAN_LIMIT : false;
+  const mintLimit = planLimits?.maxMintsPerDrop ?? 50;
+  const locationLimit = planLimits?.maxLocations ?? 1;
+  const currentLocations = planLimits?.currentLocations ?? 0;
+  const planSlug = planLimits?.planSlug ?? "free";
+  const hasMintLimit = planLimits?.maxMintsPerDrop !== null;
+  const hasLocationLimit = planLimits?.maxLocations !== null;
+
+  const planUsagePercent = stats && hasMintLimit ? Math.min((stats.totalMints / mintLimit) * 100, 100) : 0;
+  const isNearLimit = stats && hasMintLimit ? stats.totalMints >= mintLimit * 0.8 : false;
+  const isAtLimit = stats && hasMintLimit ? stats.totalMints >= mintLimit : false;
+  const isLocationNearLimit = hasLocationLimit ? currentLocations >= locationLimit * 0.8 : false;
 
   const chartData = stats?.mintsByDrop.map(d => ({
     name: d.dropTitle.length > 15 ? d.dropTitle.slice(0, 15) + "…" : d.dropTitle,
@@ -242,21 +259,53 @@ export default function OrganizerDashboard() {
             {statsLoading ? (
               <Skeleton className="h-8 w-full" />
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">{org.freePlan}</span>
-                  <span className="font-medium" data-testid="text-plan-usage-count">
-                    {stats?.totalMints || 0} / {FREE_PLAN_LIMIT} {org.mintsUsed}
-                  </span>
+                  <span className="text-muted-foreground">{org.freePlan} — {planSlug.charAt(0).toUpperCase() + planSlug.slice(1)}</span>
                 </div>
-                <Progress 
-                  value={planUsagePercent} 
-                  className={`h-3 ${isAtLimit ? '[&>div]:bg-red-500' : isNearLimit ? '[&>div]:bg-orange-500' : ''}`}
-                  data-testid="progress-plan-usage"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {org.remainingMints}: {Math.max(FREE_PLAN_LIMIT - (stats?.totalMints || 0), 0)}
-                </p>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">{t.planLimits?.mintsUsed || "Mints"}</span>
+                    <span className="font-medium" data-testid="text-plan-usage-count">
+                      {stats?.totalMints || 0} / {hasMintLimit ? mintLimit : (t.planLimits?.unlimited || "∞")}
+                    </span>
+                  </div>
+                  {hasMintLimit && (
+                    <Progress 
+                      value={planUsagePercent} 
+                      className={`h-3 ${isAtLimit ? '[&>div]:bg-red-500' : isNearLimit ? '[&>div]:bg-orange-500' : ''}`}
+                      data-testid="progress-plan-usage"
+                    />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">{t.planLimits?.locationsUsed || "Locations"}</span>
+                    <span className="font-medium" data-testid="text-location-usage-count">
+                      {currentLocations} / {hasLocationLimit ? locationLimit : (t.planLimits?.unlimited || "∞")}
+                    </span>
+                  </div>
+                  {hasLocationLimit && (
+                    <Progress 
+                      value={Math.min((currentLocations / locationLimit) * 100, 100)} 
+                      className={`h-3 ${currentLocations >= locationLimit ? '[&>div]:bg-red-500' : isLocationNearLimit ? '[&>div]:bg-orange-500' : ''}`}
+                      data-testid="progress-location-usage"
+                    />
+                  )}
+                </div>
+                {hasMintLimit && (
+                  <p className="text-xs text-muted-foreground">
+                    {org.remainingMints}: {Math.max(mintLimit - (stats?.totalMints || 0), 0)}
+                  </p>
+                )}
+                {(isNearLimit || isAtLimit || isLocationNearLimit) && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      {t.planLimits?.upgradePrompt || "Upgrade your plan for more capacity"}
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             )}
           </CardContent>
