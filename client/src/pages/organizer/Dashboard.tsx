@@ -155,16 +155,21 @@ export default function OrganizerDashboard() {
     createProjectMutation.mutate({ name: projectName.trim(), slug });
   };
 
-  const mintLimit = planLimits?.maxMintsPerDrop ?? 50;
+  const mintLimitPerDrop = planLimits?.maxMintsPerDrop ?? 50;
   const locationLimit = planLimits?.maxLocations ?? 1;
   const currentLocations = planLimits?.currentLocations ?? 0;
   const planSlug = planLimits?.planSlug ?? "free";
   const hasMintLimit = planLimits?.maxMintsPerDrop !== null;
   const hasLocationLimit = planLimits?.maxLocations !== null;
 
-  const planUsagePercent = stats && hasMintLimit ? Math.min((stats.totalMints / mintLimit) * 100, 100) : 0;
-  const isNearLimit = stats && hasMintLimit ? stats.totalMints >= mintLimit * 0.8 : false;
-  const isAtLimit = stats && hasMintLimit ? stats.totalMints >= mintLimit : false;
+  const highestDropUsage = stats?.mintsByDrop?.reduce((max, d) => {
+    const supply = d.supply || mintLimitPerDrop;
+    const usage = supply > 0 ? (d.mintCount / supply) * 100 : 0;
+    return Math.max(max, usage);
+  }, 0) ?? 0;
+
+  const isNearLimit = hasMintLimit && highestDropUsage >= 80;
+  const isAtLimit = hasMintLimit && highestDropUsage >= 100;
   const isLocationNearLimit = hasLocationLimit ? currentLocations >= locationLimit * 0.8 : false;
 
   const chartData = stats?.mintsByDrop.map(d => ({
@@ -265,17 +270,30 @@ export default function OrganizerDashboard() {
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{t.planLimits?.mintsUsed || "Mints"}</span>
+                    <span className="text-muted-foreground">{t.planLimits?.mintsUsed || "Mints"} (per drop)</span>
                     <span className="font-medium" data-testid="text-plan-usage-count">
-                      {stats?.totalMints || 0} / {hasMintLimit ? mintLimit : (t.planLimits?.unlimited || "∞")}
+                      {hasMintLimit ? mintLimitPerDrop + " max" : (t.planLimits?.unlimited || "∞")}
                     </span>
                   </div>
-                  {hasMintLimit && (
-                    <Progress 
-                      value={planUsagePercent} 
-                      className={`h-3 ${isAtLimit ? '[&>div]:bg-red-500' : isNearLimit ? '[&>div]:bg-orange-500' : ''}`}
-                      data-testid="progress-plan-usage"
-                    />
+                  {hasMintLimit && stats?.mintsByDrop && stats.mintsByDrop.length > 0 && (
+                    <div className="space-y-1">
+                      {stats.mintsByDrop.map(d => {
+                        const supply = d.supply || mintLimitPerDrop;
+                        const pct = supply > 0 ? Math.min((d.mintCount / supply) * 100, 100) : 0;
+                        return (
+                          <div key={d.dropId} className="space-y-1">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span className="truncate max-w-[60%]">{d.dropTitle}</span>
+                              <span>{d.mintCount} / {supply}</span>
+                            </div>
+                            <Progress 
+                              value={pct} 
+                              className={`h-2 ${pct >= 100 ? '[&>div]:bg-red-500' : pct >= 80 ? '[&>div]:bg-orange-500' : ''}`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -293,11 +311,9 @@ export default function OrganizerDashboard() {
                     />
                   )}
                 </div>
-                {hasMintLimit && (
-                  <p className="text-xs text-muted-foreground">
-                    {org.remainingMints}: {Math.max(mintLimit - (stats?.totalMints || 0), 0)}
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  {org.totalMints}: {stats?.totalMints || 0}
+                </p>
                 {(isNearLimit || isAtLimit || isLocationNearLimit) && (
                   <Alert variant="destructive" className="mt-2">
                     <AlertTriangle className="h-4 w-4" />

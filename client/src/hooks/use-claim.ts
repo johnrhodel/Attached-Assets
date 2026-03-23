@@ -32,13 +32,19 @@ export function useCreateClaimSession() {
         body: JSON.stringify({ locationId }),
       });
       
-      if (res.status === 429) throw new Error("RATE_LIMITED");
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        if (data.message === "PLAN_MINT_LIMIT") throw new Error("PLAN_MINT_LIMIT");
+        throw new Error("RATE_LIMITED");
+      }
       if (!res.ok) throw new Error("Failed to start claim session");
       
       return api.claims.createSession.responses[200].parse(await res.json());
     },
     onError: (error: Error) => {
-      if (error.message === "RATE_LIMITED") {
+      if (error.message === "PLAN_MINT_LIMIT") {
+        toast({ title: t.planLimits?.mintLimitReached || "Mint limit reached", description: t.planLimits?.upgradePrompt || "Upgrade your plan", variant: "destructive" });
+      } else if (error.message === "RATE_LIMITED") {
         toast({ title: t.toasts.rateLimited, description: t.toasts.rateLimitedDesc, variant: "destructive" });
       } else {
         toast({ title: t.toasts.claimError, description: t.toasts.claimErrorDesc, variant: "destructive" });
@@ -91,11 +97,25 @@ export function useWalletless() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to mint");
+      if (res.status === 429) {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.message === "PLAN_MINT_LIMIT") throw new Error("PLAN_MINT_LIMIT");
+        throw new Error("RATE_LIMITED");
+      }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.message === "PLAN_MINT_LIMIT") throw new Error("PLAN_MINT_LIMIT");
+        throw new Error("Failed to mint");
+      }
       return api.walletless.mine.responses[200].parse(await res.json());
     },
     onSuccess: () => {
       toast({ title: t.toasts.minted, description: t.toasts.mintedDesc });
+    },
+    onError: (error: Error) => {
+      if (error.message === "PLAN_MINT_LIMIT") {
+        toast({ title: t.planLimits?.mintLimitReached || "Mint limit reached", description: t.planLimits?.upgradePrompt || "Upgrade your plan", variant: "destructive" });
+      }
     },
   });
 
@@ -112,11 +132,25 @@ export function useConfirmMint() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to confirm mint");
+      if (res.status === 429) {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.message === "PLAN_MINT_LIMIT") throw new Error("PLAN_MINT_LIMIT");
+        throw new Error("RATE_LIMITED");
+      }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.message === "PLAN_MINT_LIMIT") throw new Error("PLAN_MINT_LIMIT");
+        throw new Error("Failed to confirm mint");
+      }
       return api.mint.confirm.responses[200].parse(await res.json());
     },
     onSuccess: () => {
       toast({ title: t.toasts.mintConfirmed, description: t.toasts.mintConfirmedDesc });
+    },
+    onError: (error: Error) => {
+      if (error.message === "PLAN_MINT_LIMIT") {
+        toast({ title: t.planLimits?.mintLimitReached || "Mint limit reached", description: t.planLimits?.upgradePrompt || "Upgrade your plan", variant: "destructive" });
+      }
     },
   });
 }

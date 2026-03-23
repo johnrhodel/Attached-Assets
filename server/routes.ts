@@ -642,6 +642,17 @@ export async function registerRoutes(
       return res.json({ message: "Already confirmed", txHash });
     }
 
+    const drop = await storage.getDrop(session.dropId);
+    if (drop) {
+      if (drop.supply > 0 && drop.mintedCount >= drop.supply) {
+        return res.status(429).json({ message: "Drop supply exhausted" });
+      }
+      const planLimitsConfirm = await getDropOwnerPlanLimits(session.dropId);
+      if (planLimitsConfirm.maxMintsPerDrop !== null && drop.mintedCount >= planLimitsConfirm.maxMintsPerDrop) {
+        return res.status(429).json({ message: "PLAN_MINT_LIMIT", limit: planLimitsConfirm.maxMintsPerDrop, current: drop.mintedCount, planSlug: planLimitsConfirm.planSlug });
+      }
+    }
+
     await storage.markSessionConsumed(session.id);
     await storage.incrementMintCount(session.dropId);
 
