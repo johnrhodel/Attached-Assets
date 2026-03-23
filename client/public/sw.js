@@ -31,27 +31,17 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith('/api/')) return;
 
   const isStaticAsset = STATIC_ASSETS.includes(url.pathname);
-  const isNavigationRequest = event.request.mode === 'navigate';
-
-  if (!isStaticAsset && !isNavigationRequest) return;
+  if (!isStaticAsset) return;
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request).then((response) => {
-        if (response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return response;
+      if (cached) return cached;
+      return fetch(event.request).catch(() => {
+        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
       });
-      return cached || fetchPromise;
     })
   );
 });
