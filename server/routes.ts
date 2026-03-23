@@ -1227,7 +1227,12 @@ export async function registerRoutes(
       const locationId = Number(req.params.locationId);
       const QRCode = await import("qrcode");
       const baseUrl = `${req.protocol}://${req.get("host")}`;
-      const claimUrl = `${baseUrl}/claim/${locationId}`;
+      let claimUrl = `${baseUrl}/claim/${locationId}`;
+
+      const activeDrop = await storage.getActiveDrop(locationId);
+      if (activeDrop?.accessCode) {
+        claimUrl += `?accessCode=${encodeURIComponent(activeDrop.accessCode)}`;
+      }
       
       const format = req.query.format || "png";
       

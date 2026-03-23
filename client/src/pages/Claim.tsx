@@ -69,6 +69,7 @@ interface MintResult {
 function useDropByIdOrActive(locationId: number) {
   const searchParams = new URLSearchParams(window.location.search);
   const dropId = searchParams.get("dropId");
+  const accessCode = searchParams.get("accessCode");
 
   const activeDropQuery = useActiveDrop(locationId);
 
@@ -81,10 +82,32 @@ function useDropByIdOrActive(locationId: number) {
       if (drop.locationId !== locationId) return null;
       return drop;
     },
-    enabled: !!dropId && !!locationId,
+    enabled: !!dropId && !accessCode && !!locationId,
     retry: false,
   });
 
+  const accessCodeQuery = useQuery({
+    queryKey: ["/api/access-code/lookup", accessCode, locationId],
+    queryFn: async () => {
+      const res = await fetch("/api/access-code/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: accessCode }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.locationId !== locationId) return null;
+      return data.drop;
+    },
+    enabled: !!accessCode && !!locationId,
+    retry: false,
+  });
+
+  if (accessCode) {
+    if (accessCodeQuery.data) return accessCodeQuery;
+    if (accessCodeQuery.isLoading) return accessCodeQuery;
+    return activeDropQuery;
+  }
   if (dropId) {
     return specificDropQuery;
   }
