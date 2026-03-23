@@ -3,12 +3,14 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
-// === USERS (Admin) ===
+// === USERS (Admin + Organizer) ===
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role").default("admin").notNull(),
+  role: text("role").default("organizer").notNull(),
+  name: text("name"),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -19,6 +21,7 @@ export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  userId: integer("user_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -158,7 +161,15 @@ export const pricingPlans = pgTable("pricing_plans", {
 export const insertPricingPlanSchema = createInsertSchema(pricingPlans).omit({ id: true, updatedAt: true });
 
 // === RELATIONS ===
-export const projectsRelations = relations(projects, ({ many }) => ({
+export const usersRelations = relations(users, ({ many }) => ({
+  projects: many(projects),
+}));
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  user: one(users, {
+    fields: [projects.userId],
+    references: [users.id],
+  }),
   locations: many(locations),
 }));
 

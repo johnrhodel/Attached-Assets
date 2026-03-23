@@ -28,8 +28,22 @@ export const api = {
         password: z.string(),
       }),
       responses: {
-        200: z.object({ message: z.string() }), // Cookie based auth
+        200: z.object({ message: z.string() }),
         401: z.object({ message: z.string() }),
+      },
+    },
+    register: {
+      method: "POST" as const,
+      path: "/api/auth/register",
+      input: z.object({
+        email: z.string().email(),
+        password: z.string().min(8),
+        name: z.string().optional(),
+      }),
+      responses: {
+        201: z.object({ message: z.string() }),
+        400: z.object({ message: z.string() }),
+        409: z.object({ message: z.string() }),
       },
     },
     logout: {
@@ -43,7 +57,7 @@ export const api = {
       method: "GET" as const,
       path: "/api/auth/me",
       responses: {
-        200: z.object({ id: z.number(), email: z.string(), role: z.string() }),
+        200: z.object({ id: z.number(), email: z.string(), role: z.string(), name: z.string().nullable().optional() }),
         401: z.object({ message: z.string() }),
       },
     }

@@ -11,14 +11,17 @@ import { db } from "./db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
-  // Users (Admin)
+  // Users (Admin + Organizer)
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserPassword(id: number, passwordHash: string): Promise<void>;
+  getUsers(role?: string): Promise<User[]>;
 
   // Projects
   getProjects(): Promise<Project[]>;
+  getProjectsByUserId(userId: number): Promise<Project[]>;
+  getProject(id: number): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: number, data: Partial<InsertProject>): Promise<Project>;
   deleteProject(id: number): Promise<void>;
@@ -112,10 +115,23 @@ export class DatabaseStorage implements IStorage {
   async updateUserPassword(id: number, passwordHash: string): Promise<void> {
     await db.update(users).set({ passwordHash }).where(eq(users.id, id));
   }
+  async getUsers(role?: string): Promise<User[]> {
+    if (role) {
+      return await db.select().from(users).where(eq(users.role, role)).orderBy(desc(users.createdAt));
+    }
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
 
   // Projects
   async getProjects(): Promise<Project[]> {
     return await db.select().from(projects).orderBy(desc(projects.createdAt));
+  }
+  async getProjectsByUserId(userId: number): Promise<Project[]> {
+    return await db.select().from(projects).where(eq(projects.userId, userId)).orderBy(desc(projects.createdAt));
+  }
+  async getProject(id: number): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project;
   }
   async createProject(item: InsertProject): Promise<Project> {
     const [project] = await db.insert(projects).values(item).returning();
