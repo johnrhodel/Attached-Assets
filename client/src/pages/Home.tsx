@@ -336,7 +336,7 @@ export default function Home() {
             </p>
 
             <div className={`grid gap-6 grid-cols-1 max-w-6xl mx-auto ${pricingPlans.length === 1 ? 'sm:grid-cols-1 max-w-md' : pricingPlans.length === 2 ? 'sm:grid-cols-2 max-w-3xl' : pricingPlans.length === 3 ? 'sm:grid-cols-2 lg:grid-cols-3 max-w-5xl' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
-              {pricingPlans
+              {[...pricingPlans]
                 .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
                 .map((plan) => getLocalizedPlan(plan, t.pricing))
                 .map((plan) => (
