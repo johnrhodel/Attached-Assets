@@ -17,7 +17,11 @@ export default function AdminLogin() {
   const { t } = useI18n();
 
   if (user) {
-    setLocation("/admin/dashboard");
+    if (user.role === "admin") {
+      setLocation("/admin/dashboard");
+    } else {
+      setLocation("/organizer/dashboard");
+    }
     return null;
   }
 
@@ -51,7 +55,7 @@ export default function AdminLogin() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@memory.xyz"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -80,6 +84,12 @@ export default function AdminLogin() {
               {isLoggingIn ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : t.admin.loginButton}
             </Button>
           </form>
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            {t.auth.noAccount}{" "}
+            <Link href="/register" className="text-primary font-medium hover:underline" data-testid="link-to-register">
+              {t.auth.registerLink}
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

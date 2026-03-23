@@ -100,11 +100,68 @@ export async function registerRoutes(
   const LOGIN_RATE_LIMIT = 5;
   const LOGIN_RATE_WINDOW = 15 * 60 * 1000;
 
-  function requireAuth(req: any, res: any, next: any) {
+  async function requireAuth(req: any, res: any, next: any) {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(401).json({ message: "User not found" });
+    if (!user.isActive) return res.status(403).json({ message: "Account deactivated" });
+    (req as any).user = user;
     next();
   }
+
+  async function requireAdmin(req: any, res: any, next: any) {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getUser(userId);
+    if (!user || !user.isActive) return res.status(403).json({ message: "Account deactivated" });
+    if (user.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+    (req as any).user = user;
+    next();
+  }
+
+  async function requireProjectOwnership(req: any, res: any, next: any) {
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ message: "Not authenticated" });
+    if (user.role === "admin") return next();
+    const projectId = Number(req.params.projectId || req.params.id);
+    if (!projectId) return res.status(400).json({ message: "Project ID required" });
+    const project = await storage.getProject(projectId);
+    if (!project || project.userId !== user.id) return res.status(403).json({ message: "Access denied" });
+    next();
+  }
+
+  async function requireLocationOwnership(req: any, res: any, next: any) {
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ message: "Not authenticated" });
+    if (user.role === "admin") return next();
+    const locationId = Number(req.params.locationId || req.params.id);
+    if (!locationId) return res.status(400).json({ message: "Location ID required" });
+    const location = await storage.getLocation(locationId);
+    if (!location) return res.status(404).json({ message: "Location not found" });
+    const project = await storage.getProject(location.projectId);
+    if (!project || project.userId !== user.id) return res.status(403).json({ message: "Access denied" });
+    next();
+  }
+
+  async function requireDropOwnership(req: any, res: any, next: any) {
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ message: "Not authenticated" });
+    if (user.role === "admin") return next();
+    const dropId = Number(req.params.id);
+    if (!dropId) return res.status(400).json({ message: "Drop ID required" });
+    const drop = await storage.getDrop(dropId);
+    if (!drop) return res.status(404).json({ message: "Drop not found" });
+    const location = await storage.getLocation(drop.locationId);
+    if (!location) return res.status(404).json({ message: "Location not found" });
+    const project = await storage.getProject(location.projectId);
+    if (!project || project.userId !== user.id) return res.status(403).json({ message: "Access denied" });
+    next();
+  }
+
+  const REGISTER_RATE_LIMIT = 5;
+  const REGISTER_RATE_WINDOW = 15 * 60 * 1000;
+  const registerAttempts = new Map<string, { count: number; resetAt: number }>();
 
   function safeErrorMessage(err: any, context: string): string {
     console.error(`[${context}]`, err);
@@ -188,6 +245,10 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({ message: "Account deactivated" });
+    }
+
     loginAttempts.delete(ip);
 
     if (!user.passwordHash.includes(':')) {
@@ -196,6 +257,46 @@ export async function registerRoutes(
 
     (req.session as any).userId = user.id;
     res.json({ message: "Logged in" });
+  });
+
+  app.post(api.auth.register.path, async (req, res) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const attempt = registerAttempts.get(ip);
+    if (attempt && now < attempt.resetAt && attempt.count >= REGISTER_RATE_LIMIT) {
+      return res.status(429).json({ message: "Too many registration attempts. Please try again later." });
+    }
+
+    try {
+      const { email, password, name } = api.auth.register.input.parse(req.body);
+      const normalizedEmail = email.toLowerCase().trim();
+
+      const existing = await storage.getUserByEmail(normalizedEmail);
+      if (existing) {
+        if (!attempt || now >= attempt.resetAt) {
+          registerAttempts.set(ip, { count: 1, resetAt: now + REGISTER_RATE_WINDOW });
+        } else {
+          attempt.count++;
+        }
+        return res.status(409).json({ message: "Email already registered" });
+      }
+
+      await storage.createUser({
+        email: normalizedEmail,
+        passwordHash: hashPassword(password),
+        role: "organizer",
+        name: name || null,
+        isActive: true,
+      });
+
+      registerAttempts.delete(ip);
+      res.status(201).json({ message: "Account created successfully" });
+    } catch (err: any) {
+      if (err.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid registration data" });
+      }
+      res.status(500).json({ message: safeErrorMessage(err, "REGISTER") });
+    }
   });
 
   app.post(api.auth.logout.path, (req, res) => {
@@ -209,18 +310,26 @@ export async function registerRoutes(
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const user = await storage.getUser(userId);
     if (!user) return res.status(401).json({ message: "User not found" });
-    res.json(user);
+    if (!user.isActive) return res.status(403).json({ message: "Account deactivated" });
+    res.json({ id: user.id, email: user.email, role: user.role, name: user.name });
   });
 
   // === PROJECT / LOCATION / DROP ROUTES ===
-  app.get(api.projects.list.path, async (req, res) => {
-    const projects = await storage.getProjects();
+  app.get(api.projects.list.path, requireAuth, async (req, res) => {
+    const userId = (req.session as any).userId;
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(401).json({ message: "User not found" });
+    if (user.role === "admin") {
+      const projects = await storage.getProjects();
+      return res.json(projects);
+    }
+    const projects = await storage.getProjectsByUserId(userId);
     res.json(projects);
   });
 
   app.post(api.projects.create.path, requireAuth, async (req, res) => {
     const userId = (req.session as any).userId;
-    const project = await storage.createProject(req.body);
+    const project = await storage.createProject({ ...req.body, userId });
     await storage.createActivityLog({ userId, action: "create", entity: "project", entityId: project.id, details: `Created project "${project.name}"` });
     res.status(201).json(project);
   });
@@ -230,7 +339,7 @@ export async function registerRoutes(
     res.json(locations);
   });
 
-  app.post(api.locations.create.path, requireAuth, async (req, res) => {
+  app.post(api.locations.create.path, requireAuth, requireProjectOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
     const location = await storage.createLocation({
       ...req.body,
@@ -251,7 +360,7 @@ export async function registerRoutes(
     res.json(drops);
   });
 
-  app.post(api.drops.create.path, requireAuth, async (req, res) => {
+  app.post(api.drops.create.path, requireAuth, requireLocationOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
     const drop = await storage.createDrop({
       ...req.body,
@@ -273,55 +382,49 @@ export async function registerRoutes(
     res.json(drop);
   });
 
-  app.put(api.projects.update.path, async (req, res) => {
+  app.put(api.projects.update.path, requireAuth, requireProjectOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
-    if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const project = await storage.updateProject(Number(req.params.id), req.body);
     await storage.createActivityLog({ userId, action: "update", entity: "project", entityId: project.id, details: `Updated project "${project.name}"` });
     res.json(project);
   });
 
-  app.delete(api.projects.delete.path, async (req, res) => {
+  app.delete(api.projects.delete.path, requireAuth, requireProjectOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
-    if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.deleteProject(Number(req.params.id));
     await storage.createActivityLog({ userId, action: "delete", entity: "project", entityId: Number(req.params.id), details: `Deleted project #${req.params.id}` });
     res.json({ message: "Project deleted" });
   });
 
-  app.put(api.locations.update.path, async (req, res) => {
+  app.put(api.locations.update.path, requireAuth, requireLocationOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
-    if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.updateLocation(Number(req.params.id), req.body);
     await storage.createActivityLog({ userId, action: "update", entity: "location", entityId: Number(req.params.id), details: `Updated location #${req.params.id}` });
     res.json({ message: "Location updated" });
   });
 
-  app.delete(api.locations.delete.path, async (req, res) => {
+  app.delete(api.locations.delete.path, requireAuth, requireLocationOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
-    if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.deleteLocation(Number(req.params.id));
     await storage.createActivityLog({ userId, action: "delete", entity: "location", entityId: Number(req.params.id), details: `Deleted location #${req.params.id}` });
     res.json({ message: "Location deleted" });
   });
 
-  app.put(api.drops.update.path, async (req, res) => {
+  app.put(api.drops.update.path, requireAuth, requireDropOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
-    if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.updateDrop(Number(req.params.id), req.body);
     await storage.createActivityLog({ userId, action: "update", entity: "drop", entityId: Number(req.params.id), details: `Updated drop #${req.params.id}` });
     res.json({ message: "Drop updated" });
   });
 
-  app.delete(api.drops.delete.path, async (req, res) => {
+  app.delete(api.drops.delete.path, requireAuth, requireDropOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
-    if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.deleteDrop(Number(req.params.id));
     await storage.createActivityLog({ userId, action: "delete", entity: "drop", entityId: Number(req.params.id), details: `Deleted drop #${req.params.id}` });
     res.json({ message: "Drop deleted" });
   });
 
-  app.post(api.drops.publish.path, requireAuth, async (req, res) => {
+  app.post(api.drops.publish.path, requireAuth, requireDropOwnership, async (req, res) => {
     const drop = await storage.updateDropStatus(Number(req.params.id), "published");
     res.json(drop);
   });
@@ -753,7 +856,7 @@ export async function registerRoutes(
   });
 
   // === RESET MINTS (Admin only) ===
-  app.post("/api/admin/reset-mints", async (req, res) => {
+  app.post("/api/admin/reset-mints", requireAdmin, async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
     try {
       await storage.deleteAllMints();
@@ -766,7 +869,7 @@ export async function registerRoutes(
   });
 
   // === DASHBOARD STATS ===
-  app.get("/api/admin/stats", async (_req, res) => {
+  app.get("/api/admin/stats", requireAdmin, async (_req, res) => {
     try {
       const [allMints, allDrops, allLocations] = await Promise.all([
         storage.getAllMints(),
@@ -921,7 +1024,7 @@ export async function registerRoutes(
   });
 
   // === ACTIVITY LOGS ===
-  app.get("/api/admin/activity", async (req, res) => {
+  app.get("/api/admin/activity", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const logs = await storage.getActivityLogs(200);
@@ -929,7 +1032,7 @@ export async function registerRoutes(
   });
 
   // === PLATFORM SETTINGS ===
-  app.get("/api/admin/settings", async (req, res) => {
+  app.get("/api/admin/settings", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const settings = await storage.getAllSettings();
@@ -938,7 +1041,7 @@ export async function registerRoutes(
     res.json(settingsMap);
   });
 
-  app.put("/api/admin/settings", async (req, res) => {
+  app.put("/api/admin/settings", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const entries = req.body as Record<string, string>;
@@ -955,7 +1058,7 @@ export async function registerRoutes(
   });
 
   // === NOTIFICATIONS ===
-  app.get("/api/admin/notifications", async (req, res) => {
+  app.get("/api/admin/notifications", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const notifs = await storage.getNotifications(50);
@@ -963,14 +1066,14 @@ export async function registerRoutes(
     res.json({ notifications: notifs, unreadCount: unread });
   });
 
-  app.post("/api/admin/notifications/read-all", async (req, res) => {
+  app.post("/api/admin/notifications/read-all", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.markAllNotificationsRead();
     res.json({ success: true });
   });
 
-  app.post("/api/admin/notifications/:id/read", async (req, res) => {
+  app.post("/api/admin/notifications/:id/read", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.markNotificationRead(Number(req.params.id));
@@ -978,7 +1081,7 @@ export async function registerRoutes(
   });
 
   // === ADMIN PRICING ===
-  app.get("/api/admin/pricing", async (req, res) => {
+  app.get("/api/admin/pricing", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     try {
@@ -989,7 +1092,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/pricing", async (req, res) => {
+  app.post("/api/admin/pricing", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     try {
@@ -1003,7 +1106,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/admin/pricing/:id", async (req, res) => {
+  app.put("/api/admin/pricing/:id", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     try {
@@ -1018,7 +1121,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin/pricing/:id", async (req, res) => {
+  app.delete("/api/admin/pricing/:id", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     try {
@@ -1031,7 +1134,7 @@ export async function registerRoutes(
   });
 
   // === CSV EXPORT ===
-  app.get("/api/admin/export/mints", async (req, res) => {
+  app.get("/api/admin/export/mints", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const allMints = await storage.getAllMints();
@@ -1049,7 +1152,7 @@ export async function registerRoutes(
     res.send(csv);
   });
 
-  app.get("/api/admin/export/users", async (req, res) => {
+  app.get("/api/admin/export/users", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const { db: database } = await import("./db");
@@ -1068,7 +1171,7 @@ export async function registerRoutes(
   });
 
   // === DUPLICATE DROP ===
-  app.post("/api/admin/drops/:id/duplicate", async (req, res) => {
+  app.post("/api/admin/drops/:id/duplicate", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const drop = await storage.getDrop(Number(req.params.id));
@@ -1096,7 +1199,7 @@ export async function registerRoutes(
   });
 
   // === ENHANCED STELLAR STATUS ===
-  app.get("/api/admin/stellar/detailed", async (req, res) => {
+  app.get("/api/admin/stellar/detailed", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     try {
