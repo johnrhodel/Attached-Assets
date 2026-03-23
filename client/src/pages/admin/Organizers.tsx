@@ -184,10 +184,10 @@ export default function Organizers() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t.admin.allPlans}</SelectItem>
-                  <SelectItem value="free">Free</SelectItem>
-                  <SelectItem value="starter">Starter</SelectItem>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                  <SelectItem value="free">{t.pricing.free}</SelectItem>
+                  <SelectItem value="starter">{t.pricing.starter}</SelectItem>
+                  <SelectItem value="professional">{t.pricing.professional}</SelectItem>
+                  <SelectItem value="enterprise">{t.pricing.enterprise}</SelectItem>
                 </SelectContent>
               </Select>
               <Input
