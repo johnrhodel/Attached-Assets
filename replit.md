@@ -48,6 +48,7 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 - **Admin Organizer Panel**: `/admin/organizers` — list all organizers with filters (plan, search, date), pagination, activate/deactivate. `/admin/organizers/:id` — organizer detail with projects/locations/drops/mints hierarchy. Global stats: total, active, new this month, plan distribution, free→paid conversion.
 - **Organizer Dashboard**: `/organizer/dashboard` — stat cards, plan usage bar, projects list, create project, mints chart, drops overview, recent mints. Organizers only see their own data.
 - **Organizer Registration**: Self-registration at `/register` with email/password/name. Assigned Free plan. Redirected to login page (`/admin/login`). After login, role-based redirects (admin → `/admin/dashboard`, organizer → `/organizer/dashboard`).
+- **Login Page**: `/admin/login` with back-to-home button, "Register here" link for new organizers, and i18n support.
 - **Email Service**: Verification codes and mint confirmations via Resend.
 - **Internationalization (i18n)**: Full EN/PT/ES with automatic browser language detection.
 - **Custodial Wallet System**: Stellar keypairs encrypted with AES-256-CBC for server-side minting.
