@@ -22,6 +22,8 @@ import Drops from "@/pages/admin/Drops";
 import Activity from "@/pages/admin/Activity";
 import Settings from "@/pages/admin/Settings";
 import Notifications from "@/pages/admin/Notifications";
+import Organizers from "@/pages/admin/Organizers";
+import OrganizerDetail from "@/pages/admin/OrganizerDetail";
 
 import OrganizerDashboard from "@/pages/organizer/Dashboard";
 
@@ -86,6 +88,12 @@ function Router() {
       </Route>
       <Route path="/admin/notifications">
         {() => <ProtectedRoute component={Notifications} requiredRole="admin" />}
+      </Route>
+      <Route path="/admin/organizers/:id">
+        {() => <ProtectedRoute component={OrganizerDetail} requiredRole="admin" />}
+      </Route>
+      <Route path="/admin/organizers">
+        {() => <ProtectedRoute component={Organizers} requiredRole="admin" />}
       </Route>
 
       <Route path="/organizer/dashboard">

@@ -101,6 +101,35 @@ export interface IStorage {
   getUserPlanLimits(userId: number): Promise<{ maxMintsPerDrop: number | null; maxLocations: number | null; planSlug: string }>;
   getLocationCountByUserId(userId: number): Promise<number>;
 
+  // Admin Organizer Management
+  getAllOrganizers(filters?: { planSlug?: string; search?: string; page?: number; limit?: number }): Promise<{
+    organizers: Array<{
+      id: number;
+      email: string;
+      name: string | null;
+      planSlug: string | null;
+      isActive: boolean;
+      createdAt: Date;
+      totalMints: number;
+      totalProjects: number;
+    }>;
+    total: number;
+  }>;
+  getOrganizerDetails(userId: number): Promise<{
+    user: User;
+    projects: Array<Project & { locations: Array<Location & { drops: Array<Drop & { mintCount: number }> }> }>;
+    totalMints: number;
+  } | undefined>;
+  getOrganizerGlobalStats(): Promise<{
+    totalOrganizers: number;
+    activeOrganizers: number;
+    newLastMonth: number;
+    byPlan: Record<string, number>;
+    conversionRate: number;
+    totalPlatformMints: number;
+  }>;
+  toggleOrganizerStatus(userId: number, active: boolean): Promise<void>;
+
   // Organizer Dashboard
   getOrganizerStats(userId: number): Promise<{
     totalMints: number;
@@ -567,6 +596,112 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
 
     return results;
+  }
+
+  // Admin Organizer Management
+  async getAllOrganizers(filters?: { planSlug?: string; search?: string; page?: number; limit?: number }) {
+    const page = filters?.page ?? 1;
+    const limit = filters?.limit ?? 20;
+    const offset = (page - 1) * limit;
+
+    let allOrganizers = await db.select().from(users).where(eq(users.role, "organizer")).orderBy(desc(users.createdAt));
+
+    if (filters?.planSlug) {
+      allOrganizers = allOrganizers.filter(u => u.planSlug === filters.planSlug);
+    }
+    if (filters?.search) {
+      const q = filters.search.toLowerCase();
+      allOrganizers = allOrganizers.filter(u =>
+        u.email.toLowerCase().includes(q) || (u.name && u.name.toLowerCase().includes(q))
+      );
+    }
+
+    const total = allOrganizers.length;
+    const paged = allOrganizers.slice(offset, offset + limit);
+
+    const organizers = await Promise.all(paged.map(async (u) => {
+      const userProjects = await db.select().from(projects).where(eq(projects.userId, u.id));
+      const projectIds = userProjects.map(p => p.id);
+      let totalMints = 0;
+      if (projectIds.length > 0) {
+        const userLocations = await db.select().from(locations).where(inArray(locations.projectId, projectIds));
+        const locationIds = userLocations.map(l => l.id);
+        if (locationIds.length > 0) {
+          const userDrops = await db.select().from(drops).where(inArray(drops.locationId, locationIds));
+          const dropIds = userDrops.map(d => d.id);
+          if (dropIds.length > 0) {
+            const userMints = await db.select().from(mints).where(inArray(mints.dropId, dropIds));
+            totalMints = userMints.filter(m => m.status === "confirmed").length;
+          }
+        }
+      }
+      return {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        planSlug: u.planSlug,
+        isActive: u.isActive,
+        createdAt: u.createdAt,
+        totalMints,
+        totalProjects: userProjects.length,
+      };
+    }));
+
+    return { organizers, total };
+  }
+
+  async getOrganizerDetails(userId: number) {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user || user.role !== "organizer") return undefined;
+
+    const userProjects = await db.select().from(projects).where(eq(projects.userId, userId));
+    let totalMints = 0;
+
+    const projectsWithDetails = await Promise.all(userProjects.map(async (project) => {
+      const projectLocations = await db.select().from(locations).where(eq(locations.projectId, project.id));
+      const locationsWithDrops = await Promise.all(projectLocations.map(async (loc) => {
+        const locationDrops = await db.select().from(drops).where(eq(drops.locationId, loc.id));
+        const dropsWithMints = await Promise.all(locationDrops.map(async (drop) => {
+          const dropMints = await db.select().from(mints).where(eq(mints.dropId, drop.id));
+          const confirmed = dropMints.filter(m => m.status === "confirmed").length;
+          totalMints += confirmed;
+          return { ...drop, mintCount: confirmed };
+        }));
+        return { ...loc, drops: dropsWithMints };
+      }));
+      return { ...project, locations: locationsWithDrops };
+    }));
+
+    return { user, projects: projectsWithDetails, totalMints };
+  }
+
+  async getOrganizerGlobalStats() {
+    const allOrganizers = await db.select().from(users).where(eq(users.role, "organizer"));
+    const totalOrganizers = allOrganizers.length;
+    const activeOrganizers = allOrganizers.filter(u => u.isActive).length;
+
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const newLastMonth = allOrganizers.filter(u => u.createdAt >= oneMonthAgo).length;
+
+    const byPlan: Record<string, number> = {};
+    allOrganizers.forEach(u => {
+      const plan = u.planSlug || "free";
+      byPlan[plan] = (byPlan[plan] || 0) + 1;
+    });
+
+    const freeCount = byPlan["free"] || 0;
+    const paidCount = totalOrganizers - freeCount;
+    const conversionRate = totalOrganizers > 0 ? Math.round((paidCount / totalOrganizers) * 100) : 0;
+
+    const allMintsList = await db.select().from(mints);
+    const totalPlatformMints = allMintsList.filter(m => m.status === "confirmed").length;
+
+    return { totalOrganizers, activeOrganizers, newLastMonth, byPlan, conversionRate, totalPlatformMints };
+  }
+
+  async toggleOrganizerStatus(userId: number, active: boolean) {
+    await db.update(users).set({ isActive: active }).where(eq(users.id, userId));
   }
 }
 

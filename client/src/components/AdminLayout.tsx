@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, MapPin, Layers, LogOut, Menu, Settings, ClipboardList, Bell } from "lucide-react";
+import { LayoutDashboard, MapPin, Layers, LogOut, Menu, Settings, ClipboardList, Bell, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/language-selector";
@@ -23,6 +23,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/dashboard", label: t.nav.dashboard, icon: LayoutDashboard },
     { href: "/admin/projects", label: t.nav.projects, icon: MapPin },
     { href: "/admin/drops", label: t.nav.drops, icon: Layers },
+    { href: "/admin/organizers", label: t.admin.organizers || "Organizers", icon: Users },
     { href: "/admin/activity", label: t.nav.activity || "Activity", icon: ClipboardList },
     { href: "/admin/notifications", label: t.nav.notifications || "Notifications", icon: Bell },
     { href: "/admin/settings", label: t.nav.settings || "Settings", icon: Settings },

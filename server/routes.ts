@@ -1301,6 +1301,66 @@ export async function registerRoutes(
     res.send(csv);
   });
 
+  // === ADMIN ORGANIZER MANAGEMENT ===
+  app.get("/api/admin/organizers/stats", requireAdmin, async (_req, res) => {
+    try {
+      const stats = await storage.getOrganizerGlobalStats();
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch organizer stats" });
+    }
+  });
+
+  app.get("/api/admin/organizers", requireAdmin, async (req, res) => {
+    try {
+      const filters = {
+        planSlug: req.query.planSlug as string | undefined,
+        search: req.query.search as string | undefined,
+        page: req.query.page ? Number(req.query.page) : 1,
+        limit: req.query.limit ? Number(req.query.limit) : 20,
+      };
+      const result = await storage.getAllOrganizers(filters);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch organizers" });
+    }
+  });
+
+  app.get("/api/admin/organizers/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!id || isNaN(id)) return res.status(400).json({ message: "Invalid organizer ID" });
+      const details = await storage.getOrganizerDetails(id);
+      if (!details) return res.status(404).json({ message: "Organizer not found" });
+      const { passwordHash, ...safeUser } = details.user;
+      res.json({ ...details, user: safeUser });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch organizer details" });
+    }
+  });
+
+  app.patch("/api/admin/organizers/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!id || isNaN(id)) return res.status(400).json({ message: "Invalid organizer ID" });
+      const { active } = req.body;
+      if (typeof active !== "boolean") return res.status(400).json({ message: "active field required" });
+      const targetUser = await storage.getUser(id);
+      if (!targetUser || targetUser.role !== "organizer") return res.status(404).json({ message: "Organizer not found" });
+      await storage.toggleOrganizerStatus(id, active);
+      const userId = (req.session as any).userId;
+      await storage.createActivityLog({
+        userId,
+        action: active ? "activate" : "deactivate",
+        entity: "organizer",
+        details: `Organizer #${req.params.id} ${active ? "activated" : "deactivated"}`,
+      });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to update organizer" });
+    }
+  });
+
   // === DUPLICATE DROP ===
   app.post("/api/admin/drops/:id/duplicate", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
