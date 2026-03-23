@@ -53,6 +53,7 @@ export default function Organizers() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("");
   const [page, setPage] = useState(1);
 
   const { data: stats, isLoading: statsLoading } = useQuery<OrganizerStats>({
@@ -60,11 +61,12 @@ export default function Organizers() {
   });
 
   const { data: organizerData, isLoading: listLoading } = useQuery<OrganizerListResponse>({
-    queryKey: ["/api/admin/organizers", planFilter, searchQuery, page],
+    queryKey: ["/api/admin/organizers", planFilter, searchQuery, dateFilter, page],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (planFilter !== "all") params.set("planSlug", planFilter);
       if (searchQuery) params.set("search", searchQuery);
+      if (dateFilter) params.set("since", dateFilter);
       params.set("page", String(page));
       params.set("limit", "20");
       const res = await fetch(`/api/admin/organizers?${params}`, { credentials: "include" });
@@ -188,6 +190,13 @@ export default function Organizers() {
                   <SelectItem value="enterprise">Enterprise</SelectItem>
                 </SelectContent>
               </Select>
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => { setDateFilter(e.target.value); setPage(1); }}
+                className="w-[180px]"
+                data-testid="input-date-filter"
+              />
             </div>
           </CardHeader>
           <CardContent>
@@ -197,19 +206,20 @@ export default function Organizers() {
               </div>
             ) : (organizerData?.organizers?.length ?? 0) > 0 ? (
               <div className="space-y-0">
-                <div className="hidden md:grid grid-cols-7 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b">
+                <div className="hidden md:grid grid-cols-8 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b">
                   <span>{t.admin.name}</span>
                   <span>{t.admin.email}</span>
                   <span>{t.admin.plan}</span>
                   <span className="text-center">{t.admin.projects}</span>
                   <span className="text-center">{t.admin.mints}</span>
+                  <span>{t.admin.joined}</span>
                   <span>{t.admin.status}</span>
                   <span className="text-right">{t.admin.actions}</span>
                 </div>
                 {organizerData!.organizers.map((org) => (
                   <div
                     key={org.id}
-                    className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-4 px-4 py-3 border-b last:border-0 items-center hover:bg-accent/50 transition-colors"
+                    className="grid grid-cols-1 md:grid-cols-8 gap-2 md:gap-4 px-4 py-3 border-b last:border-0 items-center hover:bg-accent/50 transition-colors"
                     data-testid={`row-organizer-${org.id}`}
                   >
                     <div className="font-medium truncate" data-testid={`text-org-name-${org.id}`}>
@@ -228,6 +238,9 @@ export default function Organizers() {
                     </div>
                     <div className="text-center font-medium" data-testid={`text-org-mints-${org.id}`}>
                       {org.totalMints}
+                    </div>
+                    <div className="text-sm text-muted-foreground" data-testid={`text-org-joined-${org.id}`}>
+                      {new Date(org.createdAt).toLocaleDateString()}
                     </div>
                     <div>
                       <Badge variant={org.isActive ? "default" : "destructive"} data-testid={`badge-org-status-${org.id}`}>

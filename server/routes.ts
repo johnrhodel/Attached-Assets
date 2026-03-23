@@ -1316,6 +1316,7 @@ export async function registerRoutes(
       const filters = {
         planSlug: req.query.planSlug as string | undefined,
         search: req.query.search as string | undefined,
+        since: req.query.since as string | undefined,
         page: req.query.page ? Number(req.query.page) : 1,
         limit: req.query.limit ? Number(req.query.limit) : 20,
       };

@@ -102,7 +102,7 @@ export interface IStorage {
   getLocationCountByUserId(userId: number): Promise<number>;
 
   // Admin Organizer Management
-  getAllOrganizers(filters?: { planSlug?: string; search?: string; page?: number; limit?: number }): Promise<{
+  getAllOrganizers(filters?: { planSlug?: string; search?: string; since?: string; page?: number; limit?: number }): Promise<{
     organizers: Array<{
       id: number;
       email: string;
@@ -599,7 +599,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin Organizer Management
-  async getAllOrganizers(filters?: { planSlug?: string; search?: string; page?: number; limit?: number }) {
+  async getAllOrganizers(filters?: { planSlug?: string; search?: string; since?: string; page?: number; limit?: number }) {
     const page = filters?.page ?? 1;
     const limit = filters?.limit ?? 20;
     const offset = (page - 1) * limit;
@@ -608,6 +608,10 @@ export class DatabaseStorage implements IStorage {
 
     if (filters?.planSlug) {
       allOrganizers = allOrganizers.filter(u => u.planSlug === filters.planSlug);
+    }
+    if (filters?.since) {
+      const sinceDate = new Date(filters.since);
+      allOrganizers = allOrganizers.filter(u => u.createdAt >= sinceDate);
     }
     if (filters?.search) {
       const q = filters.search.toLowerCase();
