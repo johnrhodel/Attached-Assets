@@ -1,45 +1,90 @@
 # Mintoria - Commemorative NFT Minting Platform
 
 ## Overview
-Mintoria is a plug-and-play platform for minting commemorative NFTs for visitors at tourist locations and events. It enables quick NFT claims via QR code on mobile devices and exclusively uses the Stellar blockchain (testnet) for its efficiency. EVM and Solana chain routes return 503 (disabled). The platform includes an admin interface for creating monthly "drops" across various locations, supports internationalization (EN/PT/ES) with automatic browser language detection, and offers email-based custodial minting without requiring crypto wallets. Key features include embeddable widget integration, PWA functionality, and social sharing (Twitter/X + Instagram). The project is evolving from a single-admin tool to a multi-tenant platform with organizer self-registration and freemium plans (Free/Starter/Professional/Enterprise). Plan-based mint limits and location limits are enforced server-side. Future plans include Soroban smart contracts, an NFT marketplace, and AI-powered NFT generation.
+Mintoria is a multi-tenant SaaS platform for minting commemorative NFTs at tourist locations and events, built exclusively on the Stellar blockchain (testnet). Visitors scan QR codes, enter their email, and receive NFTs — no crypto wallet needed. The platform supports self-service organizer registration with a freemium model (Free/Starter/Professional/Enterprise), plan-based mint and location limits, admin oversight of all organizers, full internationalization (EN/PT/ES), PWA functionality, and social sharing.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language. User speaks Portuguese.
 
 ## System Architecture
-Mintoria utilizes a client-server architecture. The frontend is a React application, and the backend is a Node.js Express server. Data is stored in PostgreSQL, and blockchain interactions are exclusively handled with Stellar (testnet). EVM and Solana routes return 503.
+Mintoria uses a client-server architecture with a React frontend, Node.js/Express backend, PostgreSQL database, and Stellar blockchain (testnet only). EVM and Solana chain routes return 503 (disabled).
+
+### Multi-Tenant Model
+The platform supports two user roles:
+- **Admin**: Full platform control — manages all projects, locations, drops, organizers, pricing plans, settings, and system health. Can activate/deactivate organizer accounts.
+- **Organizer**: Self-registers at `/register`, assigned the Free plan by default. Owns their projects, locations, and drops. Subject to plan-based limits (mints per drop, max locations). Data is isolated — organizers only see their own resources.
+
+Middleware chain enforces access control: `requireAuth` → `requireAdmin` / `requireOrganizerOrAdmin` / `requireProjectOwnership` / `requireDropOwnership`.
 
 ### Frontend
-The UI is built with React 18, TypeScript, and Tailwind CSS, utilizing `shadcn/ui` components, Wouter for routing, and TanStack React Query for state management. Framer Motion handles animations. The application supports PWA functionality and internationalization for English, Portuguese, and Spanish with automatic browser language detection and a professional blue-based color scheme. Local images are served from `/client/public/images/` (e.g., `rio-cristo-redentor.png`, `curitiba-jardim-botanico.png`, `foz-cataratas.png`).
+React 18 + TypeScript + Tailwind CSS + `shadcn/ui` components. Wouter for routing, TanStack React Query for state management, Framer Motion for animations. Supports PWA (manifest + service worker), i18n (EN/PT/ES with auto browser language detection), and a professional blue-based color scheme. Local images served from `/client/public/images/`.
 
 ### Backend
-The backend is a Node.js Express application in TypeScript (ESM), providing RESTful APIs for claim sessions, anti-fraud measures, and blockchain interactions. Zod is used for validation, and Helmet provides security headers. Authentication uses cookie-based sessions, and passwords are scrypt-hashed. Middleware chain: `requireAuth` → `requireAdmin` / `requireOrganizerOrAdmin` / `requireProjectOwnership` / `requireDropOwnership`.
+Node.js Express in TypeScript (ESM). RESTful APIs for claim sessions, anti-fraud, blockchain interactions, multi-tenant CRUD, and organizer management. Zod for validation, Helmet for security headers, cookie-based sessions, scrypt-hashed passwords.
 
-### Data Management
-PostgreSQL, managed by Drizzle ORM, is the primary database, storing all application data including user, project, location, drop, mint, custodial wallet, pricing plan, and notification records. Users have a `planSlug` field (default "free") linking to pricing plans. Pricing plans include `slug`, `maxMintsPerDrop`, and `maxLocations` fields for enforcement.
+### Database Schema
+PostgreSQL managed by Drizzle ORM. Tables:
+- **users**: `id`, `email`, `passwordHash`, `role` (admin/organizer), `name`, `isActive`, `planSlug` (default "free"), `createdAt`
+- **projects**: `id`, `name`, `slug`, `userId` (FK → users), `createdAt`
+- **locations**: `id`, `projectId` (FK → projects), `name`, `slug`, `createdAt`
+- **drops**: `id`, `locationId`, `title`, `month`, `year`, `imageUrl`, `metadataUrl`, `supply`, `mintedCount`, `status`, `enabledChains`, `accessCode`, `createdAt`
+- **mints**: `id`, `dropId`, `chain`, `recipient`, `txHash`, `status`, `email`, `createdAt` (unique index on email+dropId)
+- **claim_sessions**: `id`, `dropId`, `tokenHash`, `status`, `ipHash`, `expiresAt`, `consumedAt`, `createdAt`
+- **walletless_users**: `id`, `email`, `verifiedAt`, `createdAt`
+- **walletless_keys**: `id`, `walletlessUserId`, `chain`, `address`, `encryptedSecret`, `createdAt`
+- **activity_logs**: `id`, `userId`, `action`, `entity`, `entityId`, `details`, `createdAt`
+- **platform_settings**: `id`, `key`, `value`, `updatedAt`
+- **notifications**: `id`, `type`, `title`, `message`, `read`, `createdAt`
+- **pricing_plans**: `id`, `name`, `slug`, `description`, `price`, `pricePer`, `features`, `highlighted`, `sortOrder`, `isActive`, `maxMintsPerDrop`, `maxLocations`, `updatedAt`
 
 ### Blockchain Interaction
-Mintoria integrates exclusively with the Stellar blockchain via `stellar-sdk` and the Horizon API (testnet only). EVM and Solana routes return 503 (disabled). NFTs are minted by storing metadata on-chain using `manageData` operations. Server-side Stellar keypair generation only. Custodial wallets use Stellar keypairs encrypted with AES-256-CBC via `WALLET_ENCRYPTION_SECRET`.
+Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes return 503. NFTs minted using `manageData` operations. Server-side Stellar keypair generation. Custodial wallets use AES-256-CBC encryption via `WALLET_ENCRYPTION_SECRET`.
 
 ### Core Features
 - **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitor NFT claims with access code verification.
 - **NFT Gallery**: `/gallery/:locationId` displays minted NFTs for a location.
 - **User NFT Lookup**: `/my-nfts` allows users to find their NFTs by email.
-- **Admin Dashboard**: For project, location, and drop management, analytics, system health, and mint reset capability.
-- **Organizer Dashboard**: Dedicated layout (`/organizer`) for organizers with stat cards, plan usage bar, projects list, create project dialog, mints chart, drops overview, and recent mints.
-- **Organizer Registration**: Self-registration at `/register` with role-based redirects (admin → `/admin`, organizer → `/organizer`).
-- **Email Service**: For sending verification codes and mint confirmations via Resend.
-- **Internationalization (i18n)**: Full support for English, Portuguese, and Spanish with automatic browser language detection.
-- **Custodial Wallet System**: Generates and encrypts Stellar keypairs for server-side minting without user crypto wallets.
+- **Admin Dashboard**: Project/location/drop management, analytics (mints by month, by location), Stellar health monitor, mint reset, CSV export, organizer summary cards (total organizers, active, conversion rate).
+- **Admin Organizer Panel**: `/admin/organizers` — list all organizers with filters (plan, search, date), pagination, activate/deactivate. `/admin/organizers/:id` — organizer detail with projects/locations/drops/mints hierarchy. Global stats: total, active, new this month, plan distribution, free→paid conversion.
+- **Organizer Dashboard**: `/organizer` — stat cards, plan usage bar, projects list, create project, mints chart, drops overview, recent mints. Organizers only see their own data.
+- **Organizer Registration**: Self-registration at `/register` with email/password/name. Assigned Free plan. Role-based redirects (admin → `/admin`, organizer → `/organizer`).
+- **Email Service**: Verification codes and mint confirmations via Resend.
+- **Internationalization (i18n)**: Full EN/PT/ES with automatic browser language detection.
+- **Custodial Wallet System**: Stellar keypairs encrypted with AES-256-CBC for server-side minting.
 - **PWA & Embed**: PWA with manifest/service worker, iFrame embed, and script widget.
-- **Social Sharing**: After minting, visitors can share their NFT to Twitter/X, Instagram, or download the NFT image.
-- **Plan-Based Limits**: Server-side enforcement of mint limits per drop and location limits per plan (Free: 50 mints/drop, 1 location).
-- **Reset Mints**: Admin-only endpoint (`POST /api/admin/reset-mints`) to reset all mint counts.
-- **Demo Locations**: 4 seeded locations with access codes — Paris (PARIS2026), Rio de Janeiro (RIO2026), Curitiba (CURITIBA2026), Foz do Iguaçu (FOZ2026).
+- **Social Sharing**: Twitter/X, Instagram, download NFT image after minting.
+- **Plan-Based Limits**: Server-side enforcement — mint limits per drop and location limits per plan. Admin bypasses limits. Structured error codes: `PLAN_MINT_LIMIT`, `PLAN_LOCATION_LIMIT`.
+- **Reset Mints**: Admin-only endpoint (`POST /api/admin/reset-mints`).
+- **Demo Locations**: 4 seeded locations — Paris (PARIS2026), Rio de Janeiro (RIO2026), Curitiba (CURITIBA2026), Foz do Iguaçu (FOZ2026).
+
+### Key Flows
+
+**Visitor Mint Flow**:
+1. Visitor scans QR code → opens `/claim/:locationId`
+2. Enters access code (if required by drop)
+3. Clicks "Claim Your Memory" → system creates anti-fraud session (5-min expiry)
+4. Enters email → system sends 6-digit verification code
+5. Enters code → system validates
+6. **Plan limit check**: system verifies organizer's plan allows more mints for this drop
+7. Server generates custodial Stellar wallet → mints NFT via `manageData` → records in DB
+8. Confirmation email sent → visitor can share on social media
+
+**Organizer Registration Flow**:
+1. Visits `/register` → enters name, email, password
+2. System creates user with `role: "organizer"`, `planSlug: "free"`, `isActive: true`
+3. Redirected to organizer dashboard (`/organizer`)
+4. Creates projects → locations → drops within plan limits
+5. Generates QR codes, monitors mints on their dashboard
+
+**Admin Organizer Management Flow**:
+1. Admin views `/admin/organizers` → sees all organizers with metrics
+2. Filters by plan, searches by email/name, filters by registration date
+3. Views organizer details → sees their projects, locations, drops, mint counts
+4. Can activate/deactivate organizer accounts
 
 ### Business Model / Pricing Tiers
-- **Free**: 50 mints/event, 1 location (default for organizer registration)
-- **Starter**: R$599/event, up to 500 mints, QR code generation, basic analytics, email support
+- **Free**: 50 mints/drop, 1 location (default for organizer registration)
+- **Starter**: R$599/event, up to 500 mints, 1 location, QR codes, basic analytics, email support
 - **Professional**: R$1,497/month, unlimited mints, up to 5 locations, advanced analytics, priority support, custom branding
 - **Enterprise**: R$4,997/month, everything unlimited, white-label, API access, dedicated support, custom integrations
 
@@ -47,10 +92,13 @@ Mintoria integrates exclusively with the Stellar blockchain via `stellar-sdk` an
 - Helmet middleware for HTTP security headers.
 - Session cookies with `httpOnly`, `secure`, and `sameSite: 'lax'`.
 - Middleware chain: `requireAuth`, `requireAdmin`, `requireOrganizerOrAdmin`, `requireProjectOwnership`, `requireDropOwnership`.
-- Login rate limiting (5 attempts/15min), registration rate limiting, production secrets enforcement, and sanitized error responses.
+- Login rate limiting (5 attempts/15min), registration rate limiting, production secrets enforcement, sanitized error responses.
 - Cryptographically secure verification tokens.
 - Admin-only mint reset capability.
-- Plan-based enforcement returns structured error codes (`PLAN_MINT_LIMIT`, `PLAN_LOCATION_LIMIT`).
+- Plan-based enforcement with structured error codes.
+- Data isolation: organizers only access their own projects/locations/drops via ownership middleware.
+- Organizer detail API strips `passwordHash` from responses.
+- Organizer toggle validates target role before status change.
 
 ### Key Credentials (Dev/Seed)
 - Seeded admin and demo location access codes exist for development testing.
