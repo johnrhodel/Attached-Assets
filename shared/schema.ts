@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   role: text("role").default("admin").notNull(),
   name: text("name"),
   isActive: boolean("is_active").default(true).notNull(),
+  planSlug: text("plan_slug").default("free"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -148,6 +149,7 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 export const pricingPlans = pgTable("pricing_plans", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  slug: text("slug"),
   description: text("description").notNull(),
   price: text("price").notNull(),
   pricePer: text("price_per").notNull(),
@@ -155,6 +157,8 @@ export const pricingPlans = pgTable("pricing_plans", {
   highlighted: boolean("highlighted").default(false).notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
+  maxMintsPerDrop: integer("max_mints_per_drop"),
+  maxLocations: integer("max_locations"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

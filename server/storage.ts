@@ -97,6 +97,10 @@ export interface IStorage {
   updatePricingPlan(id: number, data: Partial<InsertPricingPlan>): Promise<PricingPlan>;
   deletePricingPlan(id: number): Promise<void>;
 
+  // Plan Limits
+  getUserPlanLimits(userId: number): Promise<{ maxMintsPerDrop: number | null; maxLocations: number | null; planSlug: string }>;
+  getLocationCountByUserId(userId: number): Promise<number>;
+
   // Organizer Dashboard
   getOrganizerStats(userId: number): Promise<{
     totalMints: number;
@@ -458,6 +462,24 @@ export class DatabaseStorage implements IStorage {
   }
   async deletePricingPlan(id: number): Promise<void> {
     await db.delete(pricingPlans).where(eq(pricingPlans.id, id));
+  }
+
+  // Plan Limits
+  async getUserPlanLimits(userId: number): Promise<{ maxMintsPerDrop: number | null; maxLocations: number | null; planSlug: string }> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return { maxMintsPerDrop: 50, maxLocations: 1, planSlug: "free" };
+    const planSlug = user.planSlug || "free";
+    const [plan] = await db.select().from(pricingPlans).where(eq(pricingPlans.slug, planSlug));
+    if (!plan) return { maxMintsPerDrop: 50, maxLocations: 1, planSlug };
+    return { maxMintsPerDrop: plan.maxMintsPerDrop, maxLocations: plan.maxLocations, planSlug };
+  }
+
+  async getLocationCountByUserId(userId: number): Promise<number> {
+    const userProjects = await db.select().from(projects).where(eq(projects.userId, userId));
+    if (userProjects.length === 0) return 0;
+    const projectIds = userProjects.map(p => p.id);
+    const userLocations = await db.select().from(locations).where(inArray(locations.projectId, projectIds));
+    return userLocations.length;
   }
 
   // Organizer Dashboard

@@ -159,6 +159,19 @@ export async function registerRoutes(
     next();
   }
 
+  async function getDropOwnerPlanLimits(dropId: number): Promise<{ maxMintsPerDrop: number | null; maxLocations: number | null; planSlug: string; ownerId: number | null }> {
+    const drop = await storage.getDrop(dropId);
+    if (!drop) return { maxMintsPerDrop: null, maxLocations: null, planSlug: "free", ownerId: null };
+    const location = await storage.getLocation(drop.locationId);
+    if (!location) return { maxMintsPerDrop: null, maxLocations: null, planSlug: "free", ownerId: null };
+    const project = await storage.getProject(location.projectId);
+    if (!project || !project.userId) return { maxMintsPerDrop: null, maxLocations: null, planSlug: "free", ownerId: project?.userId || null };
+    const owner = await storage.getUser(project.userId);
+    if (!owner || owner.role === "admin") return { maxMintsPerDrop: null, maxLocations: null, planSlug: "admin", ownerId: project.userId };
+    const limits = await storage.getUserPlanLimits(project.userId);
+    return { ...limits, ownerId: project.userId };
+  }
+
   const REGISTER_RATE_LIMIT = 5;
   const REGISTER_RATE_WINDOW = 15 * 60 * 1000;
   const registerAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -353,6 +366,18 @@ export async function registerRoutes(
 
   app.post(api.locations.create.path, requireAuth, requireProjectOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
+    const user = (req as any).user;
+
+    if (user && user.role !== "admin") {
+      const limits = await storage.getUserPlanLimits(userId);
+      if (limits.maxLocations !== null) {
+        const currentCount = await storage.getLocationCountByUserId(userId);
+        if (currentCount >= limits.maxLocations) {
+          return res.status(403).json({ message: "PLAN_LOCATION_LIMIT", limit: limits.maxLocations, current: currentCount, planSlug: limits.planSlug });
+        }
+      }
+    }
+
     const location = await storage.createLocation({
       ...req.body,
       projectId: Number(req.params.projectId)
@@ -454,6 +479,11 @@ export async function registerRoutes(
       return res.status(429).json({ message: "Drop supply exhausted" });
     }
 
+    const planLimits = await getDropOwnerPlanLimits(drop.id);
+    if (planLimits.maxMintsPerDrop !== null && drop.mintedCount >= planLimits.maxMintsPerDrop) {
+      return res.status(429).json({ message: "PLAN_MINT_LIMIT", limit: planLimits.maxMintsPerDrop, current: drop.mintedCount, planSlug: planLimits.planSlug });
+    }
+
     const token = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(token).digest('hex');
     const ipHash = createHash('sha256').update(req.ip || "unknown").digest('hex');
@@ -543,6 +573,11 @@ export async function registerRoutes(
 
       if (drop.supply > 0 && drop.mintedCount >= drop.supply) {
         return res.status(429).json({ message: "Drop supply exhausted" });
+      }
+
+      const planLimits2 = await getDropOwnerPlanLimits(session.dropId);
+      if (planLimits2.maxMintsPerDrop !== null && drop.mintedCount >= planLimits2.maxMintsPerDrop) {
+        return res.status(429).json({ message: "PLAN_MINT_LIMIT", limit: planLimits2.maxMintsPerDrop, current: drop.mintedCount, planSlug: planLimits2.planSlug });
       }
 
       const recipientAddress = recipient || stellarService.getServerPublicKey();
@@ -755,6 +790,11 @@ export async function registerRoutes(
 
       if (drop.supply > 0 && drop.mintedCount >= drop.supply) {
         return res.status(429).json({ message: "Drop supply exhausted" });
+      }
+
+      const planLimits3 = await getDropOwnerPlanLimits(session.dropId);
+      if (planLimits3.maxMintsPerDrop !== null && drop.mintedCount >= planLimits3.maxMintsPerDrop) {
+        return res.status(429).json({ message: "PLAN_MINT_LIMIT", limit: planLimits3.maxMintsPerDrop, current: drop.mintedCount, planSlug: planLimits3.planSlug });
       }
 
       const secret = decrypt(key.encryptedSecret);
