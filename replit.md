@@ -1,13 +1,13 @@
 # Mintoria - Commemorative NFT Minting Platform
 
 ## Overview
-Mintoria is a multi-tenant SaaS platform for minting commemorative NFTs at tourist locations and events, built exclusively on the Stellar blockchain (testnet). Visitors scan QR codes, enter their email, and receive NFTs — no crypto wallet needed. The platform supports self-service organizer registration with a freemium model (Free/Starter/Professional/Enterprise), plan-based mint and location limits, admin oversight of all organizers, full internationalization (EN/PT/ES), PWA functionality, and social sharing.
+Mintoria is a multi-tenant SaaS platform for minting commemorative NFTs at tourist locations and events, built on the Solana blockchain (devnet). Visitors scan QR codes, enter their email, and receive NFTs — no crypto wallet needed. The platform supports self-service organizer registration with a freemium model (Free/Starter/Professional/Enterprise), plan-based mint and location limits, admin oversight of all organizers, full internationalization (EN/PT/ES), PWA functionality, and social sharing.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language. User speaks Portuguese.
 
 ## System Architecture
-Mintoria uses a client-server architecture with a React frontend, Node.js/Express backend, PostgreSQL database, and Stellar blockchain (testnet only). EVM and Solana chain routes return 503 (disabled).
+Mintoria uses a client-server architecture with a React frontend, Node.js/Express backend, PostgreSQL database, and Solana blockchain (devnet). EVM and Stellar chain routes return 503 (disabled).
 
 ### Multi-Tenant Model
 The platform supports two user roles:
@@ -38,22 +38,22 @@ PostgreSQL managed by Drizzle ORM. Tables:
 - **pricing_plans**: `id`, `name`, `slug`, `description`, `price`, `pricePer`, `features`, `highlighted`, `sortOrder`, `isActive`, `maxMintsPerDrop`, `maxLocations`, `updatedAt`
 
 ### Blockchain Interaction
-Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes return 503. NFTs minted using `manageData` operations. Server-side Stellar keypair generation. Custodial wallets use AES-256-CBC encryption via `WALLET_ENCRYPTION_SECRET`.
+Solana (devnet) via `@solana/web3.js`. EVM and Stellar routes return 503 (disabled). NFTs minted using memo-based transactions on Solana devnet. Server-side Solana keypair generation from `STELLAR_SERVER_SECRET_KEY` (base58-encoded Solana secret key, env var name kept for backward compatibility). Custodial wallets use AES-256-CBC encryption via `WALLET_ENCRYPTION_SECRET`. Server auto-funds via devnet airdrop when balance is low.
 
 ### Core Features
 - **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitor NFT claims with access code verification.
 - **NFT Gallery**: `/gallery/:locationId` displays minted NFTs for a location.
 - **User NFT Lookup**: `/my-nfts` allows users to find their NFTs by email.
-- **Admin Dashboard**: Project/location/drop management, analytics (mints by month, by location), Stellar health monitor, mint reset, CSV export, organizer summary cards (total organizers, active, conversion rate).
+- **Admin Dashboard**: Project/location/drop management, analytics (mints by month, by location), Solana health monitor, mint reset, CSV export, organizer summary cards (total organizers, active, conversion rate).
 - **Admin Organizer Panel**: `/admin/organizers` — list all organizers with filters (plan, search, date), pagination, activate/deactivate. `/admin/organizers/:id` — organizer detail with projects/locations/drops/mints hierarchy. Global stats: total, active, new this month, plan distribution, free→paid conversion.
 - **Organizer Dashboard**: `/organizer/dashboard` — stat cards, plan usage bar, projects list, create project, mints chart, drops overview, recent mints. Organizers only see their own data.
 - **Organizer Registration**: Self-registration at `/register` with email/password/name. Assigned Free plan. Auto-login after registration with redirect to `/organizer/dashboard`.
 - **Login Page**: `/admin/login` with back-to-home button, "Register here" link, "Forgot password?" link, and i18n support.
 - **Password Recovery**: `/forgot-password` — email-based password reset flow using 6-digit verification codes (5-min expiry) sent via Resend. Three-step process: enter email → enter code → set new password.
-- **Landing Page Navigation**: Header includes Login and Register buttons for easy access to authentication.
+- **Landing Page Navigation**: Header includes Login and Register buttons for easy access to authentication. Subtle "Built on Solana" badge in the landing page.
 - **Email Service**: Verification codes and mint confirmations via Resend.
 - **Internationalization (i18n)**: Full EN/PT/ES with automatic browser language detection.
-- **Custodial Wallet System**: Stellar keypairs encrypted with AES-256-CBC for server-side minting.
+- **Custodial Wallet System**: Solana keypairs encrypted with AES-256-CBC for server-side minting.
 - **PWA & Embed**: PWA with manifest/service worker (conservative cache strategy — only pre-cached static shell assets), iFrame embed, and script widget. Server serves `sw.js` with no-cache headers to ensure browser always fetches the latest version.
 - **Social Sharing**: Twitter/X, Instagram, download NFT image after minting.
 - **Plan-Based Limits**: Server-side enforcement — mint limits per drop and location limits per plan. Admin bypasses limits. Structured error codes: `PLAN_MINT_LIMIT`, `PLAN_LOCATION_LIMIT`.
@@ -72,7 +72,7 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 4. Enters email → system sends 6-digit verification code
 5. Enters code → system validates
 6. **Plan limit check**: system verifies organizer's plan allows more mints for this drop
-7. Server generates custodial Stellar wallet → mints NFT via `manageData` → records in DB
+7. Server generates custodial Solana wallet → mints NFT via memo transaction on devnet → records in DB
 8. Confirmation email sent → visitor can share on social media
 
 **Organizer Registration Flow**:
@@ -97,8 +97,8 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 ### Business Model / Pricing Tiers
 - **Free**: 50 mints/drop, 1 location (default for organizer registration)
 - **Starter**: R$599/event, up to 500 mints, 1 location, QR codes, basic analytics, email support
-- **Professional**: R$1,497/month, unlimited mints, up to 5 locations, advanced analytics, priority support, custom branding
-- **Enterprise**: R$4,997/month, everything unlimited, white-label, API access, dedicated support, custom integrations
+- **Professional**: R$1.497/month, unlimited mints, up to 5 locations, advanced analytics, priority support, custom branding
+- **Enterprise**: R$4.997/month, everything unlimited, white-label, API access, dedicated support, custom integrations
 
 ### Security Features
 - Helmet middleware for HTTP security headers.
@@ -114,17 +114,19 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 
 ### Current State & Roadmap
 
-**v1.0 — Complete**: Core visitor flow (QR → Claim → Email → Verify → Mint → Share), custodial Stellar wallets, admin dashboard, 4 demo locations, social sharing, i18n (EN/PT/ES), PWA, embeddable widget, production security.
+**v1.0 — Complete**: Core visitor flow (QR → Claim → Email → Verify → Mint → Share), custodial wallets, admin dashboard, 4 demo locations, social sharing, i18n (EN/PT/ES), PWA, embeddable widget, production security.
 
 **v1.5 — Complete (Multi-Tenant)**: Self-service organizer registration, freemium model (Free plan default), dedicated organizer dashboard, plan-based enforcement (server-side limits with structured error codes), admin organizer management panel (list/filter/search/detail/activate/deactivate), platform metrics (organizer stats, conversion rates), data isolation via ownership middleware, full i18n for organizer features, auto-login after registration, password recovery flow (email → 6-digit code → new password), landing page Login/Register navigation buttons, pricing plan sortOrder enforcement, admin activity log clearing with confirmation dialog, QR codes with embedded access codes for seamless claim flow.
 
-**v2.0 — Next**: Enhanced analytics, multi-image drops, webhook notifications, branded email templates, Stripe payment integration for plan upgrades.
+**v2.0 — Complete (Solana Migration)**: Full blockchain migration from Stellar (testnet) to Solana (devnet). Solana-based NFT minting via memo transactions, custodial Solana wallets, Solana explorer links, admin Solana health monitor, auto-airdrop for server funding on devnet. Subtle "Built on Solana" badge on landing page.
 
-**v3.0 — Future**: Soroban smart contracts, NFT marketplace, white-label solution, public API, advanced reporting.
+**v3.0 — Next**: Enhanced analytics, multi-image drops, webhook notifications, branded email templates, Stripe payment integration for plan upgrades.
+
+**v4.0 — Future**: Solana mainnet deployment, compressed NFTs (cNFTs), NFT marketplace, white-label solution, public API, advanced reporting.
 
 ### Key Credentials (Dev/Seed)
 - Seeded admin and demo location access codes exist for development testing.
-- Server keypair loaded from `STELLAR_SERVER_SECRET_KEY` environment variable.
+- Server keypair loaded from `STELLAR_SERVER_SECRET_KEY` environment variable (base58-encoded Solana secret key; env var name kept for backward compatibility).
 
 ## External Dependencies
 
@@ -133,7 +135,7 @@ Stellar only via `stellar-sdk` + Horizon API (testnet). EVM and Solana routes re
 - Drizzle ORM
 
 ### Blockchain
-- `stellar-sdk`
+- `@solana/web3.js`
 
 ### UI/UX
 - shadcn/ui

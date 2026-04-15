@@ -152,3 +152,12 @@ export async function getServerBalance(): Promise<number> {
   const balance = await connection.getBalance(kp.publicKey);
   return balance / LAMPORTS_PER_SOL;
 }
+
+export function getChainStatus() {
+  return {
+    network: SOLANA_NETWORK,
+    rpcUrl: SOLANA_RPC_URL,
+    serverPublicKey: getServerPublicKey(),
+    healthy: true,
+  };
+}

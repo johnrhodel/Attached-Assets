@@ -11,7 +11,7 @@ import { writeFileSync, mkdirSync, existsSync } from "fs";
 import path from "path";
 import express from "express";
 
-import * as stellarService from "./services/stellar";
+import * as solanaService from "./services/solana";
 import { generateWalletForChain } from "./services/wallet";
 import { walletlessUsers, walletlessKeys, insertPricingPlanSchema } from "@shared/schema";
 import { db } from "./db";
@@ -642,24 +642,22 @@ export async function registerRoutes(
         { trait_type: "Location", value: locationName },
         { trait_type: "Collection", value: dropTitle },
         { trait_type: "Platform", value: "Mintoria" },
-        { trait_type: "Chain", value: "Stellar" },
+        { trait_type: "Chain", value: "Solana" },
       ],
     });
   });
 
   // === MINT ROUTES ===
 
-  // 1. EVM Permit (EIP-712) - Real signing
   app.post(api.mint.evmPermit.path, async (_req, res) => {
-    res.status(503).json({ message: "EVM chain is currently disabled. Please use Stellar." });
+    res.status(503).json({ message: "EVM chain is currently disabled. Please use Solana." });
   });
 
-  app.post(api.mint.solanaTx.path, async (_req, res) => {
-    res.status(503).json({ message: "Solana chain is currently disabled. Please use Stellar." });
+  app.post(api.mint.stellarXdr.path, async (_req, res) => {
+    res.status(503).json({ message: "Stellar chain is currently disabled. Please use Solana." });
   });
 
-  // 3. Stellar XDR - Real transaction building
-  app.post(api.mint.stellarXdr.path, async (req, res) => {
+  app.post(api.mint.solanaTx.path, async (req, res) => {
     const { claimToken, recipient } = req.body;
 
     const tokenHash = createHash('sha256').update(claimToken).digest('hex');
@@ -684,9 +682,9 @@ export async function registerRoutes(
         return res.status(429).json({ message: "PLAN_MINT_LIMIT", limit: planLimits2.maxMintsPerDrop, current: drop.mintedCount, planSlug: planLimits2.planSlug });
       }
 
-      const recipientAddress = recipient || stellarService.getServerPublicKey();
+      const recipientAddress = recipient || solanaService.getServerPublicKey();
 
-      const result = await stellarService.mintNFT({
+      const result = await solanaService.mintNFT({
         recipientAddress,
         name: drop.title,
         uri: drop.metadataUrl,
@@ -698,26 +696,25 @@ export async function registerRoutes(
 
         await storage.createMint({
           dropId: session.dropId,
-          chain: "stellar",
+          chain: "solana",
           recipient: recipientAddress,
           txHash: result.txHash,
           status: "confirmed",
         });
       } catch (dbErr: any) {
-        console.error("[STELLAR_MINT] Blockchain TX succeeded but DB update failed. TxHash:", result.txHash, "Error:", dbErr.message);
+        console.error("[SOLANA_MINT] Blockchain TX succeeded but DB update failed. TxHash:", result.txHash, "Error:", dbErr.message);
       }
 
-      await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: session.dropId, details: `NFT minted on stellar to ${recipientAddress}` }).catch(() => {});
-      await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${recipientAddress} on stellar` }).catch(() => {});
+      await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: session.dropId, details: `NFT minted on solana to ${recipientAddress}` }).catch(() => {});
+      await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${recipientAddress} on solana` }).catch(() => {});
 
       res.json({
-        xdr: result.txHash,
-        networkPassphrase: "Test SDF Network ; September 2015",
-        explorerUrl: stellarService.getStellarExplorerUrl(result.txHash),
+        txHash: result.txHash,
+        explorerUrl: solanaService.getSolanaExplorerUrl(result.txHash),
       });
     } catch (err: any) {
-      console.error("[STELLAR_MINT] Error:", err.message);
-      res.status(500).json({ message: safeErrorMessage(err, "STELLAR_MINT") });
+      console.error("[SOLANA_MINT] Error:", err.message);
+      res.status(500).json({ message: safeErrorMessage(err, "SOLANA_MINT") });
     }
   });
 
@@ -813,24 +810,24 @@ export async function registerRoutes(
       }
 
       try {
-        const existingKey = await storage.getWalletlessKey(user.id, "stellar");
+        const existingKey = await storage.getWalletlessKey(user.id, "solana");
         if (!existingKey) {
-          const wallet = generateWalletForChain("stellar");
+          const wallet = generateWalletForChain("solana");
           const encryptedSecret = encrypt(wallet.secret);
 
           await storage.createWalletlessKey({
             walletlessUserId: user.id,
-            chain: "stellar",
+            chain: "solana",
             address: wallet.address,
             encryptedSecret
           });
 
           if (!isProduction) {
-            console.log(`[WALLETLESS] Created stellar wallet for ${email}: ${wallet.address}`);
+            console.log(`[WALLETLESS] Created solana wallet for ${email}: ${wallet.address}`);
           }
         }
       } catch (walletErr: any) {
-        console.error(`[WALLETLESS] Failed to create stellar wallet for ${email}: ${walletErr.message}`);
+        console.error(`[WALLETLESS] Failed to create solana wallet for ${email}: ${walletErr.message}`);
       }
 
       res.json({ message: "Verification code sent" });
@@ -864,7 +861,7 @@ export async function registerRoutes(
   app.post(api.walletless.mine.path, async (req, res) => {
     try {
       const { email, code, claimToken } = req.body;
-      const chain = "stellar";
+      const chain = "solana";
       const normalizedEmail = (email || "").trim().toLowerCase();
 
       if (!code) {
@@ -885,7 +882,7 @@ export async function registerRoutes(
       if (!user) return res.status(400).json({ message: "User not found" });
 
       const key = await storage.getWalletlessKey(user.id, chain);
-      if (!key) return res.status(400).json({ message: "Stellar wallet not found. Please try again." });
+      if (!key) return res.status(400).json({ message: "Solana wallet not found. Please try again." });
 
       const tokenHash = createHash('sha256').update(claimToken).digest('hex');
       const session = await storage.getClaimSession(tokenHash);
@@ -913,7 +910,7 @@ export async function registerRoutes(
       }
 
       const secret = decrypt(key.encryptedSecret);
-      const result = await stellarService.mintNFTWithCustodialWallet({
+      const result = await solanaService.mintNFTWithCustodialWallet({
         custodialSecretKey: secret,
         name: drop.title,
         uri: drop.metadataUrl,
@@ -941,9 +938,9 @@ export async function registerRoutes(
       await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: session.dropId, details: `NFT minted on ${chain} to ${recipientAddress}` }).catch(() => {});
       await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${recipientAddress} on ${chain}` }).catch(() => {});
 
-      const explorerUrl = stellarService.getStellarExplorerUrl(txHash);
+      const explorerUrl = solanaService.getSolanaExplorerUrl(txHash);
 
-      console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: stellar | Email: ${normalizedEmail} | Recipient: ${recipientAddress} | TxHash: ${txHash} | Explorer: ${explorerUrl || 'N/A'}`);
+      console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: solana | Email: ${normalizedEmail} | Recipient: ${recipientAddress} | TxHash: ${txHash} | Explorer: ${explorerUrl || 'N/A'}`);
 
       sendMintConfirmationEmail(normalizedEmail, {
         dropTitle: drop.title,
@@ -994,24 +991,24 @@ export async function registerRoutes(
 
   app.get("/api/blockchain/status", async (_req, res) => {
     try {
-      const isHealthyCached = cachedStatus && parseFloat(String(cachedStatus.data?.stellar?.balance || "0")) > 0;
+      const isHealthyCached = cachedStatus && parseFloat(String(cachedStatus.data?.solana?.balance || "0")) > 0;
       if (cachedStatus && isHealthyCached && Date.now() - cachedStatus.timestamp < STATUS_CACHE_TTL) {
         return res.json(cachedStatus.data);
       }
 
-      try { await stellarService.ensureServerFunded(); } catch { }
+      try { await solanaService.ensureServerFunded(); } catch { }
 
-      let stlBal = "0";
+      let solBal = 0;
       try {
-        stlBal = await stellarService.getServerBalance();
+        solBal = await solanaService.getServerBalance();
       } catch { }
 
       const data = {
-        stellar: {
-          serverPublicKey: stellarService.getServerPublicKey(),
-          balance: stlBal,
-          network: process.env.STELLAR_NETWORK || "testnet",
-          healthy: parseFloat(String(stlBal)) > 0,
+        solana: {
+          serverPublicKey: solanaService.getServerPublicKey(),
+          balance: solBal.toFixed(4),
+          network: process.env.SOLANA_NETWORK || "devnet",
+          healthy: solBal > 0,
         },
       };
 
@@ -1495,24 +1492,27 @@ export async function registerRoutes(
     res.json(newDrop);
   });
 
-  // === ENHANCED STELLAR STATUS ===
-  app.get("/api/admin/stellar/detailed", requireAdmin, async (req, res) => {
+  app.get("/api/admin/solana/detailed", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     try {
-      const status = stellarService.getChainStatus();
+      const status = solanaService.getChainStatus();
       const allMints = await storage.getAllMints();
-      const stellarMints = allMints.filter(m => m.chain === "stellar");
-      const lastMint = stellarMints.length > 0 
-        ? stellarMints.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+      const solanaMints = allMints.filter(m => m.chain === "solana");
+      const lastMint = solanaMints.length > 0 
+        ? solanaMints.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
         : null;
 
       const serverStartTime = (global as any).__serverStartTime || Date.now();
       const uptimeMs = Date.now() - serverStartTime;
 
+      let balance = 0;
+      try { balance = await solanaService.getServerBalance(); } catch {}
+
       res.json({
         ...status,
-        totalTransactions: stellarMints.length,
+        balance: balance.toFixed(4),
+        totalTransactions: solanaMints.length,
         lastTransaction: lastMint ? lastMint.createdAt : null,
         lastTxHash: lastMint ? lastMint.txHash : null,
         uptimeMs,

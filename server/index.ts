@@ -15,7 +15,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://horizon-testnet.stellar.org", "https://friendbot.stellar.org"],
+      connectSrc: ["'self'", "https://api.devnet.solana.com", "https://api.mainnet-beta.solana.com"],
       frameSrc: ["'self'"],
       frameAncestors: ["'self'"],
     },
