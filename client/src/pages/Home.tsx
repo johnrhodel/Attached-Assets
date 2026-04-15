@@ -457,9 +457,15 @@ export default function Home() {
             </div>
             <span className="font-serif font-bold text-sm text-foreground">Mintoria</span>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground" data-testid="text-copyright">
-            &copy; 2026 {t.landing.copyright}
-          </p>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded-full px-3 py-1 border border-border" data-testid="badge-built-on-solana">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              Built on Solana
+            </span>
+            <p className="text-xs sm:text-sm text-muted-foreground" data-testid="text-copyright">
+              &copy; 2026 {t.landing.copyright}
+            </p>
+          </div>
         </div>
       </footer>
     </div>

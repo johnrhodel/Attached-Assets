@@ -15,7 +15,7 @@ import * as solanaService from "./services/solana";
 import { generateWalletForChain } from "./services/wallet";
 import { walletlessUsers, walletlessKeys, insertPricingPlanSchema } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { sendVerificationEmail, sendMintConfirmationEmail } from "./services/email";
 
 const PgSession = connectPgSimple(session);
@@ -1705,6 +1705,17 @@ export async function registerRoutes(
   }
 
   seed().catch(console.error);
+
+  (async () => {
+    try {
+      await db.execute(sql`UPDATE drops SET enabled_chains = '["solana"]'::jsonb WHERE enabled_chains::text LIKE '%stellar%'`);
+      await db.execute(sql`UPDATE mints SET chain = 'solana' WHERE chain = 'stellar'`);
+      await db.execute(sql`UPDATE walletless_keys SET chain = 'solana' WHERE chain = 'stellar'`);
+      console.log("[MIGRATION] Updated existing data from stellar to solana");
+    } catch (err: any) {
+      console.error("[MIGRATION] Error:", err.message);
+    }
+  })();
 
   storage.cleanupExpiredSessions().then((count) => {
     if (count > 0) console.log(`[CLEANUP] Removed ${count} expired claim sessions`);

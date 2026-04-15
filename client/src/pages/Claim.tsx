@@ -16,7 +16,7 @@ import { Link } from "wouter";
 import claimBg from "../assets/images/claim-bg.jpg";
 
 function useBlockchainStatus() {
-  return useQuery({
+  return useQuery<{ solana: { serverPublicKey: string; balance: string; network: string; healthy: boolean } }>({
     queryKey: ["/api/blockchain/status"],
     staleTime: 30000,
   });
