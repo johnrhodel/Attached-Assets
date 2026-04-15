@@ -1708,11 +1708,15 @@ export async function registerRoutes(
 
   (async () => {
     try {
+      const existing = await db.execute(sql`SELECT value FROM platform_settings WHERE key = 'solana_migration_done'`);
+      if (existing.rows && existing.rows.length > 0) return;
+
       await db.execute(sql`DELETE FROM mints WHERE chain = 'stellar'`);
       await db.execute(sql`DELETE FROM claim_sessions`);
       await db.execute(sql`DELETE FROM walletless_keys WHERE chain = 'stellar'`);
       await db.execute(sql`UPDATE drops SET enabled_chains = '["solana"]'::jsonb WHERE enabled_chains::text LIKE '%stellar%'`);
-      await db.execute(sql`UPDATE drops SET minted_count = 0 WHERE minted_count > 0`);
+      await db.execute(sql`UPDATE drops SET minted_count = 0`);
+      await db.execute(sql`INSERT INTO platform_settings (key, value) VALUES ('solana_migration_done', 'true') ON CONFLICT (key) DO NOTHING`);
       console.log("[MIGRATION] Reset legacy Stellar data for Solana migration");
     } catch (err: any) {
       console.error("[MIGRATION] Error:", err.message);
