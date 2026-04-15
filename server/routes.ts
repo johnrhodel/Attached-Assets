@@ -998,21 +998,33 @@ export async function registerRoutes(
         return res.json(cachedStatus.data);
       }
 
-      let solBal = 0;
-      try {
-        solBal = await solanaService.getServerBalance();
-      } catch { }
+      const lastKnownBalance = solanaService.getCachedBalance();
 
       const data = {
         solana: {
           serverPublicKey: solanaService.getServerPublicKey(),
-          balance: solBal.toFixed(4),
+          balance: lastKnownBalance.toFixed(4),
           network: process.env.SOLANA_NETWORK || "devnet",
-          healthy: solBal > 0,
+          healthy: lastKnownBalance > 0,
         },
       };
 
       cachedStatus = { data, timestamp: Date.now() };
+
+      solanaService.getServerBalance().then((freshBal) => {
+        cachedStatus = {
+          data: {
+            solana: {
+              serverPublicKey: solanaService.getServerPublicKey(),
+              balance: freshBal.toFixed(4),
+              network: process.env.SOLANA_NETWORK || "devnet",
+              healthy: freshBal > 0,
+            },
+          },
+          timestamp: Date.now(),
+        };
+      }).catch(() => {});
+
       res.json(data);
     } catch (err: any) {
       res.status(500).json({ message: safeErrorMessage(err, "SERVER") });

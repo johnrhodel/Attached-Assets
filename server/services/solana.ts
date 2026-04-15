@@ -131,6 +131,10 @@ export async function ensureServerFunded(): Promise<boolean> {
   }
 }
 
+export function getCachedBalance(): number {
+  return cachedBalance?.value ?? 0;
+}
+
 export async function getServerBalance(): Promise<number> {
   if (cachedBalance && Date.now() - cachedBalance.timestamp < BALANCE_CACHE_TTL) {
     return cachedBalance.value;
