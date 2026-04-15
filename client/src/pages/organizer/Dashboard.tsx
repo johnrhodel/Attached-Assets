@@ -449,7 +449,7 @@ export default function OrganizerDashboard() {
                       <span className="text-xs text-muted-foreground">{formatRelativeTime(mint.createdAt, timeLabels)}</span>
                       {mint.txHash && (
                         <a
-                          href={`https://stellar.expert/explorer/testnet/tx/${mint.txHash}`}
+                          href={`https://explorer.solana.com/tx/${mint.txHash}?cluster=devnet`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary hover:text-primary/80"

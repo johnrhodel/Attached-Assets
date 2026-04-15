@@ -22,8 +22,8 @@ function useBlockchainStatus() {
   });
 }
 
-function getHealthyChain(): "stellar" {
-  return "stellar";
+function getHealthyChain(): "solana" {
+  return "solana";
 }
 
 function ConfettiEffect() {
@@ -218,10 +218,10 @@ export default function Claim() {
                   </div>
                 </div>
                 <div className="p-5 sm:p-6 bg-card text-center">
-                  {blockchainStatus?.stellar && !blockchainStatus.stellar.healthy && (
+                  {blockchainStatus?.solana && !blockchainStatus.solana.healthy && (
                     <div className="text-xs text-center text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 rounded-md py-2 px-3 mb-3 flex items-center justify-center gap-1.5" data-testid="text-blockchain-warning">
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                      {t.admin.unhealthy} — {t.chains.stellar}
+                      {t.admin.unhealthy} — {t.chains.solana}
                     </div>
                   )}
                   <p className="text-muted-foreground text-sm mb-4 sm:mb-5">{t.claim.subtitle}</p>
@@ -318,7 +318,7 @@ function MintingAnimation({ dropTitle }: { dropTitle: string }) {
 function SuccessScreen({ drop, mintResult, onBack }: { drop: any; mintResult: MintResult; onBack: () => void }) {
   const { t } = useI18n();
   const { toast } = useToast();
-  const chainName = mintResult.chain === "solana" ? t.chains.solana : mintResult.chain === "evm" ? t.chains.evm : mintResult.chain === "stellar" ? t.chains.stellar : t.chains.stellar;
+  const chainName = mintResult.chain === "solana" ? t.chains.solana : mintResult.chain === "evm" ? t.chains.evm : t.chains.solana;
   const shortTx = mintResult.txHash.length > 16 ? `${mintResult.txHash.slice(0, 8)}...${mintResult.txHash.slice(-6)}` : mintResult.txHash;
   const shortAddr = mintResult.address.length > 16 ? `${mintResult.address.slice(0, 8)}...${mintResult.address.slice(-6)}` : mintResult.address;
 
@@ -532,7 +532,7 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
       const res = await fetch("/api/walletless/mine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, chain: "stellar", claimToken }),
+        body: JSON.stringify({ email, code, chain: "solana", claimToken }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -543,7 +543,7 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
         throw new Error(errData.message || "Mint failed");
       }
       const data = await res.json();
-      onSuccess({ ...data, chain: data.chain || "stellar" });
+      onSuccess({ ...data, chain: data.chain || "solana" });
     } catch (err: any) {
       console.error("[EmailFlow] Mint error:", err);
       setFlowError(err.message || t.claim.mintFailed);

@@ -21,13 +21,6 @@ const walletGroups = [
       { name: "Backpack", url: "https://backpack.app/", desc: "xNFT wallet" },
     ],
   },
-  {
-    key: "stellarWallets" as const,
-    wallets: [
-      { name: "Freighter", url: "https://www.freighter.app/", desc: "Official Stellar wallet" },
-      { name: "Lobstr", url: "https://lobstr.co/", desc: "Simple Stellar wallet" },
-    ],
-  },
 ];
 
 export function WalletSuggestions({ onBack }: { onBack: () => void }) {

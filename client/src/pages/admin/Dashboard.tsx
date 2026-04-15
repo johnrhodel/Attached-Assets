@@ -39,7 +39,7 @@ interface AdminStats {
 }
 
 interface BlockchainStatus {
-  stellar: {
+  solana: {
     serverPublicKey: string;
     balance: string;
     network: string;
@@ -47,7 +47,7 @@ interface BlockchainStatus {
   };
 }
 
-interface StellarDetailed {
+interface SolanaDetailed {
   serverPublicKey: string;
   balance: string;
   network: string;
@@ -89,9 +89,9 @@ function truncateAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
-function truncateStellarAddress(addr: string): string {
+function truncateSolanaAddress(addr: string): string {
   if (!addr || addr.length < 14) return addr || "";
-  return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
 function maskEmail(email: string): string {
@@ -139,8 +139,8 @@ export default function Dashboard() {
     queryKey: ["/api/blockchain/status"],
   });
 
-  const { data: stellarDetailed } = useQuery<StellarDetailed>({
-    queryKey: ["/api/admin/stellar/detailed"],
+  const { data: solanaDetailed } = useQuery<SolanaDetailed>({
+    queryKey: ["/api/admin/solana/detailed"],
     refetchInterval: 30000,
   });
 
@@ -235,7 +235,7 @@ export default function Dashboard() {
     { title: t.admin.uniqueUsers, value: stats?.uniqueUsers ?? 0, icon: Users, color: "text-purple-500" },
   ];
 
-  const stellar = blockchainStatus?.stellar;
+  const solana = blockchainStatus?.solana;
 
   return (
     <AdminLayout>
@@ -313,22 +313,22 @@ export default function Dashboard() {
           </div>
         )}
 
-        {stellar && (
-          <Card className="shadow-sm" data-testid="card-stellar-status">
+        {solana && (
+          <Card className="shadow-sm" data-testid="card-solana-status">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle>{t.admin.stellarStatus}</CardTitle>
+              <CardTitle>{t.admin.solanaStatus}</CardTitle>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <div
-                    className={`h-3 w-3 rounded-full ${stellar.healthy ? "bg-green-500" : "bg-red-500"}`}
-                    data-testid="indicator-stellar-health"
+                    className={`h-3 w-3 rounded-full ${solana.healthy ? "bg-green-500" : "bg-red-500"}`}
+                    data-testid="indicator-solana-health"
                   />
-                  <span className="text-sm text-muted-foreground" data-testid="text-stellar-health">
-                    {stellar.healthy ? t.admin.healthy : t.admin.unhealthy}
+                  <span className="text-sm text-muted-foreground" data-testid="text-solana-health">
+                    {solana.healthy ? t.admin.healthy : t.admin.unhealthy}
                   </span>
                 </div>
-                <Badge variant="secondary" data-testid="badge-stellar-network">
-                  {stellar.network}
+                <Badge variant="secondary" data-testid="badge-solana-network">
+                  {solana.network}
                 </Badge>
               </div>
             </CardHeader>
@@ -337,13 +337,13 @@ export default function Dashboard() {
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">{t.admin.serverAddress}</p>
                   <div className="flex items-center gap-1">
-                    <span className="text-sm font-mono font-medium" data-testid="text-stellar-address">
-                      {truncateStellarAddress(stellar.serverPublicKey)}
+                    <span className="text-sm font-mono font-medium" data-testid="text-solana-address">
+                      {truncateSolanaAddress(solana.serverPublicKey)}
                     </span>
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => handleCopyAddress(stellar.serverPublicKey)}
+                      onClick={() => handleCopyAddress(solana.serverPublicKey)}
                       data-testid="button-copy-address"
                     >
                       {copiedAddress ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -352,32 +352,32 @@ export default function Dashboard() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">{t.admin.balance}</p>
-                  <p className="text-sm font-medium" data-testid="text-stellar-balance">
-                    {stellar.balance} XLM
+                  <p className="text-sm font-medium" data-testid="text-solana-balance">
+                    {solana.balance} SOL
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> {t.admin.uptime}</p>
-                  <p className="text-sm font-medium" data-testid="text-stellar-uptime">
-                    {stellarDetailed ? formatUptime(stellarDetailed.uptimeMs) : "—"}
+                  <p className="text-sm font-medium" data-testid="text-solana-uptime">
+                    {solanaDetailed ? formatUptime(solanaDetailed.uptimeMs) : "—"}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground flex items-center gap-1"><Zap className="w-3 h-3" /> {t.admin.transactionsTotal}</p>
-                  <p className="text-sm font-medium" data-testid="text-stellar-txcount">
-                    {stellarDetailed?.totalTransactions ?? 0}
+                  <p className="text-sm font-medium" data-testid="text-solana-txcount">
+                    {solanaDetailed?.totalTransactions ?? 0}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground flex items-center gap-1"><ArrowUpDown className="w-3 h-3" /> {t.admin.lastTransaction}</p>
-                  <p className="text-sm font-medium" data-testid="text-stellar-lasttx">
-                    {stellarDetailed?.lastTransaction ? formatRelativeTime(stellarDetailed.lastTransaction) : t.admin.never}
+                  <p className="text-sm font-medium" data-testid="text-solana-lasttx">
+                    {solanaDetailed?.lastTransaction ? formatRelativeTime(solanaDetailed.lastTransaction) : t.admin.never}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1"><ArrowUpDown className="w-3 h-3" /> {t.admin.volumeXlm}</p>
-                  <p className="text-sm font-medium" data-testid="text-stellar-volume">
-                    ~{((stellarDetailed?.totalTransactions ?? 0) * 0.00001).toFixed(5)} XLM
+                  <p className="text-xs text-muted-foreground flex items-center gap-1"><ArrowUpDown className="w-3 h-3" /> {t.admin.volumeSol}</p>
+                  <p className="text-sm font-medium" data-testid="text-solana-volume">
+                    ~{((solanaDetailed?.totalTransactions ?? 0) * 0.000005).toFixed(6)} SOL
                   </p>
                 </div>
               </div>

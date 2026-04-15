@@ -233,11 +233,12 @@ export const api = {
       path: "/api/mint/solana/tx",
       input: z.object({
         claimToken: z.string(),
-        recipient: z.string(),
+        recipient: z.string().optional(),
       }),
       responses: {
         200: z.object({
-          transaction: z.string(), // base64
+          txHash: z.string(),
+          explorerUrl: z.string().optional(),
         }),
         400: z.object({ message: z.string() }),
       }

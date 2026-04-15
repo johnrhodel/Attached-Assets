@@ -573,7 +573,7 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
     metadataUrl: "https://example.com/metadata.json",
     supply: 1000,
     status: "draft",
-    enabledChains: ["stellar"],
+    enabledChains: ["solana"],
     accessCode: "",
   });
 
@@ -645,12 +645,12 @@ function CreateDropDialog({ locationId, disabled }: { locationId: number, disabl
             <div className="flex gap-4 flex-wrap">
               <div className="flex items-center space-x-2">
                 <Checkbox 
-                  id="stellar" 
+                  id="solana" 
                   checked={true}
                   disabled
                 />
-                <label htmlFor="stellar" className="text-sm font-medium leading-none uppercase">
-                  Stellar
+                <label htmlFor="solana" className="text-sm font-medium leading-none uppercase">
+                  Solana
                 </label>
               </div>
             </div>

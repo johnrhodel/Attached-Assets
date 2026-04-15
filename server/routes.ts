@@ -1537,7 +1537,7 @@ export async function registerRoutes(
         imageUrl: "/images/paris-eiffel-tower.png",
         metadataUrl: "/api/metadata/eiffel/paris-2026",
         supply: 1000,
-        enabledChains: ["evm", "solana", "stellar"],
+        enabledChains: ["solana"],
         status: "published"
       });
       console.log("Seeding Complete.");
@@ -1598,7 +1598,7 @@ export async function registerRoutes(
             imageUrl: loc.drop.imageUrl,
             metadataUrl: loc.drop.metadataUrl,
             supply: 1000,
-            enabledChains: ["stellar"],
+            enabledChains: ["solana"],
             status: "published",
             accessCode: loc.drop.accessCode,
           });
@@ -1710,11 +1710,11 @@ export async function registerRoutes(
     if (count > 0) console.log(`[CLEANUP] Removed ${count} expired claim sessions`);
   }).catch(console.error);
 
-  console.log("[BLOCKCHAIN] Initializing Stellar service...");
-  console.log(`[STELLAR] Server: ${stellarService.getServerPublicKey()}`);
+  console.log("[BLOCKCHAIN] Initializing Solana service...");
+  console.log(`[SOLANA] Server: ${solanaService.getServerPublicKey()}`);
 
-  stellarService.ensureServerFunded().then((funded) => {
-    console.log(`[STELLAR] Server funded: ${funded}`);
+  solanaService.ensureServerFunded().then((funded) => {
+    console.log(`[SOLANA] Server funded: ${funded}`);
   }).catch(console.error);
 
   return httpServer;
