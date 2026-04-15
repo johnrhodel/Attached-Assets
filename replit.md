@@ -38,7 +38,7 @@ PostgreSQL managed by Drizzle ORM. Tables:
 - **pricing_plans**: `id`, `name`, `slug`, `description`, `price`, `pricePer`, `features`, `highlighted`, `sortOrder`, `isActive`, `maxMintsPerDrop`, `maxLocations`, `updatedAt`
 
 ### Blockchain Interaction
-Solana (devnet) via `@solana/web3.js`. EVM and Stellar routes return 503 (disabled). NFTs minted using memo-based transactions on Solana devnet. Server-side Solana keypair generation from `STELLAR_SERVER_SECRET_KEY` (base58-encoded Solana secret key, env var name kept for backward compatibility). Custodial wallets use AES-256-CBC encryption via `WALLET_ENCRYPTION_SECRET`. Server auto-funds via devnet airdrop when balance is low.
+Solana (devnet) via `@solana/web3.js`. EVM and Stellar routes return 503 (disabled). NFTs minted using Metaplex Core (`mpl-core`) on Solana devnet. Persistent server keypair loaded from `SOLANA_SERVER_SECRET_KEY` (base58-encoded, falls back to `STELLAR_SERVER_SECRET_KEY` for backward compatibility). Custodial wallets use AES-256-CBC encryption via `WALLET_ENCRYPTION_SECRET`. Non-blocking airdrop at startup with 2-minute cooldown; blockchain status endpoint responds instantly with cached balance. When balance is insufficient, mint returns `INSUFFICIENT_SOL` (503) with user-friendly i18n message.
 
 ### Core Features
 - **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitor NFT claims with access code verification.
@@ -126,7 +126,7 @@ Solana (devnet) via `@solana/web3.js`. EVM and Stellar routes return 503 (disabl
 
 ### Key Credentials (Dev/Seed)
 - Seeded admin and demo location access codes exist for development testing.
-- Server keypair loaded from `STELLAR_SERVER_SECRET_KEY` environment variable (base58-encoded Solana secret key; env var name kept for backward compatibility).
+- Persistent server keypair loaded from `SOLANA_SERVER_SECRET_KEY` (base58-encoded Solana secret key). Falls back to `STELLAR_SERVER_SECRET_KEY` for backward compatibility. Public key: `5RBXLMtUgTY8eYEhFZahZppYwqVjL72bewrqakzyEtyt`.
 
 ## External Dependencies
 

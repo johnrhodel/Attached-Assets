@@ -10,17 +10,30 @@ const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || clusterApiUrl(SOLANA_NETWOR
 let serverKeypair: Keypair | null = null;
 let umi: any = null;
 
+let cachedBalance: { value: number; timestamp: number } | null = null;
+const BALANCE_CACHE_TTL = 15000;
+let airdropInProgress = false;
+let lastAirdropAttempt = 0;
+const AIRDROP_COOLDOWN = 120000;
+
 function getServerKeypair(): Keypair {
   if (serverKeypair) return serverKeypair;
 
-  const secretKeyEnv = process.env.SOLANA_SERVER_SECRET_KEY;
+  const secretKeyEnv = process.env.SOLANA_SERVER_SECRET_KEY || process.env.STELLAR_SERVER_SECRET_KEY;
   if (secretKeyEnv) {
     try {
       const decoded = bs58.decode(secretKeyEnv);
       serverKeypair = Keypair.fromSecretKey(decoded);
+      console.log(`[SOLANA] Loaded persistent keypair. Public key: ${serverKeypair.publicKey.toBase58()}`);
     } catch {
-      const arr = JSON.parse(secretKeyEnv);
-      serverKeypair = Keypair.fromSecretKey(Uint8Array.from(arr));
+      try {
+        const arr = JSON.parse(secretKeyEnv);
+        serverKeypair = Keypair.fromSecretKey(Uint8Array.from(arr));
+        console.log(`[SOLANA] Loaded persistent keypair (JSON). Public key: ${serverKeypair.publicKey.toBase58()}`);
+      } catch {
+        console.error("[SOLANA] Failed to parse secret key from env, generating new one");
+        serverKeypair = Keypair.generate();
+      }
     }
   } else {
     serverKeypair = Keypair.generate();
@@ -61,36 +74,82 @@ export async function ensureServerFunded(): Promise<boolean> {
     const connection = getConnection();
     const kp = getServerKeypair();
     const balance = await connection.getBalance(kp.publicKey);
+    cachedBalance = { value: balance / LAMPORTS_PER_SOL, timestamp: Date.now() };
 
-    if (balance < 0.01 * LAMPORTS_PER_SOL) {
-      if (SOLANA_NETWORK === "devnet") {
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            console.log(`[SOLANA] Requesting devnet airdrop (attempt ${attempt}/3)...`);
-            const sig = await connection.requestAirdrop(kp.publicKey, 2 * LAMPORTS_PER_SOL);
-            await connection.confirmTransaction(sig, "confirmed");
-            console.log("[SOLANA] Airdrop received: 2 SOL");
-            return true;
-          } catch (err) {
-            console.warn(`[SOLANA] Airdrop attempt ${attempt} failed:`, (err as Error).message);
-            if (attempt < 3) {
-              const delay = Math.pow(2, attempt) * 1000;
-              console.log(`[SOLANA] Retrying in ${delay / 1000}s...`);
-              await new Promise(r => setTimeout(r, delay));
-            }
+    if (balance >= 0.01 * LAMPORTS_PER_SOL) {
+      return true;
+    }
+
+    if (airdropInProgress) {
+      return false;
+    }
+
+    if (Date.now() - lastAirdropAttempt < AIRDROP_COOLDOWN) {
+      return false;
+    }
+
+    if (SOLANA_NETWORK !== "devnet") {
+      console.warn("[SOLANA] Server wallet has insufficient funds on mainnet");
+      return false;
+    }
+
+    airdropInProgress = true;
+    lastAirdropAttempt = Date.now();
+
+    try {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          console.log(`[SOLANA] Requesting devnet airdrop (attempt ${attempt}/2)...`);
+          const airdropPromise = connection.requestAirdrop(kp.publicKey, 2 * LAMPORTS_PER_SOL);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Airdrop timeout")), 15000)
+          );
+          const sig = await Promise.race([airdropPromise, timeoutPromise]);
+          const confirmPromise = connection.confirmTransaction(sig, "confirmed");
+          const confirmTimeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Confirm timeout")), 30000)
+          );
+          await Promise.race([confirmPromise, confirmTimeout]);
+          console.log("[SOLANA] Airdrop received: 2 SOL");
+          cachedBalance = { value: 2, timestamp: Date.now() };
+          return true;
+        } catch (err) {
+          console.warn(`[SOLANA] Airdrop attempt ${attempt} failed:`, (err as Error).message);
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, 2000));
           }
         }
-        console.error("[SOLANA] All airdrop attempts failed");
-        return false;
-      } else {
-        console.warn("[SOLANA] Server wallet has insufficient funds on mainnet");
-        return false;
       }
+      console.warn("[SOLANA] Airdrop failed. Fund manually at https://faucet.solana.com with address:", kp.publicKey.toBase58());
+      return false;
+    } finally {
+      airdropInProgress = false;
     }
-    return true;
   } catch (err) {
-    console.error("[SOLANA] Failed to check/fund server wallet:", err);
+    console.error("[SOLANA] Failed to check/fund server wallet:", (err as Error).message);
     return false;
+  }
+}
+
+export async function getServerBalance(): Promise<number> {
+  if (cachedBalance && Date.now() - cachedBalance.timestamp < BALANCE_CACHE_TTL) {
+    return cachedBalance.value;
+  }
+
+  try {
+    const connection = getConnection();
+    const kp = getServerKeypair();
+    const balancePromise = connection.getBalance(kp.publicKey);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Balance check timeout")), 5000)
+    );
+    const balance = await Promise.race([balancePromise, timeoutPromise]);
+    const sol = balance / LAMPORTS_PER_SOL;
+    cachedBalance = { value: sol, timestamp: Date.now() };
+    return sol;
+  } catch (err) {
+    console.warn("[SOLANA] Balance check failed:", (err as Error).message);
+    return cachedBalance?.value ?? 0;
   }
 }
 
@@ -101,7 +160,11 @@ export async function mintNFT(params: {
 }): Promise<{ txHash: string; mintAddress: string }> {
   const umiInstance = getUmi();
 
-  await ensureServerFunded();
+  const balance = await getServerBalance();
+  if (balance < 0.005) {
+    ensureServerFunded().catch(() => {});
+    throw new Error("INSUFFICIENT_SOL");
+  }
 
   const asset = generateSigner(umiInstance);
 
@@ -144,13 +207,6 @@ export function getServerPublicKey(): string {
 export function getSolanaExplorerUrl(txHash: string): string {
   const cluster = SOLANA_NETWORK === "mainnet-beta" ? "" : `?cluster=${SOLANA_NETWORK}`;
   return `https://explorer.solana.com/tx/${txHash}${cluster}`;
-}
-
-export async function getServerBalance(): Promise<number> {
-  const connection = getConnection();
-  const kp = getServerKeypair();
-  const balance = await connection.getBalance(kp.publicKey);
-  return balance / LAMPORTS_PER_SOL;
 }
 
 export function getChainStatus() {

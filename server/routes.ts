@@ -957,6 +957,9 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       console.error(`[WALLETLESS_MINT] Error: ${err.message}`);
+      if (err.message === "INSUFFICIENT_SOL") {
+        return res.status(503).json({ message: "INSUFFICIENT_SOL" });
+      }
       res.status(500).json({ message: safeErrorMessage(err, "WALLETLESS_MINT") });
     }
   });
@@ -991,12 +994,9 @@ export async function registerRoutes(
 
   app.get("/api/blockchain/status", async (_req, res) => {
     try {
-      const isHealthyCached = cachedStatus && parseFloat(String(cachedStatus.data?.solana?.balance || "0")) > 0;
-      if (cachedStatus && isHealthyCached && Date.now() - cachedStatus.timestamp < STATUS_CACHE_TTL) {
+      if (cachedStatus && Date.now() - cachedStatus.timestamp < STATUS_CACHE_TTL) {
         return res.json(cachedStatus.data);
       }
-
-      try { await solanaService.ensureServerFunded(); } catch { }
 
       let solBal = 0;
       try {
@@ -1731,8 +1731,15 @@ export async function registerRoutes(
   console.log(`[SOLANA] Server: ${solanaService.getServerPublicKey()}`);
 
   solanaService.ensureServerFunded().then((funded) => {
-    console.log(`[SOLANA] Server funded: ${funded}`);
-  }).catch(console.error);
+    if (funded) {
+      console.log("[SOLANA] Server wallet is funded and ready");
+    } else {
+      console.log(`[SOLANA] Server wallet needs funding. Send SOL to: ${solanaService.getServerPublicKey()}`);
+      console.log("[SOLANA] Use https://faucet.solana.com for devnet SOL");
+    }
+  }).catch((err) => {
+    console.warn("[SOLANA] Startup funding check failed:", err.message);
+  });
 
   return httpServer;
 }

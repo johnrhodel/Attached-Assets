@@ -540,6 +540,9 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
           onSuccess("ALREADY_MINTED");
           return;
         }
+        if (errData.message === "INSUFFICIENT_SOL") {
+          throw new Error(t.claim.serviceUnavailable || "Minting service temporarily unavailable. Please try again later.");
+        }
         throw new Error(errData.message || "Mint failed");
       }
       const data = await res.json();
