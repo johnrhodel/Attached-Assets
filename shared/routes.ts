@@ -264,7 +264,7 @@ export const api = {
       input: z.object({
         claimToken: z.string(),
         txHash: z.string(),
-        chain: z.enum(["evm", "solana", "stellar"]),
+        chain: z.enum(["evm", "solana"]),
       }),
       responses: {
         200: z.custom<typeof mints.$inferSelect>(),
@@ -300,7 +300,7 @@ export const api = {
       input: z.object({
         email: z.string(),
         code: z.string(),
-        chain: z.enum(["evm", "solana", "stellar"]),
+        chain: z.enum(["evm", "solana"]),
         claimToken: z.string(),
       }),
       responses: {

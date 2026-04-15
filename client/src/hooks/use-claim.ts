@@ -91,7 +91,7 @@ export function useWalletless() {
   });
 
   const mine = useMutation({
-    mutationFn: async (data: { email: string; code: string; chain: "evm" | "solana" | "stellar"; claimToken: string }) => {
+    mutationFn: async (data: { email: string; code: string; chain: "evm" | "solana"; claimToken: string }) => {
       const res = await fetch(api.walletless.mine.path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -128,7 +128,7 @@ export function useConfirmMint() {
   const { toast } = useToast();
   const { t } = useI18n();
   return useMutation({
-    mutationFn: async (data: { claimToken: string; txHash: string; chain: "evm" | "solana" | "stellar" }) => {
+    mutationFn: async (data: { claimToken: string; txHash: string; chain: "evm" | "solana" }) => {
       const res = await fetch(api.mint.confirm.path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

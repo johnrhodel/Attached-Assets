@@ -12,7 +12,6 @@ import { useI18n } from "@/lib/i18n/context";
 function getExplorerUrl(chain: string, txHash: string): string {
   if (chain === "solana") return `https://explorer.solana.com/tx/${txHash}?cluster=devnet`;
   if (chain === "evm") return `https://sepolia.etherscan.io/tx/${txHash}`;
-  if (chain === "stellar") return `https://stellar.expert/explorer/testnet/tx/${txHash}`;
   return "#";
 }
 
@@ -22,7 +21,7 @@ function truncateHash(hash: string): string {
 }
 
 function getChainLabel(chain: string): string {
-  const labels: Record<string, string> = { solana: "Solana", evm: "Ethereum", stellar: "Stellar" };
+  const labels: Record<string, string> = { solana: "Solana", evm: "Ethereum" };
   return labels[chain] || chain;
 }
 

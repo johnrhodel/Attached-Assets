@@ -371,7 +371,6 @@ export const translations = {
     chains: {
       evm: 'Ethereum / Polygon / Base',
       solana: 'Solana',
-      stellar: 'Stellar',
     },
     language: {
       select: 'Language',
@@ -811,7 +810,6 @@ export const translations = {
     chains: {
       evm: 'Ethereum / Polygon / Base',
       solana: 'Solana',
-      stellar: 'Stellar',
     },
     language: {
       select: 'Idioma',
@@ -1251,7 +1249,6 @@ export const translations = {
     chains: {
       evm: 'Ethereum / Polygon / Base',
       solana: 'Solana',
-      stellar: 'Stellar',
     },
     language: {
       select: 'Idioma',
