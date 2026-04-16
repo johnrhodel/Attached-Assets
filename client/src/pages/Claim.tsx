@@ -62,7 +62,9 @@ type ClaimView = "landing" | "email" | "success" | "already_minted";
 interface MintResult {
   txHash: string;
   address: string;
+  mintAddress?: string;
   explorerUrl?: string;
+  nftUrl?: string;
   chain?: string;
 }
 
@@ -349,6 +351,19 @@ function SuccessScreen({ drop, mintResult, onBack }: { drop: any; mintResult: Mi
               <span className="font-mono text-foreground" data-testid="text-tx-hash">{shortTx}</span>
             </div>
           </div>
+
+          {mintResult.nftUrl && (
+            <a 
+              href={mintResult.nftUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
+              data-testid="link-view-nft"
+            >
+              <ImageDown className="w-4 h-4" />
+              {t.claim.viewMyNft}
+            </a>
+          )}
 
           {mintResult.explorerUrl && (
             <a 

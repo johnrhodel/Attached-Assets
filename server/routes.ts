@@ -738,7 +738,9 @@ export async function registerRoutes(
 
       res.json({
         txHash: result.txHash,
+        mintAddress: result.mintAddress,
         explorerUrl: solanaService.getSolanaExplorerUrl(result.txHash),
+        nftUrl: `https://explorer.solana.com/address/${result.mintAddress}?cluster=devnet`,
       });
     } catch (err: any) {
       console.error("[SOLANA_MINT] Error:", err.message);
@@ -980,8 +982,10 @@ export async function registerRoutes(
 
       res.json({
         txHash,
+        mintAddress: result.mintAddress,
         address: recipientAddress,
         explorerUrl,
+        nftUrl: `https://explorer.solana.com/address/${result.mintAddress}?cluster=devnet`,
         chain,
       });
     } catch (err: any) {
