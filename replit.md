@@ -38,7 +38,7 @@ PostgreSQL managed by Drizzle ORM. Tables:
 - **pricing_plans**: `id`, `name`, `slug`, `description`, `price`, `pricePer`, `features`, `highlighted`, `sortOrder`, `isActive`, `maxMintsPerDrop`, `maxLocations`, `updatedAt`
 
 ### Blockchain Interaction
-Solana (devnet) via `@solana/web3.js`. EVM and Stellar routes return 503 (disabled). NFTs minted using Metaplex Core (`mpl-core`) on Solana devnet. Persistent server keypair loaded from `SOLANA_SERVER_SECRET_KEY` (base58-encoded, falls back to `STELLAR_SERVER_SECRET_KEY` for backward compatibility). Custodial wallets use AES-256-CBC encryption via `WALLET_ENCRYPTION_SECRET`. Non-blocking airdrop at startup with 2-minute cooldown; blockchain status endpoint responds instantly with cached balance. When balance is insufficient, mint returns `INSUFFICIENT_SOL` (503) with user-friendly i18n message.
+Solana (devnet) via `@solana/web3.js`. EVM and Stellar routes return 503 (disabled). NFTs minted using Metaplex Core (`mpl-core`) on Solana devnet. Persistent server keypair loaded from `SOLANA_SERVER_SECRET_KEY` (base58-encoded, falls back to `STELLAR_SERVER_SECRET_KEY` for backward compatibility). Custodial wallets use AES-256-CBC encryption via `WALLET_ENCRYPTION_SECRET`. Non-blocking airdrop at startup with 2-minute cooldown; blockchain status endpoint responds instantly with cached balance. When balance is insufficient, mint returns `INSUFFICIENT_SOL` (503) with user-friendly i18n message. Dynamic NFT metadata served at `/api/metadata/drop/:dropId` — generates Metaplex-compatible JSON (name, description, image, attributes) from drop data; mint flow uses this URL as the on-chain URI so NFTs display correctly in Solana Explorer and wallets (Phantom). Canonical base URL derived from `APP_BASE_URL` env var or `REPLIT_DEV_DOMAIN` to prevent host-header spoofing in on-chain URIs.
 
 ### Core Features
 - **Public Claim Pages**: `/claim/:locationId` and `/embed/:locationId` for visitor NFT claims with access code verification.
@@ -72,7 +72,7 @@ Solana (devnet) via `@solana/web3.js`. EVM and Stellar routes return 503 (disabl
 4. Enters email → system sends 6-digit verification code
 5. Enters code → system validates
 6. **Plan limit check**: system verifies organizer's plan allows more mints for this drop
-7. Server generates custodial Solana wallet → mints NFT via memo transaction on devnet → records in DB
+7. Server generates custodial Solana wallet → mints NFT via Metaplex Core on devnet with dynamic metadata URI (`/api/metadata/drop/:dropId`) → records in DB
 8. Confirmation email sent → visitor can share on social media
 
 **Organizer Registration Flow**:

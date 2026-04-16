@@ -18,6 +18,12 @@ import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 import { sendVerificationEmail, sendMintConfirmationEmail } from "./services/email";
 
+function getCanonicalBaseUrl(req: express.Request): string {
+  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/$/, "");
+  if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  return `${req.protocol}://${req.get("host")}`;
+}
+
 const PgSession = connectPgSimple(session);
 
 function hashPassword(password: string): string {
@@ -608,43 +614,62 @@ export async function registerRoutes(
     });
   });
 
+  async function buildNftMetadata(dropId: number, baseUrl: string) {
+    const drop = await storage.getDrop(dropId);
+    if (!drop) return null;
+    const location = await storage.getLocation(drop.locationId);
+    const locationName = location?.name || "Unknown Location";
+    const imageUrl = drop.imageUrl.startsWith("http") ? drop.imageUrl : `${baseUrl}${drop.imageUrl.startsWith("/") ? "" : "/"}${drop.imageUrl}`;
+    const galleryUrl = location ? `${baseUrl}/gallery/${location.id}` : baseUrl;
+
+    return {
+      name: `Mintoria - ${drop.title}`,
+      description: `Commemorative NFT from ${locationName} — Minted on Mintoria`,
+      image: imageUrl,
+      external_url: galleryUrl,
+      attributes: [
+        { trait_type: "Location", value: locationName },
+        { trait_type: "Collection", value: drop.title },
+        { trait_type: "Month", value: drop.month },
+        { trait_type: "Year", value: String(drop.year) },
+        { trait_type: "Platform", value: "Mintoria" },
+        { trait_type: "Chain", value: "Solana" },
+      ],
+    };
+  }
+
+  app.get("/api/metadata/drop/:dropId", async (req, res) => {
+    const dropId = parseInt(req.params.dropId, 10);
+    if (isNaN(dropId)) return res.status(400).json({ message: "Invalid drop ID" });
+    const baseUrl = getCanonicalBaseUrl(req);
+    const metadata = await buildNftMetadata(dropId, baseUrl);
+    if (!metadata) return res.status(404).json({ message: "Drop not found" });
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.json(metadata);
+  });
+
   app.get("/api/metadata/:locationSlug/:dropSlug", async (req, res) => {
-    const { locationSlug, dropSlug } = req.params;
-    const host = `${req.protocol}://${req.get("host")}`;
+    const { locationSlug } = req.params;
+    const baseUrl = getCanonicalBaseUrl(req);
 
     const projects = await storage.getProjects();
     let matchedDrop = null;
-    let matchedLocation = null;
     for (const project of projects) {
       const locations = await storage.getLocations(project.id);
       const location = locations.find(l => l.slug === locationSlug);
       if (location) {
-        matchedLocation = location;
         const drops = await storage.getDrops(location.id);
         matchedDrop = drops[0] || null;
         break;
       }
     }
 
-    const imageUrl = matchedDrop?.imageUrl
-      ? (matchedDrop.imageUrl.startsWith("http") ? matchedDrop.imageUrl : `${host}${matchedDrop.imageUrl}`)
-      : `${host}/images/${locationSlug}.png`;
-    const locationName = matchedLocation?.name || locationSlug.replace(/-/g, " ");
-    const dropTitle = matchedDrop?.title || dropSlug;
-    const galleryUrl = matchedLocation ? `${host}/gallery/${matchedLocation.id}` : `${host}`;
+    if (matchedDrop) {
+      const metadata = await buildNftMetadata(matchedDrop.id, baseUrl);
+      if (metadata) return res.json(metadata);
+    }
 
-    res.json({
-      name: `Mintoria - ${dropTitle}`,
-      description: `Commemorative NFT from ${locationName}`,
-      image: imageUrl,
-      external_url: galleryUrl,
-      attributes: [
-        { trait_type: "Location", value: locationName },
-        { trait_type: "Collection", value: dropTitle },
-        { trait_type: "Platform", value: "Mintoria" },
-        { trait_type: "Chain", value: "Solana" },
-      ],
-    });
+    res.status(404).json({ message: "Metadata not found" });
   });
 
   // === MINT ROUTES ===
@@ -684,10 +709,11 @@ export async function registerRoutes(
 
       const recipientAddress = recipient || solanaService.getServerPublicKey();
 
+      const metadataUri = `${getCanonicalBaseUrl(req)}/api/metadata/drop/${drop.id}`;
       const result = await solanaService.mintNFT({
         recipientAddress,
         name: drop.title,
-        uri: drop.metadataUrl,
+        uri: metadataUri,
       });
 
       try {
@@ -910,10 +936,11 @@ export async function registerRoutes(
       }
 
       const secret = decrypt(key.encryptedSecret);
+      const metadataUri = `${getCanonicalBaseUrl(req)}/api/metadata/drop/${drop.id}`;
       const result = await solanaService.mintNFTWithCustodialWallet({
         custodialSecretKey: secret,
         name: drop.title,
-        uri: drop.metadataUrl,
+        uri: metadataUri,
       });
 
       const txHash = result.txHash;
