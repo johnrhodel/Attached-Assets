@@ -21,6 +21,8 @@ import { sendVerificationEmail, sendMintConfirmationEmail } from "./services/ema
 function getCanonicalBaseUrl(req: express.Request): string {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/$/, "");
   if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  if (process.env.REPL_SLUG) return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+  console.warn("[WARN] No canonical base URL configured. Using request host header — set APP_BASE_URL for production.");
   return `${req.protocol}://${req.get("host")}`;
 }
 
