@@ -510,7 +510,7 @@ async function handleShareInstagram(imageUrl: string, title: string, toastFn: (o
 }
 
 function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult | "ALREADY_MINTED") => void; onBack: () => void }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [step, setStep] = useState<"email" | "code" | "minting">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -547,7 +547,7 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
       const res = await fetch("/api/walletless/mine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, chain: "solana", claimToken }),
+        body: JSON.stringify({ email, code, chain: "solana", claimToken, locale: language }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));

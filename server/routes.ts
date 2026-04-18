@@ -891,7 +891,7 @@ export async function registerRoutes(
 
   app.post(api.walletless.mine.path, async (req, res) => {
     try {
-      const { email, code, claimToken } = req.body;
+      const { email, code, claimToken, locale } = req.body;
       const chain = "solana";
       const normalizedEmail = (email || "").trim().toLowerCase();
 
@@ -975,11 +975,36 @@ export async function registerRoutes(
 
       console.log(`[MINT_SUCCESS] Drop: "${drop.title}" | Chain: solana | Email: ${normalizedEmail} | Recipient: ${recipientAddress} | TxHash: ${txHash} | Explorer: ${explorerUrl || 'N/A'}`);
 
+      let emailImageUrl: string | undefined;
+      let emailLocationName: string | undefined;
+      let emailAttributes: Array<{ trait_type: string; value: string | number }> | undefined;
+      try {
+        const baseUrl = getCanonicalBaseUrl(req);
+        const dropLocation = await storage.getLocation(drop.locationId);
+        emailLocationName = dropLocation?.name;
+        const metadata = await buildNftMetadata(drop.id, baseUrl);
+        emailAttributes = metadata?.attributes;
+        if (drop.imageUrl) {
+          emailImageUrl = metadata?.image
+            || (drop.imageUrl.startsWith("http")
+              ? drop.imageUrl
+              : `${baseUrl}${drop.imageUrl.startsWith("/") ? "" : "/"}${drop.imageUrl}`);
+        }
+      } catch (enrichErr: any) {
+        console.error("[EMAIL] Failed to enrich mint confirmation:", enrichErr?.message);
+      }
       sendMintConfirmationEmail(normalizedEmail, {
         dropTitle: drop.title,
         chain,
         txHash,
         explorerUrl: explorerUrl || "",
+        imageUrl: emailImageUrl,
+        locationName: emailLocationName,
+        month: drop.month,
+        year: drop.year,
+        attributes: emailAttributes,
+        mintedAt: new Date(),
+        locale: typeof locale === "string" ? locale : undefined,
       }).catch(console.error);
 
       res.json({

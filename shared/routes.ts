@@ -302,6 +302,7 @@ export const api = {
         code: z.string(),
         chain: z.enum(["evm", "solana"]),
         claimToken: z.string(),
+        locale: z.enum(["en", "pt", "es"]).optional(),
       }),
       responses: {
         200: z.object({
