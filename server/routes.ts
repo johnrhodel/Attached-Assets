@@ -1060,25 +1060,29 @@ export async function registerRoutes(
 
       const lastKnownBalance = solanaService.getCachedBalance();
 
+      const isEphemeral = solanaService.isServerKeypairEphemeral();
       const data = {
         solana: {
           serverPublicKey: solanaService.getServerPublicKey(),
           balance: lastKnownBalance.toFixed(4),
           network: process.env.SOLANA_NETWORK || "devnet",
-          healthy: lastKnownBalance > 0,
+          healthy: lastKnownBalance > 0 && !isEphemeral,
+          isEphemeral,
         },
       };
 
       cachedStatus = { data, timestamp: Date.now() };
 
       solanaService.getServerBalance().then((freshBal) => {
+        const ephemeral = solanaService.isServerKeypairEphemeral();
         cachedStatus = {
           data: {
             solana: {
               serverPublicKey: solanaService.getServerPublicKey(),
               balance: freshBal.toFixed(4),
               network: process.env.SOLANA_NETWORK || "devnet",
-              healthy: freshBal > 0,
+              healthy: freshBal > 0 && !ephemeral,
+              isEphemeral: ephemeral,
             },
           },
           timestamp: Date.now(),

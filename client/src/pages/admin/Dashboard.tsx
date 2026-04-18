@@ -3,7 +3,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Activity, Users, Box, MapPin, Layers, Copy, Check, Search, ShieldCheck, Download, Clock, ArrowUpDown, Zap, Trash2, UserCheck, TrendingUp } from "lucide-react";
+import { Activity, Users, Box, MapPin, Layers, Copy, Check, Search, ShieldCheck, Download, Clock, ArrowUpDown, Zap, Trash2, UserCheck, TrendingUp, AlertTriangle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useI18n } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,7 @@ interface BlockchainStatus {
     balance: string;
     network: string;
     healthy: boolean;
+    isEphemeral?: boolean;
   };
 }
 
@@ -310,6 +311,23 @@ export default function Dashboard() {
                 <div className="text-2xl font-bold" data-testid="text-conversion-rate">{orgStats.conversionRate}%</div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {solana?.isEphemeral && (
+          <div
+            className="rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/40 p-4 flex gap-3 items-start"
+            data-testid="alert-ephemeral-wallet"
+          >
+            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-red-900 dark:text-red-200" data-testid="text-ephemeral-title">
+                {t.admin.ephemeralWalletTitle}
+              </p>
+              <p className="text-sm text-red-800 dark:text-red-300" data-testid="text-ephemeral-description">
+                {t.admin.ephemeralWalletDescription}
+              </p>
+            </div>
           </div>
         )}
 

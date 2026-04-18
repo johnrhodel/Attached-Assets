@@ -16,10 +16,20 @@ let airdropInProgress = false;
 let lastAirdropAttempt = 0;
 const AIRDROP_COOLDOWN = 120000;
 
+let serverKeypairIsEphemeral = false;
+
+function failProductionWithoutSecret(reason: string): never {
+  console.error(`[SOLANA][FATAL] ${reason}`);
+  console.error("[SOLANA][FATAL] SOLANA_SERVER_SECRET_KEY must be configured in the Deployment's Secrets pane (separate from workspace Secrets). Refusing to start with an ephemeral keypair in production.");
+  process.exit(1);
+}
+
 function getServerKeypair(): Keypair {
   if (serverKeypair) return serverKeypair;
 
+  const isProduction = process.env.NODE_ENV === "production";
   const secretKeyEnv = process.env.SOLANA_SERVER_SECRET_KEY || process.env.STELLAR_SERVER_SECRET_KEY;
+
   if (secretKeyEnv) {
     try {
       const decoded = bs58.decode(secretKeyEnv);
@@ -31,17 +41,30 @@ function getServerKeypair(): Keypair {
         serverKeypair = Keypair.fromSecretKey(Uint8Array.from(arr));
         console.log(`[SOLANA] Loaded persistent keypair (JSON). Public key: ${serverKeypair.publicKey.toBase58()}`);
       } catch {
-        console.error("[SOLANA] Failed to parse secret key from env, generating new one");
+        if (isProduction) {
+          failProductionWithoutSecret("Failed to parse SOLANA_SERVER_SECRET_KEY (neither base58 nor JSON array).");
+        }
+        console.error("[SOLANA] Failed to parse secret key from env, generating ephemeral keypair (development only)");
         serverKeypair = Keypair.generate();
+        serverKeypairIsEphemeral = true;
       }
     }
   } else {
+    if (isProduction) {
+      failProductionWithoutSecret("SOLANA_SERVER_SECRET_KEY (and STELLAR_SERVER_SECRET_KEY fallback) is not set.");
+    }
     serverKeypair = Keypair.generate();
-    console.log(`[SOLANA] Auto-generated server keypair. Public key: ${serverKeypair.publicKey.toBase58()}`);
+    serverKeypairIsEphemeral = true;
+    console.log(`[SOLANA] Auto-generated ephemeral server keypair (development only). Public key: ${serverKeypair.publicKey.toBase58()}`);
     console.log(`[SOLANA] Set SOLANA_SERVER_SECRET_KEY env var to persist this keypair across restarts.`);
   }
 
   return serverKeypair;
+}
+
+export function isServerKeypairEphemeral(): boolean {
+  getServerKeypair();
+  return serverKeypairIsEphemeral;
 }
 
 function getUmi() {
