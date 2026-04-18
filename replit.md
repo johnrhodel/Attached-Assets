@@ -54,7 +54,7 @@ Solana (devnet) via `@solana/web3.js`. EVM and Stellar routes return 503 (disabl
 - **Email Service**: Verification codes and mint confirmations via Resend.
 - **Internationalization (i18n)**: Full EN/PT/ES with automatic browser language detection.
 - **Custodial Wallet System**: Solana keypairs encrypted with AES-256-CBC for server-side minting.
-- **PWA & Embed**: PWA with manifest/service worker (conservative cache strategy — only pre-cached static shell assets), iFrame embed, and script widget. Server serves `sw.js` with no-cache headers to ensure browser always fetches the latest version.
+- **PWA & Embed**: PWA with manifest/service worker (conservative cache strategy — only pre-cached static shell assets), iFrame embed, and script widget. Server serves `sw.js` with no-cache headers to ensure browser always fetches the latest version. Cache name (`mintoria-vN` in `client/public/sw.js`) must be bumped on every release that risks stale shell assets — bumping forces all installed clients to drop the old cache on next visit.
 - **Social Sharing**: Twitter/X, Instagram, download NFT image after minting.
 - **Plan-Based Limits**: Server-side enforcement — mint limits per drop and location limits per plan. Admin bypasses limits. Structured error codes: `PLAN_MINT_LIMIT`, `PLAN_LOCATION_LIMIT`.
 - **Reset Mints**: Admin-only endpoint (`POST /api/admin/reset-mints`).

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mintoria-v3';
+const CACHE_NAME = 'mintoria-v4';
 const STATIC_ASSETS = [
   '/',
   '/favicon.png',
