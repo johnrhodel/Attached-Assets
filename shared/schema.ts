@@ -78,6 +78,7 @@ export const mints = pgTable("mints", {
   dropId: integer("drop_id").notNull(),
   chain: text("chain").notNull(),
   recipient: text("recipient").notNull(),
+  mintAddress: text("mint_address"),
   txHash: text("tx_hash"),
   status: text("status").default("pending").notNull(),
   email: text("email"),

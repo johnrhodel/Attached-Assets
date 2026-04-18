@@ -42,6 +42,7 @@ waitForPort = 5000
 
 [userenv.shared]
 EMAIL_FROM = "Mintoria <noreply@mintoria.xyz>"
+APP_BASE_URL = "https://mintoria.xyz"
 
 [userenv.production]
 

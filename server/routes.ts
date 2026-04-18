@@ -727,6 +727,7 @@ export async function registerRoutes(
           chain: "solana",
           recipient: recipientAddress,
           txHash: result.txHash,
+          mintAddress: result.mintAddress,
           status: "confirmed",
         });
       } catch (dbErr: any) {
@@ -959,6 +960,7 @@ export async function registerRoutes(
           chain,
           recipient: recipientAddress,
           txHash,
+          mintAddress: result.mintAddress,
           status: "confirmed",
           email: normalizedEmail,
         });
