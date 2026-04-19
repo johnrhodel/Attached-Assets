@@ -24,13 +24,37 @@ function failProductionWithoutSecret(reason: string): never {
   process.exit(1);
 }
 
+/**
+ * Cleans an env-var secret value that may have been pasted with extra
+ * whitespace, BOM, or wrapping quotes. Returns { value, sanitized } where
+ * `sanitized` is true iff the cleaned value differs from the input.
+ * Pure string ops only — never logs the value.
+ */
+function sanitizeSecretEnv(raw: string): { value: string; sanitized: boolean } {
+  let v = raw;
+  if (v.charCodeAt(0) === 0xFEFF) v = v.slice(1);
+  v = v.trim();
+  if (v.length >= 2) {
+    const first = v[0];
+    const last = v[v.length - 1];
+    if ((first === '"' || first === "'" || first === '`') && first === last) {
+      v = v.slice(1, -1).trim();
+    }
+  }
+  return { value: v, sanitized: v !== raw };
+}
+
 function getServerKeypair(): Keypair {
   if (serverKeypair) return serverKeypair;
 
   const isProduction = process.env.NODE_ENV === "production";
-  const secretKeyEnv = process.env.SOLANA_SERVER_SECRET_KEY || process.env.STELLAR_SERVER_SECRET_KEY;
+  const rawSecret = process.env.SOLANA_SERVER_SECRET_KEY || process.env.STELLAR_SERVER_SECRET_KEY;
 
-  if (secretKeyEnv) {
+  if (rawSecret) {
+    const { value: secretKeyEnv, sanitized } = sanitizeSecretEnv(rawSecret);
+    if (sanitized) {
+      console.warn("[SOLANA] Secret was sanitized (trimmed/unquoted) before parsing.");
+    }
     try {
       const decoded = bs58.decode(secretKeyEnv);
       serverKeypair = Keypair.fromSecretKey(decoded);
