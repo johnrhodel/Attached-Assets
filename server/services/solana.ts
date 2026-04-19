@@ -48,7 +48,7 @@ function getServerKeypair(): Keypair {
   if (serverKeypair) return serverKeypair;
 
   const isProduction = process.env.NODE_ENV === "production";
-  const rawSecret = process.env.SOLANA_SERVER_SECRET_KEY || process.env.STELLAR_SERVER_SECRET_KEY;
+  const rawSecret = process.env.SOLANA_KEYPAIR_JSON || process.env.SOLANA_SERVER_SECRET_KEY || process.env.STELLAR_SERVER_SECRET_KEY;
 
   if (rawSecret) {
     const { value: secretKeyEnv, sanitized } = sanitizeSecretEnv(rawSecret);
