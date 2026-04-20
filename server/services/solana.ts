@@ -2,7 +2,11 @@ import { Connection, Keypair, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL } from 
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { createV1, mplCore, fetchAssetV1 } from "@metaplex-foundation/mpl-core";
 import { generateSigner, keypairIdentity, publicKey as umiPublicKey, createSignerFromKeypair as umiSignerFromKeypair } from "@metaplex-foundation/umi";
-import bs58 from "bs58";
+import bs58Module from "bs58";
+const bs58 = ((bs58Module as any).default ?? bs58Module) as {
+  encode: (bytes: Uint8Array) => string;
+  decode: (str: string) => Uint8Array;
+};
 
 const SOLANA_NETWORK = process.env.SOLANA_NETWORK || "devnet";
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || clusterApiUrl(SOLANA_NETWORK as any);
