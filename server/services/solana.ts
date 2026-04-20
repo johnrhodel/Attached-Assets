@@ -55,9 +55,6 @@ function getServerKeypair(): Keypair {
     if (sanitized) {
       console.warn("[SOLANA] Secret was sanitized (trimmed/unquoted) before parsing.");
     }
-    const diagPrefix = secretKeyEnv.slice(0, 4);
-    const diagSuffix = secretKeyEnv.slice(-4);
-    console.log(`[SOLANA][DIAG] env value received: length=${secretKeyEnv.length}, prefix='${diagPrefix}', suffix='${diagSuffix}'`);
     try {
       const decoded = bs58.decode(secretKeyEnv);
       serverKeypair = Keypair.fromSecretKey(decoded);
