@@ -50,7 +50,7 @@ export default function AccessCode() {
 
   return (
     <div className="min-h-screen w-full relative flex flex-col items-center overflow-hidden">
-      <img src={claimBg} alt="Scenic travel destination" className="absolute inset-0 w-full h-full object-cover" />
+      <img src={claimBg} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
 
       <div className="relative z-20 w-full max-w-sm sm:max-w-md flex items-center justify-between gap-3 flex-wrap px-4 py-4 sm:px-6 sm:py-5 mx-auto">

@@ -39,8 +39,9 @@ function getServerKeypair(): StellarSdk.Keypair {
   }
 
   if (isProduction) {
-    console.error('[STELLAR] STELLAR_SERVER_SECRET_KEY must be set in production! Server will not start.');
-    process.exit(1);
+    console.warn('[STELLAR] No STELLAR_SERVER_SECRET_KEY set. Stellar chain is disabled in this deployment; using ephemeral keypair (no real Stellar mints will succeed).');
+    serverKeypair = StellarSdk.Keypair.random();
+    return serverKeypair;
   }
 
   if (existsSync(KEYPAIR_FILE)) {

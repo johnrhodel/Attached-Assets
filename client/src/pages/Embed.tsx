@@ -15,7 +15,7 @@ export default function Embed() {
 
   return (
     <div className="flex flex-col items-center justify-center p-4 bg-card border rounded-xl shadow-sm max-w-xs mx-auto font-sans">
-      <img src={drop.imageUrl} className="w-full aspect-square object-cover rounded-md mb-3" alt="Drop" />
+      <img src={drop.imageUrl} className="w-full aspect-square object-cover rounded-md mb-3" alt={drop.title} />
       <div className="flex items-center gap-1.5 mb-1">
         <Layers className="w-3 h-3 text-primary" />
         <span className="text-[10px] font-medium text-primary">Mintoria</span>

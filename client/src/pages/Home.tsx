@@ -278,7 +278,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="relative rounded-md overflow-hidden h-48 sm:h-56 md:h-64">
-              <img src={featureTravel} alt="Tourist destination" className="w-full h-full object-cover" />
+              <img src={featureTravel} alt="" aria-hidden="true" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-4 left-4 right-4 text-white">
                 <h3 className="font-serif font-bold text-base sm:text-lg">{t.landing.feature_qr}</h3>
@@ -286,7 +286,7 @@ export default function Home() {
               </div>
             </div>
             <div className="relative rounded-md overflow-hidden h-48 sm:h-56 md:h-64">
-              <img src={featureQrCode} alt="QR code scanning" className="w-full h-full object-cover" />
+              <img src={featureQrCode} alt="" aria-hidden="true" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-4 left-4 right-4 text-white">
                 <h3 className="font-serif font-bold text-base sm:text-lg">{t.landing.feature_embed}</h3>

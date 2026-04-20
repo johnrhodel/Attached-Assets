@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClaimCard } from "@/components/ClaimCard";
 import { LanguageSelector } from "@/components/language-selector";
-import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, Download, ExternalLink, ChevronLeft, Sparkles, AlertTriangle, Share2 } from "lucide-react";
-import { SiX, SiInstagram } from "react-icons/si";
+import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, Download, ExternalLink, ChevronLeft, Sparkles, AlertTriangle, Share2, Link2 } from "lucide-react";
+import { SiX, SiInstagram, SiWhatsapp } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/context";
 import { useToast } from "@/hooks/use-toast";
@@ -139,7 +139,7 @@ export default function Claim() {
   
   if (!drop || error) return (
     <div className="h-screen w-full flex flex-col items-center justify-center p-4 text-center relative">
-      <img src={claimBg} alt="Scenic travel destination" className="absolute inset-0 w-full h-full object-cover" />
+      <img src={claimBg} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-black/60" />
       <div className="absolute top-4 right-4 z-20"><LanguageSelector /></div>
       <div className="relative z-10 flex flex-col items-center">
@@ -184,7 +184,7 @@ export default function Claim() {
 
   return (
     <div className="min-h-screen w-full relative flex flex-col items-center overflow-hidden">
-      <img src={claimBg} alt="Scenic travel destination" className="absolute inset-0 w-full h-full object-cover" />
+      <img src={claimBg} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
 
       <div className="relative z-20 w-full max-w-sm sm:max-w-md flex items-center justify-between gap-3 flex-wrap px-4 py-4 sm:px-6 sm:py-5 mx-auto">
@@ -396,6 +396,7 @@ function SuccessScreen({ drop, mintResult, onBack }: { drop: any; mintResult: Mi
             className="bg-black/90 border-white/10 text-white hover:bg-black hover:border-white/25 transition-all h-12"
             onClick={() => handleShareTwitter(drop.title, mintResult.explorerUrl || '', t.claim.shareText)}
             data-testid="button-share-twitter"
+            aria-label={`${t.claim.shareLabel} ${t.claim.shareTwitter}`}
           >
             <SiX className="w-4 h-4 mr-2 shrink-0" />
             <span className="truncate">{t.claim.shareTwitter}</span>
@@ -403,12 +404,35 @@ function SuccessScreen({ drop, mintResult, onBack }: { drop: any; mintResult: Mi
           <Button
             size="lg"
             variant="outline"
+            className="bg-[#25D366] border-transparent text-white hover:bg-[#1ebe5b] transition-all h-12"
+            onClick={() => handleShareWhatsApp(drop.title, mintResult.explorerUrl || '', t.claim.shareText)}
+            data-testid="button-share-whatsapp"
+            aria-label={`${t.claim.shareLabel} ${t.claim.shareWhatsApp}`}
+          >
+            <SiWhatsapp className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">{t.claim.shareWhatsApp}</span>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
             className="bg-gradient-to-r from-purple-600 to-pink-500 border-transparent text-white hover:from-purple-500 hover:to-pink-400 transition-all h-12"
-            onClick={() => handleShareInstagram(drop.imageUrl, drop.title, toast, t.claim.instagramSaved)}
+            onClick={() => handleShareInstagram(drop.imageUrl, drop.title, toast, t.claim.instagramSaved, t.claim.instagramDesktopHint)}
             data-testid="button-share-instagram"
+            aria-label={`${t.claim.shareLabel} ${t.claim.shareInstagram}`}
           >
             <SiInstagram className="w-4 h-4 mr-2 shrink-0" />
             <span className="truncate">{t.claim.shareInstagram}</span>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/25 transition-all h-12"
+            onClick={() => handleCopyLink(mintResult.explorerUrl || window.location.href, toast, t.claim.copyLinkSuccess)}
+            data-testid="button-share-copy-link"
+            aria-label={t.claim.shareCopyLink}
+          >
+            <Link2 className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">{t.claim.shareCopyLink}</span>
           </Button>
         </div>
 
@@ -478,7 +502,33 @@ function handleShareTwitter(dropTitle: string, explorerUrl: string, shareTemplat
   window.open(twitterUrl, "_blank", "noopener,noreferrer");
 }
 
-async function handleShareInstagram(imageUrl: string, title: string, toastFn: (opts: { title: string; description: string }) => void, instagramSavedMsg: string) {
+function handleShareWhatsApp(dropTitle: string, explorerUrl: string, shareTemplate: string) {
+  const text = shareTemplate.replace("{location}", dropTitle);
+  const url = explorerUrl || "https://mintoria.xyz";
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`;
+  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+}
+
+async function handleCopyLink(url: string, toastFn: (opts: { title: string; description: string }) => void, successMsg: string) {
+  try {
+    await navigator.clipboard.writeText(url);
+    toastFn({ title: "✓", description: successMsg });
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = url;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+      toastFn({ title: "✓", description: successMsg });
+    } catch {}
+    document.body.removeChild(textarea);
+  }
+}
+
+async function handleShareInstagram(imageUrl: string, title: string, toastFn: (opts: { title: string; description: string }) => void, instagramSavedMsg: string, instagramDesktopHint: string) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   if (isMobile && navigator.share) {
@@ -505,8 +555,10 @@ async function handleShareInstagram(imageUrl: string, title: string, toastFn: (o
     setTimeout(() => {
       window.location.href = "instagram://app";
     }, 600);
+    toastFn({ title: "Instagram", description: instagramSavedMsg });
+  } else {
+    toastFn({ title: "Instagram", description: instagramDesktopHint });
   }
-  toastFn({ title: "Instagram", description: instagramSavedMsg });
 }
 
 function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult | "ALREADY_MINTED") => void; onBack: () => void }) {
