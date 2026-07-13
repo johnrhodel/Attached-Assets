@@ -1,0 +1,106 @@
+[
+  {
+    "id": "3f0a1b2c-4d5e-4f60-8a71-92b3c4d5e6f7",
+    "position": 1,
+    "filepath": "src/pages/slides/Capa.tsx",
+    "title": "Mintoria",
+    "description": "Capa com logo, tagline e mintoria.xyz",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "position": 2,
+    "filepath": "src/pages/slides/OProblema.tsx",
+    "title": "O problema",
+    "description": "Experiências físicas não deixam lembrança digital verificável",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+    "position": 3,
+    "filepath": "src/pages/slides/ASolucao.tsx",
+    "title": "A solução",
+    "description": "NFTs comemorativos sem fricção: QR code, e-mail, NFT",
+    "speakerNotes": ""
+  },
+  {
+    "id": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f",
+    "position": 4,
+    "filepath": "src/pages/slides/JornadaDoVisitante.tsx",
+    "title": "Jornada do visitante",
+    "description": "Fluxo passo a passo do QR code à galeria Meus NFTs",
+    "speakerNotes": ""
+  },
+  {
+    "id": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80",
+    "position": 5,
+    "filepath": "src/pages/slides/TecnologiaPorTras.tsx",
+    "title": "Tecnologia por trás do mint",
+    "description": "Carteira custodial AES-256, Solana via Metaplex Core, metadados verificáveis",
+    "speakerNotes": ""
+  },
+  {
+    "id": "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8091",
+    "position": 6,
+    "filepath": "src/pages/slides/PainelDoOrganizador.tsx",
+    "title": "Painel do organizador",
+    "description": "Auto-cadastro, projetos, locais, drops, QR codes e estatísticas",
+    "speakerNotes": ""
+  },
+  {
+    "id": "f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8091a2",
+    "position": 7,
+    "filepath": "src/pages/slides/Diferenciais.tsx",
+    "title": "Diferenciais",
+    "description": "Zero fricção, multi-tenant, freemium, i18n, PWA, anti-fraude, Solana",
+    "speakerNotes": ""
+  },
+  {
+    "id": "07b8c9d0-e1f2-4a3b-4c5d-6e7f8091a2b3",
+    "position": 8,
+    "filepath": "src/pages/slides/CasosDeUso.tsx",
+    "title": "Casos de uso",
+    "description": "Pontos turísticos, shows, eventos corporativos, conferências, museus",
+    "speakerNotes": ""
+  },
+  {
+    "id": "18c9d0e1-f2a3-4b4c-5d6e-7f8091a2b3c4",
+    "position": 9,
+    "filepath": "src/pages/slides/Planos.tsx",
+    "title": "Planos e modelo de negócio",
+    "description": "Free, Starter, Professional e Enterprise com limites por plano",
+    "speakerNotes": ""
+  },
+  {
+    "id": "29d0e1f2-a3b4-4c5d-6e7f-8091a2b3c4d5",
+    "position": 10,
+    "filepath": "src/pages/slides/Seguranca.tsx",
+    "title": "Segurança",
+    "description": "Scrypt, carteiras cifradas, sessões seguras, Helmet/CSP, rate limiting",
+    "speakerNotes": ""
+  },
+  {
+    "id": "3ae1f2a3-b4c5-4d6e-7f80-91a2b3c4d5e6",
+    "position": 11,
+    "filepath": "src/pages/slides/NumerosAtuais.tsx",
+    "title": "Números atuais",
+    "description": "NFTs mintados, locais e drops ativos na fase piloto",
+    "speakerNotes": ""
+  },
+  {
+    "id": "4bf2a3b4-c5d6-4e7f-8091-a2b3c4d5e6f7",
+    "position": 12,
+    "filepath": "src/pages/slides/ProximosPassos.tsx",
+    "title": "Próximos passos",
+    "description": "Mainnet, 2FA e expansão para novos mercados",
+    "speakerNotes": ""
+  },
+  {
+    "id": "5c03b4c5-d6e7-4f80-91a2-b3c4d5e6f708",
+    "position": 13,
+    "filepath": "src/pages/slides/Encerramento.tsx",
+    "title": "Encerramento",
+    "description": "Logo, chamada final e mintoria.xyz",
+    "speakerNotes": ""
+  }
+]
