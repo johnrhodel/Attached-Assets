@@ -43,15 +43,21 @@ export interface IStorage {
   deleteDrop(id: number): Promise<void>;
   updateDropStatus(id: number, status: string): Promise<Drop>;
   incrementMintCount(id: number): Promise<void>;
+  reserveMintSlot(id: number, maxAllowed: number | null): Promise<boolean>;
+  releaseMintSlot(id: number): Promise<void>;
 
   // Claim Sessions
   createClaimSession(session: InsertClaimSession): Promise<ClaimSession>;
   getClaimSession(tokenHash: string): Promise<ClaimSession | undefined>;
   markSessionConsumed(id: number): Promise<void>;
+  consumeSessionIfActive(id: number): Promise<boolean>;
+  reactivateSession(id: number): Promise<void>;
   cleanupExpiredSessions(): Promise<number>;
 
   // Mints
   createMint(mint: InsertMint): Promise<Mint>;
+  createOrReusePendingMint(mint: InsertMint): Promise<Mint | undefined>;
+  updateMint(id: number, data: Partial<InsertMint>): Promise<void>;
   getMints(dropId: number): Promise<Mint[]>;
   getMintByEmailAndDrop(email: string, dropId: number): Promise<Mint | undefined>;
 
@@ -272,6 +278,25 @@ export class DatabaseStorage implements IStorage {
       .set({ mintedCount: sql`${drops.mintedCount} + 1` })
       .where(eq(drops.id, id));
   }
+  async reserveMintSlot(id: number, maxAllowed: number | null): Promise<boolean> {
+    const conditions = [
+      eq(drops.id, id),
+      sql`(${drops.supply} <= 0 OR ${drops.mintedCount} < ${drops.supply})`,
+    ];
+    if (maxAllowed !== null) {
+      conditions.push(sql`${drops.mintedCount} < ${maxAllowed}`);
+    }
+    const result = await db.update(drops)
+      .set({ mintedCount: sql`${drops.mintedCount} + 1` })
+      .where(and(...conditions))
+      .returning({ id: drops.id });
+    return result.length > 0;
+  }
+  async releaseMintSlot(id: number): Promise<void> {
+    await db.update(drops)
+      .set({ mintedCount: sql`GREATEST(${drops.mintedCount} - 1, 0)` })
+      .where(eq(drops.id, id));
+  }
 
   // Claim Sessions
   async createClaimSession(item: InsertClaimSession): Promise<ClaimSession> {
@@ -285,6 +310,18 @@ export class DatabaseStorage implements IStorage {
   async markSessionConsumed(id: number): Promise<void> {
     await db.update(claimSessions)
       .set({ status: "consumed", consumedAt: new Date() })
+      .where(eq(claimSessions.id, id));
+  }
+  async consumeSessionIfActive(id: number): Promise<boolean> {
+    const result = await db.update(claimSessions)
+      .set({ status: "consumed", consumedAt: new Date() })
+      .where(and(eq(claimSessions.id, id), eq(claimSessions.status, "active")))
+      .returning({ id: claimSessions.id });
+    return result.length > 0;
+  }
+  async reactivateSession(id: number): Promise<void> {
+    await db.update(claimSessions)
+      .set({ status: "active", consumedAt: null })
       .where(eq(claimSessions.id, id));
   }
   async cleanupExpiredSessions(): Promise<number> {
@@ -301,6 +338,26 @@ export class DatabaseStorage implements IStorage {
   async createMint(item: InsertMint): Promise<Mint> {
     const [mint] = await db.insert(mints).values(item).returning();
     return mint;
+  }
+  async createOrReusePendingMint(item: InsertMint): Promise<Mint | undefined> {
+    const [mint] = await db.insert(mints)
+      .values({ ...item, status: "pending" })
+      .onConflictDoUpdate({
+        target: [mints.email, mints.dropId],
+        set: {
+          status: "pending",
+          txHash: null,
+          mintAddress: null,
+          recipient: item.recipient,
+          createdAt: new Date(),
+        },
+        setWhere: sql`${mints.status} = 'failed'`,
+      })
+      .returning();
+    return mint;
+  }
+  async updateMint(id: number, data: Partial<InsertMint>): Promise<void> {
+    await db.update(mints).set(data).where(eq(mints.id, id));
   }
   async getMints(dropId: number): Promise<Mint[]> {
     return await db.select().from(mints).where(eq(mints.dropId, dropId));
@@ -332,8 +389,10 @@ export class DatabaseStorage implements IStorage {
       dropId: mints.dropId,
       chain: mints.chain,
       recipient: mints.recipient,
+      mintAddress: mints.mintAddress,
       txHash: mints.txHash,
       status: mints.status,
+      email: mints.email,
       createdAt: mints.createdAt,
       dropTitle: drops.title,
       dropImageUrl: drops.imageUrl,
@@ -351,8 +410,10 @@ export class DatabaseStorage implements IStorage {
       dropId: mints.dropId,
       chain: mints.chain,
       recipient: mints.recipient,
+      mintAddress: mints.mintAddress,
       txHash: mints.txHash,
       status: mints.status,
+      email: mints.email,
       createdAt: mints.createdAt,
       dropTitle: drops.title,
     }).from(mints)
@@ -374,8 +435,10 @@ export class DatabaseStorage implements IStorage {
       dropId: mints.dropId,
       chain: mints.chain,
       recipient: mints.recipient,
+      mintAddress: mints.mintAddress,
       txHash: mints.txHash,
       status: mints.status,
+      email: mints.email,
       createdAt: mints.createdAt,
     }).from(mints)
       .innerJoin(drops, eq(mints.dropId, drops.id))

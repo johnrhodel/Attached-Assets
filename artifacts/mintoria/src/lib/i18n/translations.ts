@@ -48,6 +48,9 @@ export const translations = {
       mintSuccess: 'NFT Claimed!',
       mintFailed: 'Minting Failed',
       serviceUnavailable: 'Minting service temporarily unavailable. Please try again later.',
+      supplyExhausted: 'All NFTs from this drop have been claimed.',
+      timeoutError: 'The network is taking longer than expected. Your NFT may still be on the way — please check your email in a few minutes before trying again.',
+      networkError: 'Connection problem. Please check your internet and try again.',
       viewMyNft: 'View My NFT',
       viewOnExplorer: 'View Transaction',
       claimAnother: 'Claim Another',
@@ -495,6 +498,9 @@ export const translations = {
       mintSuccess: 'NFT Reivindicado!',
       mintFailed: 'Falha no Mint',
       serviceUnavailable: 'Serviço de mint temporariamente indisponível. Tente novamente mais tarde.',
+      supplyExhausted: 'Todos os NFTs deste drop já foram resgatados.',
+      timeoutError: 'A rede está demorando mais que o esperado. Seu NFT ainda pode estar a caminho — verifique seu e-mail em alguns minutos antes de tentar novamente.',
+      networkError: 'Problema de conexão. Verifique sua internet e tente novamente.',
       viewMyNft: 'Ver Meu NFT',
       viewOnExplorer: 'Ver Transação',
       claimAnother: 'Reivindique Outro',
@@ -942,6 +948,9 @@ export const translations = {
       mintSuccess: 'NFT Reclamado!',
       mintFailed: 'Fallo al Acuñar',
       serviceUnavailable: 'Servicio de acuñación temporalmente no disponible. Inténtelo de nuevo más tarde.',
+      supplyExhausted: 'Todos los NFTs de este drop ya han sido reclamados.',
+      timeoutError: 'La red está tardando más de lo esperado. Tu NFT puede estar aún en camino — revisa tu correo en unos minutos antes de intentarlo de nuevo.',
+      networkError: 'Problema de conexión. Verifica tu internet e inténtalo de nuevo.',
       viewMyNft: 'Ver Mi NFT',
       viewOnExplorer: 'Ver Transacción',
       claimAnother: 'Reclamar Otro',
@@ -1345,7 +1354,7 @@ export const translations = {
 } as const;
 
 type DeepStringify<T> = {
-  [K in keyof T]: T[K] extends string ? string : T[K] extends readonly string[] ? string[] : DeepStringify<T[K]>;
+  [K in keyof T]: T[K] extends string ? string : T[K] extends readonly string[] ? readonly string[] : DeepStringify<T[K]>;
 };
 
 export type TranslationKeys = DeepStringify<typeof translations.en>;

@@ -1,1 +1,2 @@
 - [Mintoria migration quirks](mintoria-migration.md) — key decisions and gotchas from porting Mintoria to pnpm_workspace
+- [Solana mint outcome safety](solana-mint-outcome-safety.md) — ambiguous/timeout chain errors must never retry or roll back; keep pending + reserved slot to prevent double mints.

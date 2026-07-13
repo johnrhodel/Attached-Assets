@@ -208,6 +208,27 @@ export async function getServerBalance(): Promise<number> {
   }
 }
 
+const MINT_TIMEOUT_MS = 60_000;
+const MAX_MINT_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 1_000;
+
+/**
+ * Returns true only for errors that are provably pre-send / definite failures,
+ * where the transaction could NOT have landed on-chain. Anything else must be
+ * treated as an unknown outcome (never retried, never rolled back).
+ */
+function isDefiniteFailure(err: Error): boolean {
+  const msg = err.message || "";
+  return (
+    /simulation failed/i.test(msg) ||
+    /insufficient (funds|lamports)/i.test(msg) ||
+    /attempt to debit an account but found no record of a prior credit/i.test(msg) ||
+    /blockhash not found/i.test(msg) ||
+    /invalid (transaction|instruction|param)/i.test(msg) ||
+    /ECONNREFUSED|ENOTFOUND|EAI_AGAIN/i.test(msg)
+  );
+}
+
 export async function mintNFT(params: {
   recipientAddress: string;
   name: string;
@@ -221,21 +242,61 @@ export async function mintNFT(params: {
     throw new Error("INSUFFICIENT_SOL");
   }
 
-  const asset = generateSigner(umiInstance);
+  let lastError: Error | null = null;
 
-  const tx = await createV1(umiInstance, {
-    asset,
-    name: params.name,
-    uri: params.uri,
-    owner: umiPublicKey(params.recipientAddress),
-  }).sendAndConfirm(umiInstance);
+  for (let attempt = 1; attempt <= MAX_MINT_ATTEMPTS; attempt++) {
+    const asset = generateSigner(umiInstance);
+    let timer: NodeJS.Timeout | undefined;
 
-  const signature = bs58.encode(tx.signature);
+    try {
+      const sendPromise = createV1(umiInstance, {
+        asset,
+        name: params.name,
+        uri: params.uri,
+        owner: umiPublicKey(params.recipientAddress),
+      }).sendAndConfirm(umiInstance);
 
-  return {
-    txHash: signature,
-    mintAddress: asset.publicKey.toString(),
-  };
+      // Avoid unhandled rejection if the timeout wins the race
+      sendPromise.catch(() => {});
+
+      const tx = await Promise.race([
+        sendPromise,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("SOLANA_TIMEOUT")), MINT_TIMEOUT_MS);
+        }),
+      ]);
+
+      return {
+        txHash: bs58.encode(tx.signature),
+        mintAddress: asset.publicKey.toString(),
+      };
+    } catch (err) {
+      lastError = err as Error;
+
+      // Timeout means the transaction outcome is unknown on-chain.
+      // Never retry in that case — it could mint a duplicate NFT.
+      if (lastError.message === "SOLANA_TIMEOUT") {
+        console.error(`[SOLANA] Mint timed out after ${MINT_TIMEOUT_MS}ms (attempt ${attempt}). Asset: ${asset.publicKey.toString()}`);
+        throw lastError;
+      }
+
+      // Errors that are not provably pre-send are ambiguous: the transaction
+      // may have landed on-chain. Never retry those either.
+      if (!isDefiniteFailure(lastError)) {
+        console.error(`[SOLANA] Mint failed with ambiguous outcome (attempt ${attempt}): ${lastError.message}. Asset: ${asset.publicKey.toString()}`);
+        throw new Error("SOLANA_UNKNOWN");
+      }
+
+      console.warn(`[SOLANA] Mint attempt ${attempt}/${MAX_MINT_ATTEMPTS} failed (definite): ${lastError.message}`);
+      if (attempt < MAX_MINT_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  throw lastError ?? new Error("SOLANA_MINT_FAILED");
 }
 
 export async function mintNFTWithCustodialWallet(params: {

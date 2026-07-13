@@ -223,9 +223,9 @@ export async function registerRoutes(
       const filePath = path.join(uploadsDir, uniqueName);
       writeFileSync(filePath, buffer);
 
-      res.json({ url: `/uploads/${uniqueName}` });
+      return res.json({ url: `/uploads/${uniqueName}` });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -289,7 +289,7 @@ export async function registerRoutes(
     }
 
     (req.session as any).userId = user.id;
-    res.json({ message: "Logged in" });
+    return res.json({ message: "Logged in" });
   });
 
   app.post(api.auth.register.path, async (req, res) => {
@@ -325,18 +325,18 @@ export async function registerRoutes(
       });
 
       (req.session as any).userId = newUser.id;
-      res.status(201).json({ message: "Account created successfully", role: "organizer" });
+      return res.status(201).json({ message: "Account created successfully", role: "organizer" });
     } catch (err: any) {
       if (err.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid registration data" });
       }
-      res.status(500).json({ message: safeErrorMessage(err, "REGISTER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "REGISTER") });
     }
   });
 
   app.post(api.auth.logout.path, (req, res) => {
     req.session.destroy(() => {
-      res.json({ message: "Logged out" });
+      return res.json({ message: "Logged out" });
     });
   });
 
@@ -372,9 +372,9 @@ export async function registerRoutes(
       const code = randomInt(100000, 1000000).toString();
       passwordResetCodes.set(normalizedEmail, { code, expiresAt: Date.now() + 5 * 60 * 1000, attempts: 0, verified: false });
       await sendVerificationEmail(normalizedEmail, code);
-      res.json({ message: "If the email exists, a code has been sent" });
+      return res.json({ message: "If the email exists, a code has been sent" });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "FORGOT_PASSWORD") });
+      return res.status(500).json({ message: safeErrorMessage(err, "FORGOT_PASSWORD") });
     }
   });
 
@@ -398,9 +398,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid code" });
       }
       stored.verified = true;
-      res.json({ message: "Code verified" });
+      return res.json({ message: "Code verified" });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "VERIFY_RESET_CODE") });
+      return res.status(500).json({ message: safeErrorMessage(err, "VERIFY_RESET_CODE") });
     }
   });
 
@@ -424,9 +424,9 @@ export async function registerRoutes(
       }
       await storage.updateUserPassword(user.id, hashPassword(newPassword));
       passwordResetCodes.delete(normalizedEmail);
-      res.json({ message: "Password updated successfully" });
+      return res.json({ message: "Password updated successfully" });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "RESET_PASSWORD") });
+      return res.status(500).json({ message: safeErrorMessage(err, "RESET_PASSWORD") });
     }
   });
 
@@ -436,7 +436,7 @@ export async function registerRoutes(
     const user = await storage.getUser(userId);
     if (!user) return res.status(401).json({ message: "User not found" });
     if (!user.isActive) return res.status(403).json({ message: "Account deactivated" });
-    res.json({ id: user.id, email: user.email, role: user.role, name: user.name });
+    return res.json({ id: user.id, email: user.email, role: user.role, name: user.name });
   });
 
   // === PROJECT / LOCATION / DROP ROUTES ===
@@ -449,19 +449,19 @@ export async function registerRoutes(
       return res.json(projects);
     }
     const projects = await storage.getProjectsByUserId(userId);
-    res.json(projects);
+    return res.json(projects);
   });
 
   app.post(api.projects.create.path, requireAuth, async (req, res) => {
     const userId = (req.session as any).userId;
     const project = await storage.createProject({ ...req.body, userId });
     await storage.createActivityLog({ userId, action: "create", entity: "project", entityId: project.id, details: `Created project "${project.name}"` });
-    res.status(201).json(project);
+    return res.status(201).json(project);
   });
 
   app.get(api.locations.list.path, requireAuth, requireProjectOwnership, async (req, res) => {
     const locations = await storage.getLocations(Number(req.params.projectId));
-    res.json(locations);
+    return res.json(locations);
   });
 
   app.post(api.locations.create.path, requireAuth, requireProjectOwnership, async (req, res) => {
@@ -483,18 +483,18 @@ export async function registerRoutes(
       projectId: Number(req.params.projectId)
     });
     await storage.createActivityLog({ userId, action: "create", entity: "location", entityId: location.id, details: `Created location "${location.name}"` });
-    res.status(201).json(location);
+    return res.status(201).json(location);
   });
 
   app.get(api.locations.getBySlug.path, async (req, res) => {
     const location = await storage.getLocationBySlug(req.params.slug as string);
     if (!location) return res.status(404).json({ message: "Location not found" });
-    res.json(location);
+    return res.json(location);
   });
 
   app.get(api.drops.list.path, requireAuth, requireLocationOwnership, async (req, res) => {
     const drops = await storage.getDrops(Number(req.params.locationId));
-    res.json(drops);
+    return res.json(drops);
   });
 
   app.post(api.drops.create.path, requireAuth, requireLocationOwnership, async (req, res) => {
@@ -516,66 +516,66 @@ export async function registerRoutes(
       locationId: Number(req.params.locationId)
     });
     await storage.createActivityLog({ userId, action: "create", entity: "drop", entityId: drop.id, details: `Created drop "${drop.title}"` });
-    res.status(201).json(drop);
+    return res.status(201).json(drop);
   });
 
   app.get(api.drops.getActive.path, async (req, res) => {
     const drop = await storage.getActiveDrop(Number(req.params.locationId));
     if (!drop) return res.status(404).json({ message: "No active drop found" });
-    res.json(drop);
+    return res.json(drop);
   });
 
   app.get("/api/drops/:id", async (req, res) => {
     const drop = await storage.getDrop(Number(req.params.id));
     if (!drop || drop.status !== "published") return res.status(404).json({ message: "Drop not found" });
-    res.json(drop);
+    return res.json(drop);
   });
 
   app.put(api.projects.update.path, requireAuth, requireProjectOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
     const project = await storage.updateProject(Number(req.params.id), req.body);
     await storage.createActivityLog({ userId, action: "update", entity: "project", entityId: project.id, details: `Updated project "${project.name}"` });
-    res.json(project);
+    return res.json(project);
   });
 
   app.delete(api.projects.delete.path, requireAuth, requireProjectOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
     await storage.deleteProject(Number(req.params.id));
     await storage.createActivityLog({ userId, action: "delete", entity: "project", entityId: Number(req.params.id), details: `Deleted project #${req.params.id}` });
-    res.json({ message: "Project deleted" });
+    return res.json({ message: "Project deleted" });
   });
 
   app.put(api.locations.update.path, requireAuth, requireLocationOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
     await storage.updateLocation(Number(req.params.id), req.body);
     await storage.createActivityLog({ userId, action: "update", entity: "location", entityId: Number(req.params.id), details: `Updated location #${req.params.id}` });
-    res.json({ message: "Location updated" });
+    return res.json({ message: "Location updated" });
   });
 
   app.delete(api.locations.delete.path, requireAuth, requireLocationOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
     await storage.deleteLocation(Number(req.params.id));
     await storage.createActivityLog({ userId, action: "delete", entity: "location", entityId: Number(req.params.id), details: `Deleted location #${req.params.id}` });
-    res.json({ message: "Location deleted" });
+    return res.json({ message: "Location deleted" });
   });
 
   app.put(api.drops.update.path, requireAuth, requireDropOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
     await storage.updateDrop(Number(req.params.id), req.body);
     await storage.createActivityLog({ userId, action: "update", entity: "drop", entityId: Number(req.params.id), details: `Updated drop #${req.params.id}` });
-    res.json({ message: "Drop updated" });
+    return res.json({ message: "Drop updated" });
   });
 
   app.delete(api.drops.delete.path, requireAuth, requireDropOwnership, async (req, res) => {
     const userId = (req.session as any).userId;
     await storage.deleteDrop(Number(req.params.id));
     await storage.createActivityLog({ userId, action: "delete", entity: "drop", entityId: Number(req.params.id), details: `Deleted drop #${req.params.id}` });
-    res.json({ message: "Drop deleted" });
+    return res.json({ message: "Drop deleted" });
   });
 
   app.post(api.drops.publish.path, requireAuth, requireDropOwnership, async (req, res) => {
     const drop = await storage.updateDropStatus(Number(req.params.id), "published");
-    res.json(drop);
+    return res.json(drop);
   });
 
   // === CLAIM SESSION ROUTES ===
@@ -588,7 +588,7 @@ export async function registerRoutes(
     }
 
     if (drop.supply > 0 && drop.mintedCount >= drop.supply) {
-      return res.status(429).json({ message: "Drop supply exhausted" });
+      return res.status(429).json({ message: "SUPPLY_EXHAUSTED" });
     }
 
     const planLimits = await getDropOwnerPlanLimits(drop.id);
@@ -609,7 +609,7 @@ export async function registerRoutes(
       status: "active"
     });
 
-    res.json({
+    return res.json({
       token,
       expiresAt: expiresAt.toISOString(),
       drop
@@ -647,7 +647,7 @@ export async function registerRoutes(
     const metadata = await buildNftMetadata(dropId, baseUrl);
     if (!metadata) return res.status(404).json({ message: "Drop not found" });
     res.setHeader("Cache-Control", "public, max-age=300");
-    res.json(metadata);
+    return res.json(metadata);
   });
 
   app.get("/api/metadata/:locationSlug/:dropSlug", async (req, res) => {
@@ -671,17 +671,17 @@ export async function registerRoutes(
       if (metadata) return res.json(metadata);
     }
 
-    res.status(404).json({ message: "Metadata not found" });
+    return res.status(404).json({ message: "Metadata not found" });
   });
 
   // === MINT ROUTES ===
 
   app.post(api.mint.evmPermit.path, async (_req, res) => {
-    res.status(503).json({ message: "EVM chain is currently disabled. Please use Solana." });
+    return res.status(503).json({ message: "EVM chain is currently disabled. Please use Solana." });
   });
 
   app.post(api.mint.stellarXdr.path, async (_req, res) => {
-    res.status(503).json({ message: "Stellar chain is currently disabled. Please use Solana." });
+    return res.status(503).json({ message: "Stellar chain is currently disabled. Please use Solana." });
   });
 
   app.post(api.mint.solanaTx.path, async (req, res) => {
@@ -694,14 +694,14 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Invalid or expired claim token" });
     }
 
+    let sessionConsumed = false;
+    let slotReserved = false;
+    let pendingMintId: number | null = null;
+
     try {
       const drop = await storage.getDrop(session.dropId);
       if (!drop) {
         return res.status(404).json({ message: "Drop not found" });
-      }
-
-      if (drop.supply > 0 && drop.mintedCount >= drop.supply) {
-        return res.status(429).json({ message: "Drop supply exhausted" });
       }
 
       const planLimits2 = await getDropOwnerPlanLimits(session.dropId);
@@ -709,7 +709,30 @@ export async function registerRoutes(
         return res.status(429).json({ message: "PLAN_MINT_LIMIT", limit: planLimits2.maxMintsPerDrop, current: drop.mintedCount, planSlug: planLimits2.planSlug });
       }
 
+      // Atomically consume the session so the same token can't be used twice
+      sessionConsumed = await storage.consumeSessionIfActive(session.id);
+      if (!sessionConsumed) {
+        return res.status(400).json({ message: "Invalid or expired claim token" });
+      }
+
+      // Atomically reserve a supply slot (check + increment in one statement)
+      slotReserved = await storage.reserveMintSlot(session.dropId, planLimits2.maxMintsPerDrop);
+      if (!slotReserved) {
+        await storage.reactivateSession(session.id).catch(() => {});
+        sessionConsumed = false;
+        return res.status(429).json({ message: "SUPPLY_EXHAUSTED" });
+      }
+
       const recipientAddress = recipient || solanaService.getServerPublicKey();
+
+      // Record intent before touching the blockchain so orphan TXs are traceable
+      const pendingMint = await storage.createMint({
+        dropId: session.dropId,
+        chain: "solana",
+        recipient: recipientAddress,
+        status: "pending",
+      });
+      pendingMintId = pendingMint.id;
 
       const metadataUri = `${getCanonicalBaseUrl(req)}/api/metadata/drop/${drop.id}`;
       const result = await solanaService.mintNFT({
@@ -719,25 +742,19 @@ export async function registerRoutes(
       });
 
       try {
-        await storage.markSessionConsumed(session.id);
-        await storage.incrementMintCount(session.dropId);
-
-        await storage.createMint({
-          dropId: session.dropId,
-          chain: "solana",
-          recipient: recipientAddress,
+        await storage.updateMint(pendingMint.id, {
+          status: "confirmed",
           txHash: result.txHash,
           mintAddress: result.mintAddress,
-          status: "confirmed",
         });
       } catch (dbErr: any) {
-        console.error("[SOLANA_MINT] Blockchain TX succeeded but DB update failed. TxHash:", result.txHash, "Error:", dbErr.message);
+        console.error(`[SOLANA_MINT] Blockchain TX succeeded but DB update failed. PendingMintId: ${pendingMint.id} TxHash: ${result.txHash} MintAddress: ${result.mintAddress} Error: ${dbErr.message}`);
       }
 
       await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: session.dropId, details: `NFT minted on solana to ${recipientAddress}` }).catch(() => {});
       await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${recipientAddress} on solana` }).catch(() => {});
 
-      res.json({
+      return res.json({
         txHash: result.txHash,
         mintAddress: result.mintAddress,
         explorerUrl: solanaService.getSolanaExplorerUrl(result.txHash),
@@ -745,7 +762,29 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       console.error("[SOLANA_MINT] Error:", err.message);
-      res.status(500).json({ message: safeErrorMessage(err, "SOLANA_MINT") });
+
+      if (err.message === "SOLANA_TIMEOUT" || err.message === "SOLANA_UNKNOWN") {
+        // Outcome unknown on-chain: keep the pending record and the reserved
+        // slot so the mint is recoverable and never double-minted.
+        console.error(`[SOLANA_MINT] Unknown outcome (${err.message}). PendingMintId: ${pendingMintId} DropId: ${session.dropId} — manual reconciliation may be needed.`);
+        return res.status(504).json({ message: "SOLANA_TIMEOUT" });
+      }
+
+      // Definite failure: roll back reservation, session and mark the mint failed
+      if (pendingMintId !== null) {
+        await storage.updateMint(pendingMintId, { status: "failed" }).catch(() => {});
+      }
+      if (slotReserved) {
+        await storage.releaseMintSlot(session.dropId).catch(() => {});
+      }
+      if (sessionConsumed) {
+        await storage.reactivateSession(session.id).catch(() => {});
+      }
+
+      if (err.message === "INSUFFICIENT_SOL") {
+        return res.status(503).json({ message: "INSUFFICIENT_SOL" });
+      }
+      return res.status(500).json({ message: safeErrorMessage(err, "SOLANA_MINT") });
     }
   });
 
@@ -762,32 +801,52 @@ export async function registerRoutes(
       return res.json({ message: "Already confirmed", txHash });
     }
 
+    if (new Date() > session.expiresAt) {
+      return res.status(400).json({ message: "Invalid or expired claim token" });
+    }
+
     const drop = await storage.getDrop(session.dropId);
+    let planLimitConfirm: number | null = null;
     if (drop) {
-      if (drop.supply > 0 && drop.mintedCount >= drop.supply) {
-        return res.status(429).json({ message: "Drop supply exhausted" });
-      }
       const planLimitsConfirm = await getDropOwnerPlanLimits(session.dropId);
+      planLimitConfirm = planLimitsConfirm.maxMintsPerDrop;
       if (planLimitsConfirm.maxMintsPerDrop !== null && drop.mintedCount >= planLimitsConfirm.maxMintsPerDrop) {
         return res.status(429).json({ message: "PLAN_MINT_LIMIT", limit: planLimitsConfirm.maxMintsPerDrop, current: drop.mintedCount, planSlug: planLimitsConfirm.planSlug });
       }
     }
 
-    await storage.markSessionConsumed(session.id);
-    await storage.incrementMintCount(session.dropId);
+    const consumed = await storage.consumeSessionIfActive(session.id);
+    if (!consumed) {
+      return res.json({ message: "Already confirmed", txHash });
+    }
 
-    const mint = await storage.createMint({
-      dropId: session.dropId,
-      chain,
-      recipient: "wallet_user",
-      txHash,
-      status: "confirmed"
-    });
+    const reserved = await storage.reserveMintSlot(session.dropId, planLimitConfirm);
+    if (!reserved) {
+      await storage.reactivateSession(session.id).catch(() => {});
+      return res.status(429).json({ message: "SUPPLY_EXHAUSTED" });
+    }
 
-    await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: mint.dropId, details: `NFT minted on ${mint.chain} to ${mint.recipient}` });
-    await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${mint.recipient} on ${mint.chain}` });
+    let mint;
+    try {
+      mint = await storage.createMint({
+        dropId: session.dropId,
+        chain,
+        recipient: "wallet_user",
+        txHash,
+        status: "confirmed"
+      });
+    } catch (err: any) {
+      // Compensate so the client can safely retry the confirmation
+      console.error(`[MINT_CONFIRM] Failed to record mint. DropId: ${session.dropId} TxHash: ${txHash} Error: ${err.message}`);
+      await storage.releaseMintSlot(session.dropId).catch(() => {});
+      await storage.reactivateSession(session.id).catch(() => {});
+      return res.status(500).json({ message: safeErrorMessage(err, "MINT_CONFIRM") });
+    }
 
-    res.json(mint);
+    await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: mint.dropId, details: `NFT minted on ${mint.chain} to ${mint.recipient}` }).catch(() => {});
+    await storage.createNotification({ type: "new_mint", title: "New NFT Minted", message: `NFT minted to ${mint.recipient} on ${mint.chain}` }).catch(() => {});
+
+    return res.json(mint);
   });
 
   // === WALLETLESS ROUTES ===
@@ -861,10 +920,10 @@ export async function registerRoutes(
         console.error(`[WALLETLESS] Failed to create solana wallet for ${email}: ${walletErr.message}`);
       }
 
-      res.json({ message: "Verification code sent" });
+      return res.json({ message: "Verification code sent" });
     } catch (err: any) {
       console.error(`[WALLETLESS_START] Error: ${err.message}`);
-      res.status(500).json({ message: "Failed to send verification code" });
+      return res.status(500).json({ message: "Failed to send verification code" });
     }
   });
 
@@ -883,13 +942,19 @@ export async function registerRoutes(
       await storage.markWalletlessUserVerified(user.id);
     }
 
-    res.json({
+    return res.json({
       token: `verified_${randomBytes(16).toString('hex')}`,
       verified: true
     });
   });
 
   app.post(api.walletless.mine.path, async (req, res) => {
+    let sessionConsumed = false;
+    let slotReserved = false;
+    let pendingMintId: number | null = null;
+    let consumedSessionId: number | null = null;
+    let reservedDropId: number | null = null;
+
     try {
       const { email, code, claimToken, locale } = req.body;
       const chain = "solana";
@@ -926,19 +991,50 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Drop not found" });
       }
 
-      const existingMint = await storage.getMintByEmailAndDrop(email, drop.id);
+      const existingMint = await storage.getMintByEmailAndDrop(normalizedEmail, drop.id);
       if (existingMint) {
         return res.status(409).json({ message: "ALREADY_MINTED" });
-      }
-
-      if (drop.supply > 0 && drop.mintedCount >= drop.supply) {
-        return res.status(429).json({ message: "Drop supply exhausted" });
       }
 
       const planLimits3 = await getDropOwnerPlanLimits(session.dropId);
       if (planLimits3.maxMintsPerDrop !== null && drop.mintedCount >= planLimits3.maxMintsPerDrop) {
         return res.status(429).json({ message: "PLAN_MINT_LIMIT", limit: planLimits3.maxMintsPerDrop, current: drop.mintedCount, planSlug: planLimits3.planSlug });
       }
+
+      // Atomically consume the session so the same token can't be used twice
+      sessionConsumed = await storage.consumeSessionIfActive(session.id);
+      if (!sessionConsumed) {
+        return res.status(400).json({ message: "Invalid or expired claim token" });
+      }
+      consumedSessionId = session.id;
+
+      // Atomically reserve a supply slot (check + increment in one statement)
+      slotReserved = await storage.reserveMintSlot(session.dropId, planLimits3.maxMintsPerDrop);
+      if (!slotReserved) {
+        await storage.reactivateSession(session.id).catch(() => {});
+        sessionConsumed = false;
+        return res.status(429).json({ message: "SUPPLY_EXHAUSTED" });
+      }
+      reservedDropId = session.dropId;
+
+      // Record intent before touching the blockchain so orphan TXs are traceable.
+      // Reuses a previous "failed" record for this email+drop (unique index).
+      const pendingMint = await storage.createOrReusePendingMint({
+        dropId: session.dropId,
+        chain,
+        recipient: key.address,
+        status: "pending",
+        email: normalizedEmail,
+      });
+      if (!pendingMint) {
+        // Conflict with an existing pending/confirmed mint for this email+drop
+        await storage.releaseMintSlot(session.dropId).catch(() => {});
+        slotReserved = false;
+        await storage.reactivateSession(session.id).catch(() => {});
+        sessionConsumed = false;
+        return res.status(409).json({ message: "ALREADY_MINTED" });
+      }
+      pendingMintId = pendingMint.id;
 
       const secret = decrypt(key.encryptedSecret);
       const metadataUri = `${getCanonicalBaseUrl(req)}/api/metadata/drop/${drop.id}`;
@@ -952,20 +1048,14 @@ export async function registerRoutes(
       const recipientAddress = result.recipientAddress;
 
       try {
-        await storage.markSessionConsumed(session.id);
-        await storage.incrementMintCount(session.dropId);
-
-        await storage.createMint({
-          dropId: session.dropId,
-          chain,
-          recipient: recipientAddress,
+        await storage.updateMint(pendingMint.id, {
+          status: "confirmed",
           txHash,
           mintAddress: result.mintAddress,
-          status: "confirmed",
-          email: normalizedEmail,
+          recipient: recipientAddress,
         });
       } catch (dbErr: any) {
-        console.error("[WALLETLESS_MINT] Blockchain TX succeeded but DB update failed. TxHash:", txHash, "Error:", dbErr.message);
+        console.error(`[WALLETLESS_MINT] Blockchain TX succeeded but DB update failed. PendingMintId: ${pendingMint.id} TxHash: ${txHash} MintAddress: ${result.mintAddress} Error: ${dbErr.message}`);
       }
 
       await storage.createActivityLog({ userId: 0, action: "mint", entity: "drop", entityId: session.dropId, details: `NFT minted on ${chain} to ${recipientAddress}` }).catch(() => {});
@@ -1007,7 +1097,7 @@ export async function registerRoutes(
         locale: typeof locale === "string" ? locale : undefined,
       }).catch(console.error);
 
-      res.json({
+      return res.json({
         txHash,
         mintAddress: result.mintAddress,
         address: recipientAddress,
@@ -1017,10 +1107,29 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       console.error(`[WALLETLESS_MINT] Error: ${err.message}`);
+
+      if (err.message === "SOLANA_TIMEOUT" || err.message === "SOLANA_UNKNOWN") {
+        // Outcome unknown on-chain: keep the pending record and the reserved
+        // slot so the mint is recoverable and never double-minted.
+        console.error(`[WALLETLESS_MINT] Unknown outcome (${err.message}). PendingMintId: ${pendingMintId} DropId: ${reservedDropId} — manual reconciliation may be needed.`);
+        return res.status(504).json({ message: "SOLANA_TIMEOUT" });
+      }
+
+      // Definite failure: roll back reservation, session and mark the mint failed
+      if (pendingMintId !== null) {
+        await storage.updateMint(pendingMintId, { status: "failed" }).catch(() => {});
+      }
+      if (slotReserved && reservedDropId !== null) {
+        await storage.releaseMintSlot(reservedDropId).catch(() => {});
+      }
+      if (sessionConsumed && consumedSessionId !== null) {
+        await storage.reactivateSession(consumedSessionId).catch(() => {});
+      }
+
       if (err.message === "INSUFFICIENT_SOL") {
         return res.status(503).json({ message: "INSUFFICIENT_SOL" });
       }
-      res.status(500).json({ message: safeErrorMessage(err, "WALLETLESS_MINT") });
+      return res.status(500).json({ message: safeErrorMessage(err, "WALLETLESS_MINT") });
     }
   });
 
@@ -1042,9 +1151,9 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Location not found" });
       }
 
-      res.json({ locationId: drop.locationId, drop });
+      return res.json({ locationId: drop.locationId, drop });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1089,22 +1198,22 @@ export async function registerRoutes(
         };
       }).catch(() => {});
 
-      res.json(data);
+      return res.json(data);
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
   // === RESET MINTS (Admin only) ===
   app.post("/api/admin/reset-mints", requireAdmin, async (req, res) => {
-    if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (!(req.session as any)?.userId) return res.status(401).json({ message: "Not authenticated" });
     try {
       await storage.deleteAllMints();
       console.log("[ADMIN] All mints and mint counts have been reset");
-      res.json({ message: "All mints have been deleted and drop counts reset to 0" });
+      return res.json({ message: "All mints have been deleted and drop counts reset to 0" });
     } catch (error: any) {
       console.error("[ADMIN] Error resetting mints:", error);
-      res.status(500).json({ message: "Failed to reset mints" });
+      return res.status(500).json({ message: "Failed to reset mints" });
     }
   });
 
@@ -1162,7 +1271,7 @@ export async function registerRoutes(
 
       const recentMints = await storage.getRecentMints(10);
 
-      res.json({
+      return res.json({
         totalMints: totalMinted,
         activeDrops: publishedDrops.length,
         totalLocations: allLocations.length,
@@ -1174,7 +1283,7 @@ export async function registerRoutes(
         recentMints,
       });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1195,9 +1304,9 @@ export async function registerRoutes(
     try {
       const user = (req as any).user;
       const stats = await storage.getOrganizerStats(user.id);
-      res.json(stats);
+      return res.json(stats);
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_STATS") });
+      return res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_STATS") });
     }
   });
 
@@ -1206,9 +1315,9 @@ export async function registerRoutes(
       const user = (req as any).user;
       const limits = await storage.getUserPlanLimits(user.id);
       const locationCount = await storage.getLocationCountByUserId(user.id);
-      res.json({ ...limits, currentLocations: locationCount });
+      return res.json({ ...limits, currentLocations: locationCount });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_PLAN") });
+      return res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_PLAN") });
     }
   });
 
@@ -1216,9 +1325,9 @@ export async function registerRoutes(
     try {
       const user = (req as any).user;
       const userProjects = await storage.getProjectsByUserId(user.id);
-      res.json(userProjects);
+      return res.json(userProjects);
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_PROJECTS") });
+      return res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_PROJECTS") });
     }
   });
 
@@ -1227,9 +1336,9 @@ export async function registerRoutes(
       const user = (req as any).user;
       const limit = Math.min(Number(req.query.limit) || 20, 100);
       const recentMints = await storage.getOrganizerMints(user.id, limit);
-      res.json(recentMints);
+      return res.json(recentMints);
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_MINTS") });
+      return res.status(500).json({ message: safeErrorMessage(err, "ORGANIZER_MINTS") });
     }
   });
 
@@ -1240,7 +1349,7 @@ export async function registerRoutes(
       const drop = await storage.getActiveDrop(locationId);
       const mintsList = await storage.getMints(drop?.id || 0);
       
-      res.json({
+      return res.json({
         drop,
         mints: mintsList.map(m => ({
           id: m.id,
@@ -1251,7 +1360,7 @@ export async function registerRoutes(
         totalMinted: mintsList.length,
       });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1259,9 +1368,9 @@ export async function registerRoutes(
   app.get("/api/public/pricing", async (_req, res) => {
     try {
       const plans = await storage.getActivePricingPlans();
-      res.json(plans);
+      return res.json(plans);
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1273,13 +1382,13 @@ export async function registerRoutes(
       const allDrops = await storage.getAllDrops();
       const confirmedMints = allMints.filter(m => m.status === "confirmed").length;
       const activeDrops = allDrops.filter(d => d.status === "published").length;
-      res.json({
+      return res.json({
         totalMinted: confirmedMints,
         activeLocations: allLocations.length,
         activeDrops,
       });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1288,9 +1397,9 @@ export async function registerRoutes(
     try {
       const email = decodeURIComponent(req.params.email);
       const userMints = await storage.getMintsForEmail(email);
-      res.json(userMints);
+      return res.json(userMints);
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1312,14 +1421,14 @@ export async function registerRoutes(
       if (format === "svg") {
         const svg = await QRCode.toString(claimUrl, { type: "svg", width: 300, margin: 2 });
         res.setHeader("Content-Type", "image/svg+xml");
-        res.send(svg);
+        return res.send(svg);
       } else {
         const png = await QRCode.toBuffer(claimUrl, { width: 300, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
         res.setHeader("Content-Type", "image/png");
-        res.send(png);
+        return res.send(png);
       }
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1328,15 +1437,15 @@ export async function registerRoutes(
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const logs = await storage.getActivityLogs(200);
-    res.json(logs);
+    return res.json(logs);
   });
 
   app.delete("/api/admin/activity", requireAdmin, async (req, res) => {
     try {
       await storage.deleteAllActivityLogs();
-      res.json({ message: "Activity logs cleared" });
+      return res.json({ message: "Activity logs cleared" });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "DELETE_ACTIVITY") });
+      return res.status(500).json({ message: safeErrorMessage(err, "DELETE_ACTIVITY") });
     }
   });
 
@@ -1347,7 +1456,7 @@ export async function registerRoutes(
     const settings = await storage.getAllSettings();
     const settingsMap: Record<string, string> = {};
     settings.forEach(s => { settingsMap[s.key] = s.value; });
-    res.json(settingsMap);
+    return res.json(settingsMap);
   });
 
   app.put("/api/admin/settings", requireAdmin, async (req, res) => {
@@ -1363,7 +1472,7 @@ export async function registerRoutes(
       entity: "settings",
       details: `Updated settings: ${Object.keys(entries).join(", ")}`,
     });
-    res.json({ success: true });
+    return res.json({ success: true });
   });
 
   // === NOTIFICATIONS ===
@@ -1372,21 +1481,21 @@ export async function registerRoutes(
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const notifs = await storage.getNotifications(50);
     const unread = await storage.getUnreadNotificationCount();
-    res.json({ notifications: notifs, unreadCount: unread });
+    return res.json({ notifications: notifs, unreadCount: unread });
   });
 
   app.post("/api/admin/notifications/read-all", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.markAllNotificationsRead();
-    res.json({ success: true });
+    return res.json({ success: true });
   });
 
   app.post("/api/admin/notifications/:id/read", requireAdmin, async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     await storage.markNotificationRead(Number(req.params.id));
-    res.json({ success: true });
+    return res.json({ success: true });
   });
 
   // === ADMIN PRICING ===
@@ -1395,9 +1504,9 @@ export async function registerRoutes(
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
     try {
       const plans = await storage.getPricingPlans();
-      res.json(plans);
+      return res.json(plans);
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1408,10 +1517,10 @@ export async function registerRoutes(
       const parsed = insertPricingPlanSchema.parse(req.body);
       const plan = await storage.createPricingPlan(parsed);
       await storage.createActivityLog({ userId, action: "create", entity: "pricing_plan", entityId: plan.id, details: `Created pricing plan: ${plan.name}` });
-      res.status(201).json(plan);
+      return res.status(201).json(plan);
     } catch (err: any) {
       if (err.name === "ZodError") return res.status(400).json({ message: "Invalid data", errors: err.errors });
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1423,10 +1532,10 @@ export async function registerRoutes(
       const plan = await storage.updatePricingPlan(Number(req.params.id), parsed);
       if (!plan) return res.status(404).json({ message: "Plan not found" });
       await storage.createActivityLog({ userId, action: "update", entity: "pricing_plan", entityId: plan.id, details: `Updated pricing plan: ${plan.name}` });
-      res.json(plan);
+      return res.json(plan);
     } catch (err: any) {
       if (err.name === "ZodError") return res.status(400).json({ message: "Invalid data", errors: err.errors });
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1436,9 +1545,9 @@ export async function registerRoutes(
     try {
       await storage.deletePricingPlan(Number(req.params.id));
       await storage.createActivityLog({ userId, action: "delete", entity: "pricing_plan", entityId: Number(req.params.id), details: "Deleted pricing plan" });
-      res.json({ success: true });
+      return res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1458,7 +1567,7 @@ export async function registerRoutes(
     await storage.createActivityLog({ userId, action: "export", entity: "mints", details: `Exported ${allMints.length} mints to CSV` });
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=mints-export.csv");
-    res.send(csv);
+    return res.send(csv);
   });
 
   app.get("/api/admin/export/users", requireAdmin, async (req, res) => {
@@ -1476,16 +1585,16 @@ export async function registerRoutes(
     await storage.createActivityLog({ userId, action: "export", entity: "users", details: `Exported ${allUsers.length} users to CSV` });
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=users-export.csv");
-    res.send(csv);
+    return res.send(csv);
   });
 
   // === ADMIN ORGANIZER MANAGEMENT ===
   app.get("/api/admin/organizers/stats", requireAdmin, async (_req, res) => {
     try {
       const stats = await storage.getOrganizerGlobalStats();
-      res.json(stats);
+      return res.json(stats);
     } catch (err: any) {
-      res.status(500).json({ message: err.message || "Failed to fetch organizer stats" });
+      return res.status(500).json({ message: err.message || "Failed to fetch organizer stats" });
     }
   });
 
@@ -1499,9 +1608,9 @@ export async function registerRoutes(
         limit: req.query.limit ? Number(req.query.limit) : 20,
       };
       const result = await storage.getAllOrganizers(filters);
-      res.json(result);
+      return res.json(result);
     } catch (err: any) {
-      res.status(500).json({ message: err.message || "Failed to fetch organizers" });
+      return res.status(500).json({ message: err.message || "Failed to fetch organizers" });
     }
   });
 
@@ -1512,9 +1621,9 @@ export async function registerRoutes(
       const details = await storage.getOrganizerDetails(id);
       if (!details) return res.status(404).json({ message: "Organizer not found" });
       const { passwordHash, ...safeUser } = details.user;
-      res.json({ ...details, user: safeUser });
+      return res.json({ ...details, user: safeUser });
     } catch (err: any) {
-      res.status(500).json({ message: err.message || "Failed to fetch organizer details" });
+      return res.status(500).json({ message: err.message || "Failed to fetch organizer details" });
     }
   });
 
@@ -1534,9 +1643,9 @@ export async function registerRoutes(
         entity: "organizer",
         details: `Organizer #${req.params.id} ${active ? "activated" : "deactivated"}`,
       });
-      res.json({ success: true });
+      return res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ message: err.message || "Failed to update organizer" });
+      return res.status(500).json({ message: err.message || "Failed to update organizer" });
     }
   });
 
@@ -1565,7 +1674,7 @@ export async function registerRoutes(
       entityId: newDrop.id,
       details: `Duplicated drop "${drop.title}" as "${newDrop.title}"`,
     });
-    res.json(newDrop);
+    return res.json(newDrop);
   });
 
   app.get("/api/admin/solana/detailed", requireAdmin, async (req, res) => {
@@ -1585,7 +1694,7 @@ export async function registerRoutes(
       let balance = 0;
       try { balance = await solanaService.getServerBalance(); } catch {}
 
-      res.json({
+      return res.json({
         ...status,
         balance: balance.toFixed(4),
         totalTransactions: solanaMints.length,
@@ -1594,7 +1703,7 @@ export async function registerRoutes(
         uptimeMs,
       });
     } catch (err: any) {
-      res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
     }
   });
 
@@ -1802,6 +1911,14 @@ export async function registerRoutes(
   storage.cleanupExpiredSessions().then((count) => {
     if (count > 0) console.log(`[CLEANUP] Removed ${count} expired claim sessions`);
   }).catch(console.error);
+
+  const SESSION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+  const sessionCleanupTimer = setInterval(() => {
+    storage.cleanupExpiredSessions().then((count) => {
+      if (count > 0) console.log(`[CLEANUP] Removed ${count} expired claim sessions`);
+    }).catch((err: any) => console.error("[CLEANUP] Error:", err.message));
+  }, SESSION_CLEANUP_INTERVAL_MS);
+  sessionCleanupTimer.unref();
 
   console.log("[BLOCKCHAIN] Initializing Solana service...");
   console.log(`[SOLANA] Server: ${solanaService.getServerPublicKey()}`);

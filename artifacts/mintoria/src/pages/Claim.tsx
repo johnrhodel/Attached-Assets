@@ -26,6 +26,24 @@ function getHealthyChain(): "solana" {
   return "solana";
 }
 
+function mapClaimError(err: any, t: any): string {
+  if (err instanceof TypeError || err?.message === "Failed to fetch" || err?.message === "Load failed") {
+    return t.claim.networkError;
+  }
+  switch (err?.message) {
+    case "SUPPLY_EXHAUSTED":
+      return t.claim.supplyExhausted;
+    case "SOLANA_TIMEOUT":
+      return t.claim.timeoutError;
+    case "INSUFFICIENT_SOL":
+      return t.claim.serviceUnavailable;
+    case "Invalid or expired claim token":
+      return t.claim.expired;
+    default:
+      return err?.message || t.claim.mintFailed;
+  }
+}
+
 function ConfettiEffect() {
   const [particles, setParticles] = useState<Array<{id: number; x: number; y: number; color: string; delay: number; size: number}>>([]);
   
@@ -163,7 +181,7 @@ export default function Claim() {
       console.error("[Claim] Start error:", e);
       toast({
         title: t.common.error,
-        description: e?.message || t.claim.noActiveDrop,
+        description: mapClaimError(e, t),
         variant: "destructive",
       });
     } finally {
@@ -586,7 +604,7 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
       setStep("code");
     } catch (err: any) {
       console.error("[EmailFlow] Send code error:", err);
-      setFlowError(err.message || "Failed to send verification code");
+      setFlowError(mapClaimError(err, t));
     } finally {
       setIsSending(false);
     }
@@ -607,16 +625,13 @@ function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { 
           onSuccess("ALREADY_MINTED");
           return;
         }
-        if (errData.message === "INSUFFICIENT_SOL") {
-          throw new Error(t.claim.serviceUnavailable || "Minting service temporarily unavailable. Please try again later.");
-        }
         throw new Error(errData.message || "Mint failed");
       }
       const data = await res.json();
       onSuccess({ ...data, chain: data.chain || "solana" });
     } catch (err: any) {
       console.error("[EmailFlow] Mint error:", err);
-      setFlowError(err.message || t.claim.mintFailed);
+      setFlowError(mapClaimError(err, t));
       setCode("");
       setStep("code");
     }
