@@ -1,5 +1,17 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 
+const { capturedCodes } = vi.hoisted(() => ({
+  capturedCodes: new Map<string, string>(),
+}));
+
+vi.mock("../services/email", () => ({
+  sendVerificationEmail: vi.fn(async (email: string, code: string) => {
+    capturedCodes.set(email, code);
+    return true;
+  }),
+  sendMintConfirmationEmail: vi.fn(async () => true),
+}));
+
 vi.mock("../services/solana", () => ({
   getServerPublicKey: () => "MockServerPubkey1111111111111111111111111111",
   getSolanaExplorerUrl: (txHash: string) =>
@@ -9,7 +21,15 @@ vi.mock("../services/solana", () => ({
     const rand = Math.random().toString(36).slice(2);
     return { txHash: `mocktx_${rand}`, mintAddress: `mockmint_${rand}` };
   }),
-  mintNFTWithCustodialWallet: vi.fn(),
+  mintNFTWithCustodialWallet: vi.fn(async () => {
+    await new Promise((r) => setTimeout(r, 50));
+    const rand = Math.random().toString(36).slice(2);
+    return {
+      txHash: `mockcustodialtx_${rand}`,
+      mintAddress: `mockcustodialmint_${rand}`,
+      recipientAddress: `MockCustodialAddr_${rand}`,
+    };
+  }),
   generateSolanaKeypair: () => ({ address: "MockAddr", secretKey: "MockSecret" }),
   isServerKeypairEphemeral: () => false,
   ensureServerFunded: async () => true,
@@ -154,6 +174,104 @@ describe("mint concurrency — last NFT of a drop", () => {
 
     const drop = await storage.getDrop(contestedDropId);
     expect(drop!.mintedCount).toBe(supply);
+    expect(drop!.mintedCount).toBeLessThanOrEqual(drop!.supply);
+  });
+});
+
+describe("walletless (email) mint concurrency — last NFT of a drop", () => {
+  it(`allows exactly 1 success out of ${PARALLEL_REQUESTS} parallel walletless mints when supply=1`, async () => {
+    const walletlessDropId = await createTestDrop(1);
+    const suffix = randomBytes(4).toString("hex");
+
+    const participants = await Promise.all(
+      Array.from({ length: PARALLEL_REQUESTS }, async (_, i) => {
+        const email = `concurrency-${suffix}-${i}@test.mintoria.xyz`;
+        const startRes = await fetch(`${baseUrl}${api.walletless.start.path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        expect(startRes.status).toBe(200);
+        const code = capturedCodes.get(email);
+        expect(code).toBeDefined();
+        const claimToken = await createClaimToken(walletlessDropId);
+        return { email, code: code!, claimToken };
+      }),
+    );
+
+    const responses = await Promise.all(
+      participants.map(async ({ email, code, claimToken }) => {
+        const res = await fetch(`${baseUrl}${api.walletless.mine.path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, code, claimToken }),
+        });
+        const body = (await res.json()) as { message?: string; txHash?: string };
+        return { status: res.status, body };
+      }),
+    );
+
+    const successes = responses.filter((r) => r.status === 200);
+    const exhausted = responses.filter(
+      (r) => r.status === 429 && r.body.message === "SUPPLY_EXHAUSTED",
+    );
+
+    expect(successes).toHaveLength(1);
+    expect(successes[0]!.body.txHash).toMatch(/^mockcustodialtx_/);
+    expect(exhausted).toHaveLength(PARALLEL_REQUESTS - 1);
+    expect(successes.length + exhausted.length).toBe(PARALLEL_REQUESTS);
+
+    expect(
+      vi.mocked(solanaService.mintNFTWithCustodialWallet),
+    ).toHaveBeenCalledTimes(1);
+
+    const drop = await storage.getDrop(walletlessDropId);
+    expect(drop).toBeDefined();
+    expect(drop!.mintedCount).toBe(1);
+    expect(drop!.mintedCount).toBeLessThanOrEqual(drop!.supply);
+  });
+});
+
+describe("mint confirm concurrency — last NFT of a drop", () => {
+  it(`allows exactly 1 success out of ${PARALLEL_REQUESTS} parallel /api/mint/confirm requests when supply=1`, async () => {
+    const confirmDropId = await createTestDrop(1);
+    const tokens = await Promise.all(
+      Array.from({ length: PARALLEL_REQUESTS }, () =>
+        createClaimToken(confirmDropId),
+      ),
+    );
+
+    const responses = await Promise.all(
+      tokens.map(async (claimToken, i) => {
+        const res = await fetch(`${baseUrl}${api.mint.confirm.path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            claimToken,
+            txHash: `confirmtx_${i}_${randomBytes(4).toString("hex")}`,
+            chain: "solana",
+          }),
+        });
+        const body = (await res.json()) as { message?: string; txHash?: string };
+        return { status: res.status, body };
+      }),
+    );
+
+    const successes = responses.filter(
+      (r) => r.status === 200 && typeof r.body.txHash === "string",
+    );
+    const exhausted = responses.filter(
+      (r) => r.status === 429 && r.body.message === "SUPPLY_EXHAUSTED",
+    );
+
+    expect(successes).toHaveLength(1);
+    expect(successes[0]!.body.txHash).toMatch(/^confirmtx_/);
+    expect(exhausted).toHaveLength(PARALLEL_REQUESTS - 1);
+    expect(successes.length + exhausted.length).toBe(PARALLEL_REQUESTS);
+
+    const drop = await storage.getDrop(confirmDropId);
+    expect(drop).toBeDefined();
+    expect(drop!.mintedCount).toBe(1);
     expect(drop!.mintedCount).toBeLessThanOrEqual(drop!.supply);
   });
 });

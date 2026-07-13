@@ -61,7 +61,6 @@ export interface IStorage {
   getMints(dropId: number): Promise<Mint[]>;
   getMintByEmailAndDrop(email: string, dropId: number): Promise<Mint | undefined>;
   getStalePendingMints(olderThanMs: number): Promise<Mint[]>;
-  confirmMintIfPending(id: number): Promise<boolean>;
   failMintIfPending(id: number): Promise<boolean>;
 
   // Dashboard stats
@@ -76,7 +75,7 @@ export interface IStorage {
   // Stuck mints (admin recovery)
   getStuckMints(): Promise<Array<Mint & { dropTitle: string }>>;
   getDropSlotStats(): Promise<Array<{ dropId: number; dropTitle: string; supply: number; reserved: number; confirmed: number; pending: number }>>;
-  confirmMintIfPending(id: number, txHash: string): Promise<Mint | undefined>;
+  confirmMintIfPending(id: number, txHash?: string): Promise<Mint | undefined>;
   confirmFailedMint(id: number, txHash: string): Promise<Mint | undefined>;
   discardMintIfPending(id: number): Promise<Mint | undefined>;
 
@@ -391,13 +390,6 @@ export class DatabaseStorage implements IStorage {
       )
     );
   }
-  async confirmMintIfPending(id: number): Promise<boolean> {
-    const result = await db.update(mints)
-      .set({ status: "confirmed" })
-      .where(and(eq(mints.id, id), eq(mints.status, "pending")))
-      .returning({ id: mints.id });
-    return result.length > 0;
-  }
   async failMintIfPending(id: number): Promise<boolean> {
     const result = await db.update(mints)
       .set({ status: "failed" })
@@ -488,9 +480,9 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(drops.createdAt));
     return results;
   }
-  async confirmMintIfPending(id: number, txHash: string): Promise<Mint | undefined> {
+  async confirmMintIfPending(id: number, txHash?: string): Promise<Mint | undefined> {
     const [mint] = await db.update(mints)
-      .set({ status: "confirmed", txHash })
+      .set(txHash !== undefined ? { status: "confirmed" as const, txHash } : { status: "confirmed" as const })
       .where(and(eq(mints.id, id), eq(mints.status, "pending")))
       .returning();
     return mint;
