@@ -7,6 +7,7 @@ Plataforma SaaS multi-tenant para mintagem de NFTs comemorativos na Solana devne
 - `pnpm --filter @workspace/api-server run dev` — rodar o servidor API (porta 8080)
 - `pnpm --filter @workspace/mintoria run dev` — rodar o frontend (porta 24783)
 - `pnpm run typecheck` — typecheck completo em todos os pacotes
+- `pnpm --filter @workspace/api-server run test` — testes automatizados do API server (vitest; inclui teste de concorrência do mint)
 - `pnpm run build` — typecheck + build de todos os pacotes
 - `pnpm --filter @workspace/db run push` — push de mudanças no schema do DB (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
