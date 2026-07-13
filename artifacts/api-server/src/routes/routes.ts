@@ -20,8 +20,15 @@ import { sendVerificationEmail, sendMintConfirmationEmail } from "../services/em
 
 function getCanonicalBaseUrl(req: express.Request): string {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/$/, "");
+  // In production, always use the published domain (e.g. mintoria.xyz) so that
+  // emails and NFT metadata never point to an ephemeral dev domain.
+  if (process.env.NODE_ENV === "production" && process.env.REPLIT_DOMAINS) {
+    const domains = process.env.REPLIT_DOMAINS.split(",").map(d => d.trim()).filter(Boolean);
+    // Prefer a custom domain (e.g. mintoria.xyz) over *.replit.app when both exist
+    const domain = domains.find(d => !/\.replit\.(app|dev)$/i.test(d)) || domains[0];
+    if (domain) return `https://${domain}`;
+  }
   if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
-  if (process.env.REPL_SLUG) return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   console.warn("[WARN] No canonical base URL configured. Using request host header — set APP_BASE_URL for production.");
   return `${req.protocol}://${req.get("host")}`;
 }
