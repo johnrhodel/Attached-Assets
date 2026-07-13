@@ -60,6 +60,9 @@ export interface IStorage {
   updateMint(id: number, data: Partial<InsertMint>): Promise<void>;
   getMints(dropId: number): Promise<Mint[]>;
   getMintByEmailAndDrop(email: string, dropId: number): Promise<Mint | undefined>;
+  getStalePendingMints(olderThanMs: number): Promise<Mint[]>;
+  confirmMintIfPending(id: number): Promise<boolean>;
+  failMintIfPending(id: number): Promise<boolean>;
 
   // Dashboard stats
   getAllMints(): Promise<Mint[]>;
@@ -378,6 +381,29 @@ export class DatabaseStorage implements IStorage {
       )
     );
     return mint;
+  }
+  async getStalePendingMints(olderThanMs: number): Promise<Mint[]> {
+    const cutoff = new Date(Date.now() - olderThanMs);
+    return await db.select().from(mints).where(
+      and(
+        eq(mints.status, "pending"),
+        sql`${mints.createdAt} < ${cutoff}`
+      )
+    );
+  }
+  async confirmMintIfPending(id: number): Promise<boolean> {
+    const result = await db.update(mints)
+      .set({ status: "confirmed" })
+      .where(and(eq(mints.id, id), eq(mints.status, "pending")))
+      .returning({ id: mints.id });
+    return result.length > 0;
+  }
+  async failMintIfPending(id: number): Promise<boolean> {
+    const result = await db.update(mints)
+      .set({ status: "failed" })
+      .where(and(eq(mints.id, id), eq(mints.status, "pending")))
+      .returning({ id: mints.id });
+    return result.length > 0;
   }
 
   // Dashboard stats

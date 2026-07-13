@@ -739,6 +739,9 @@ export async function registerRoutes(
         recipientAddress,
         name: drop.title,
         uri: metadataUri,
+        // Persist the candidate asset address before sending so the
+        // reconciliation job can verify ambiguous outcomes on-chain.
+        onAttempt: (attemptAddress) => storage.updateMint(pendingMint.id, { mintAddress: attemptAddress }),
       });
 
       try {
@@ -1042,6 +1045,9 @@ export async function registerRoutes(
         custodialSecretKey: secret,
         name: drop.title,
         uri: metadataUri,
+        // Persist the candidate asset address before sending so the
+        // reconciliation job can verify ambiguous outcomes on-chain.
+        onAttempt: (attemptAddress) => storage.updateMint(pendingMint.id, { mintAddress: attemptAddress }),
       });
 
       const txHash = result.txHash;
@@ -1981,6 +1987,89 @@ export async function registerRoutes(
     }).catch((err: any) => console.error("[CLEANUP] Error:", err.message));
   }, SESSION_CLEANUP_INTERVAL_MS);
   sessionCleanupTimer.unref();
+
+  // === PENDING MINT RECONCILIATION ===
+  // Mints left "pending" after an ambiguous chain outcome (timeout / unknown
+  // error) keep their reserved supply slot so they are never double-minted.
+  // This job periodically checks the chain and resolves them:
+  //   - asset found on-chain  → confirm the mint (slot stays consumed)
+  //   - provably not on-chain → mark failed and release the supply slot
+  //   - check inconclusive    → leave pending, retry next run
+  const RECONCILE_INTERVAL_MS = 5 * 60 * 1000;
+  const RECONCILE_MIN_AGE_MS = 2 * 60 * 1000;
+  let reconcileInFlight = false;
+
+  async function reconcilePendingMints(): Promise<void> {
+    if (reconcileInFlight) return;
+    reconcileInFlight = true;
+    try {
+      const stale = await storage.getStalePendingMints(RECONCILE_MIN_AGE_MS);
+      if (stale.length === 0) return;
+      console.log(`[RECONCILE] Checking ${stale.length} stale pending mint(s)...`);
+
+      for (const mint of stale) {
+        try {
+          if (mint.chain !== "solana") {
+            console.warn(`[RECONCILE] Mint ${mint.id} (drop ${mint.dropId}): unsupported chain "${mint.chain}" — skipping`);
+            continue;
+          }
+
+          let outcome: solanaService.ChainCheckResult;
+          let via: string;
+          if (mint.mintAddress) {
+            outcome = await solanaService.checkAssetOnChain(mint.mintAddress);
+            via = `asset ${mint.mintAddress}`;
+          } else if (mint.txHash) {
+            outcome = await solanaService.checkTransactionOnChain(mint.txHash);
+            via = `tx ${mint.txHash}`;
+          } else {
+            console.warn(`[RECONCILE] Mint ${mint.id} (drop ${mint.dropId}): no mintAddress or txHash recorded — cannot verify on-chain, leaving pending for manual review`);
+            continue;
+          }
+
+          if (outcome === "exists") {
+            const transitioned = await storage.confirmMintIfPending(mint.id);
+            if (transitioned) {
+              console.log(`[RECONCILE] Mint ${mint.id} (drop ${mint.dropId}): found on-chain via ${via} → confirmed`);
+              await storage.createActivityLog({ userId: 0, action: "mint_reconciled", entity: "mint", entityId: mint.id, details: `Pending mint confirmed on-chain via reconciliation (${via})` }).catch(() => {});
+            } else {
+              console.log(`[RECONCILE] Mint ${mint.id} (drop ${mint.dropId}): already resolved by another process — no action`);
+            }
+          } else if (outcome === "not_found") {
+            const transitioned = await storage.failMintIfPending(mint.id);
+            if (transitioned) {
+              await storage.releaseMintSlot(mint.dropId).catch((releaseErr: any) => {
+                console.error(`[RECONCILE] Mint ${mint.id} (drop ${mint.dropId}): marked failed but slot release FAILED: ${releaseErr.message}`);
+              });
+              console.log(`[RECONCILE] Mint ${mint.id} (drop ${mint.dropId}): not found on-chain via ${via} → marked failed, supply slot released`);
+              await storage.createActivityLog({ userId: 0, action: "mint_reconciled", entity: "mint", entityId: mint.id, details: `Pending mint not found on-chain — marked failed, slot released (${via})` }).catch(() => {});
+            } else {
+              console.log(`[RECONCILE] Mint ${mint.id} (drop ${mint.dropId}): already resolved by another process — no action`);
+            }
+          } else {
+            console.warn(`[RECONCILE] Mint ${mint.id} (drop ${mint.dropId}): chain check inconclusive via ${via} — will retry next run`);
+          }
+        } catch (mintErr: any) {
+          console.error(`[RECONCILE] Mint ${mint.id} (drop ${mint.dropId}): error during reconciliation: ${mintErr.message}`);
+        }
+      }
+    } catch (err: any) {
+      console.error("[RECONCILE] Sweep failed:", err.message);
+    } finally {
+      reconcileInFlight = false;
+    }
+  }
+
+  const reconcileTimer = setInterval(() => {
+    reconcilePendingMints().catch((err: any) => console.error("[RECONCILE] Unexpected error:", err.message));
+  }, RECONCILE_INTERVAL_MS);
+  reconcileTimer.unref();
+
+  // Run one sweep shortly after startup to recover mints stuck from before a restart
+  const reconcileStartupTimer = setTimeout(() => {
+    reconcilePendingMints().catch((err: any) => console.error("[RECONCILE] Unexpected error:", err.message));
+  }, 30 * 1000);
+  reconcileStartupTimer.unref();
 
   console.log("[BLOCKCHAIN] Initializing Solana service...");
   console.log(`[SOLANA] Server: ${solanaService.getServerPublicKey()}`);

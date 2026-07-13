@@ -233,6 +233,12 @@ export async function mintNFT(params: {
   recipientAddress: string;
   name: string;
   uri: string;
+  /**
+   * Called with the candidate asset address BEFORE the transaction is sent,
+   * so callers can persist it and later reconcile ambiguous outcomes
+   * (timeouts / unknown errors) against the chain.
+   */
+  onAttempt?: (mintAddress: string) => Promise<void> | void;
 }): Promise<{ txHash: string; mintAddress: string }> {
   const umiInstance = getUmi();
 
@@ -247,6 +253,16 @@ export async function mintNFT(params: {
   for (let attempt = 1; attempt <= MAX_MINT_ATTEMPTS; attempt++) {
     const asset = generateSigner(umiInstance);
     let timer: NodeJS.Timeout | undefined;
+
+    // Persist the candidate asset address BEFORE sending, so a timeout or
+    // ambiguous failure leaves a reconcilable trail in the database.
+    if (params.onAttempt) {
+      try {
+        await params.onAttempt(asset.publicKey.toString());
+      } catch (recordErr) {
+        console.warn(`[SOLANA] Failed to record attempt address ${asset.publicKey.toString()}: ${(recordErr as Error).message}`);
+      }
+    }
 
     try {
       const sendPromise = createV1(umiInstance, {
@@ -303,6 +319,7 @@ export async function mintNFTWithCustodialWallet(params: {
   custodialSecretKey: string;
   name: string;
   uri: string;
+  onAttempt?: (mintAddress: string) => Promise<void> | void;
 }): Promise<{ txHash: string; mintAddress: string; recipientAddress: string }> {
   const custodialKp = Keypair.fromSecretKey(bs58.decode(params.custodialSecretKey));
 
@@ -311,9 +328,72 @@ export async function mintNFTWithCustodialWallet(params: {
       recipientAddress: custodialKp.publicKey.toBase58(),
       name: params.name,
       uri: params.uri,
+      onAttempt: params.onAttempt,
     })),
     recipientAddress: custodialKp.publicKey.toBase58(),
   };
+}
+
+const CHAIN_CHECK_TIMEOUT_MS = 15_000;
+
+/**
+ * Result of an on-chain existence check used by reconciliation.
+ * - "exists": the asset/tx is provably on-chain
+ * - "not_found": the RPC answered and the asset/tx provably does NOT exist
+ * - "unknown": the check itself failed (RPC error/timeout) — retry later
+ */
+export type ChainCheckResult = "exists" | "not_found" | "unknown";
+
+export async function checkAssetOnChain(mintAddress: string): Promise<ChainCheckResult> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    const umiInstance = getUmi();
+    const fetchPromise = fetchAssetV1(umiInstance, umiPublicKey(mintAddress));
+    fetchPromise.catch(() => {});
+    await Promise.race([
+      fetchPromise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("CHAIN_CHECK_TIMEOUT")), CHAIN_CHECK_TIMEOUT_MS);
+      }),
+    ]);
+    return "exists";
+  } catch (err) {
+    const e = err as Error;
+    const msg = e.message || "";
+    if (
+      (e as any).name === "AccountNotFoundError" ||
+      /was not found at the provided address/i.test(msg) ||
+      /account (of type .* )?(does not exist|not found)/i.test(msg)
+    ) {
+      return "not_found";
+    }
+    return "unknown";
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export async function checkTransactionOnChain(txHash: string): Promise<ChainCheckResult> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    const connection = getConnection();
+    const statusPromise = connection.getSignatureStatuses([txHash], { searchTransactionHistory: true });
+    statusPromise.catch(() => {});
+    const result = await Promise.race([
+      statusPromise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("CHAIN_CHECK_TIMEOUT")), CHAIN_CHECK_TIMEOUT_MS);
+      }),
+    ]);
+    const status = result.value[0];
+    if (!status) return "not_found";
+    if (status.err) return "not_found";
+    return "exists";
+  } catch {
+    return "unknown";
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export function getServerPublicKey(): string {

@@ -10,7 +10,7 @@ In mint flows, classify blockchain errors by **outcome certainty**, not success/
 
 **Why:** retrying or rolling back an ambiguous error can double-mint an NFT or free a supply slot for a mint that actually succeeded, corrupting `minted_count`.
 
-**How to apply:** classification lives in `isDefiniteFailure()` in the Solana service; route catch blocks must treat `SOLANA_UNKNOWN` exactly like `SOLANA_TIMEOUT`. Any new mint endpoint must follow the flow: atomic session consume → atomic slot reserve → pending record → chain call → confirm, with compensation only on definite failures.
+**How to apply:** classification lives in `isDefiniteFailure()` in the Solana service; route catch blocks must treat `SOLANA_UNKNOWN` exactly like `SOLANA_TIMEOUT`. Any new mint endpoint must follow the flow: atomic session consume → atomic slot reserve → pending record → chain call → confirm, with compensation only on definite failures. A periodic reconciliation job resolves stuck pendings by checking asset existence on-chain; for this to work, the candidate asset address must be persisted to the pending record BEFORE the transaction is sent (via the mint service's onAttempt callback) — new mint endpoints must wire this too, or timeouts become unrecoverable.
 
 # Manual resolution must preserve slot accounting
 Admin recovery actions follow the same invariants: discarding a pending mint must atomically flip status pending→failed AND release the slot (guarded by `WHERE status='pending'` so a double-click can't double-decrement); manually confirming an already-failed mint must atomically re-reserve a supply slot first (it was released on failure) and refuse if supply is full. Confirming a pending mint touches no counters — its slot is still held.
