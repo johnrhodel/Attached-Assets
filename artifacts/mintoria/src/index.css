@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 20% 97%;
+  --foreground: 222 47% 11%;
+  
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+ 
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+ 
+  --primary: 221 83% 53%;
+  --primary-foreground: 210 40% 98%;
+ 
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+ 
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+ 
+  --accent: 221 83% 96%;
+  --accent-foreground: 221 83% 30%;
+ 
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+ 
+  --radius: 0.625rem;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --chart-1: 221 83% 53%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+}
+ 
+.dark {
+  --background: 222 47% 6%;
+  --foreground: 210 40% 98%;
+ 
+  --card: 222 47% 9%;
+  --card-foreground: 210 40% 98%;
+ 
+  --popover: 222 47% 9%;
+  --popover-foreground: 210 40% 98%;
+ 
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 6%;
+ 
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+ 
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+ 
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+ 
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 210 40% 98%;
+ 
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 217 91% 60%;
+
+  --chart-1: 217 91% 60%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    @apply font-bold tracking-tight;
+  }
+}
+
+.glass-panel {
+  @apply bg-white/80 dark:bg-black/50 backdrop-blur-md border border-white/20 shadow-xl;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-400;
+}

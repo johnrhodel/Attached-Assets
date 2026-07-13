@@ -1,0 +1,1 @@
+- [Mintoria migration quirks](mintoria-migration.md) — key decisions and gotchas from porting Mintoria to pnpm_workspace

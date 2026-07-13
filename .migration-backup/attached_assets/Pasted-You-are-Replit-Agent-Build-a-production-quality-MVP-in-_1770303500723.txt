@@ -1,0 +1,243 @@
+You are Replit Agent. Build a production-quality MVP in a SINGLE Replit repository (no Docker required) using Node.js + TypeScript. The repo must run with ONE command: `npm run dev`.
+
+The app is called Memories, and it offers the option of having the app in English, Spanish, and Portuguese.
+
+GOAL
+Create a plug-and-play platform for minting a commemorative NFT when a visitor arrives at a tourist location or event. The visitor gets it quickly via QR code on mobile. Admin can create monthly “drops” (campaigns) where each month has its own image/metadata (preserve history; do NOT overwrite past tokens).
+
+CHAINS (consistent MVP paths)
+1) EVM MVP (must be fully working end-to-end):
+   - Networks: Ethereum, Polygon, Arbitrum, Base (use testnets in dev)
+   - Contract: ERC-1155 (recommended for monthly drops) with per-drop supply caps
+   - Anti-fraud: backend issues ClaimSession -> backend signs EIP-712 permit -> user calls `mintWithSig` and pays gas
+   - Must include Hardhat project and tests
+
+2) Solana MVP (working devnet flow):
+   - Use Metaplex Umi + mpl-core (or mpl-token-metadata) to mint an asset into a collection
+   - Backend holds `COLLECTION_AUTHORITY` keypair (server secret) and partially signs transactions
+   - Backend returns a serialized (base64) partially signed transaction to the frontend
+   - Frontend uses Solana Wallet Adapter to sign as fee payer and submit to devnet
+   - Keep the mint flow consistent with ClaimSession (claimToken required; one-time use)
+
+3) Stellar MVP (working testnet flow):
+   - Use OpenZeppelin Stellar Soroban “Non-Fungible Token” (Base variant) contract in Rust
+   - Provide the contract source under `/contracts/stellar-nft/`
+   - Provide a simple deploy script (node) that can deploy the wasm to Stellar testnet (or document how to deploy if full automation is too heavy in Replit)
+   - Frontend integrates Freighter to sign Soroban transactions (XDR) and submits them to Stellar RPC
+   - Mint flow must be gated by ClaimSession claimToken (one-time use)
+
+WALLETLESS (email mint) MVP
+- Add an option: “Mint via email” for users without a wallet.
+- Implement a provider interface so it’s pluggable:
+  - `WalletlessProvider` with methods: `start(email)`, `verify(email, code)`, `getAddress(chain, userId)`, `signOrAuthorize(...)`
+- For MVP in Replit, implement a DEV provider:
+  - Sends a 6-digit code by logging it in server console (no real email needed)
+  - Creates a custodial keypair per user per chain (EVM/Solana/Stellar) stored ENCRYPTED in SQLite via Prisma
+  - Use this custodial address to receive the NFT when user chooses email mint
+  - Add an “Export wallet” dev-only screen to show the private key/seed ONLY when `NODE_ENV !== 'production'` with a big warning
+- IMPORTANT: Add security warnings in README about custodial keys and that production should use a real embedded wallet provider.
+
+NO WALLET + NO EMAIL UX
+- If the user refuses wallet + email, show a screen recommending wallet downloads per ecosystem:
+  - EVM suggestions (e.g., MetaMask, Rabby, Coinbase Wallet, Rainbow)
+  - Solana suggestions (e.g., Phantom, Solflare, Backpack)
+  - Stellar suggestions (e.g., Freighter, Lobstr)
+- Provide links and “copy address / how-to” steps. Make it clear these are suggestions.
+
+PLUG-AND-PLAY
+- Provide 2 integration modes:
+  1) IFRAME embed: `<iframe src="https://<your-repl-url>/embed?projectId=...&locationId=..."></iframe>`
+  2) SCRIPT widget: `<script src="https://<your-repl-url>/widget.js" data-project-id="..." data-location-id="..."></script>`
+     - The script injects an iframe modal.
+- Include `/public/widget.js` and `/app/embed/page.tsx`.
+
+REPLIT CONSTRAINTS
+- Do NOT require Docker. Use SQLite for DB (Prisma).
+- Rate limiting and one-time claim storage should be DB-backed (or in-memory with DB fallback).
+- Everything must run inside one Next.js app (full-stack) using App Router + Route Handlers under `/app/api/...`.
+
+TECH STACK
+- Next.js (App Router) + TypeScript
+- Tailwind CSS
+- Prisma + SQLite
+- EVM: wagmi + viem (frontend), ethers or viem (backend signing)
+- Solana: @solana/wallet-adapter-react + Umi (backend building/partial signing)
+- Stellar: stellar-sdk + @stellar/freighter-api (frontend signing), Soroban RPC submission
+- Auth (admin): password login + JWT (simple) stored in httpOnly cookies
+
+REPO STRUCTURE (MUST MATCH PATHS)
+/
+  app/
+    admin/
+      login/page.tsx
+      dashboard/page.tsx
+      projects/page.tsx
+      locations/page.tsx
+      drops/page.tsx
+    claim/[locationId]/page.tsx
+    embed/page.tsx
+    api/
+      auth/login/route.ts
+      projects/route.ts
+      locations/route.ts
+      drops/route.ts
+      drops/[dropId]/publish/route.ts
+      uploads/image/route.ts
+      claims/session/route.ts
+      mint/evm/permit/route.ts
+      mint/solana/tx/route.ts
+      mint/stellar/xdr/route.ts
+      mints/confirm/route.ts
+  public/
+    widget.js
+  prisma/
+    schema.prisma
+    dev.db (generated at runtime, not committed)
+  lib/
+    auth/
+    db/
+    claims/
+    chains/
+      evm/
+      solana/
+      stellar/
+    walletless/
+  contracts/
+    evm/
+      hardhat.config.ts
+      contracts/Drop1155.sol
+      scripts/deploy.ts
+      test/drop1155.test.ts
+    stellar-nft/
+      Cargo.toml
+      src/lib.rs   (OpenZeppelin-based NFT Base variant or clearly adapted)
+      README.md (how to build wasm)
+  scripts/
+    stellar-deploy.ts
+    solana-setup-collection.ts
+  .env.example
+  README.md
+  package.json
+  tsconfig.json
+
+DATABASE MODELS (Prisma)
+- AdminUser(id, email, passwordHash, role, createdAt)
+- Project(id, name, slug, createdAt)
+- Location(id, projectId, name, slug, createdAt)
+- Drop(id, locationId, title, month, year, imageUrl, metadataUrl, supply, mintedCount, status, enabledChainsJson, createdAt)
+- ClaimSession(id, dropId, tokenHash, expiresAt, consumedAt, ipHash, userAgentHash, createdAt)
+- Mint(id, dropId, chain, recipient, txHash, status, createdAt)
+- WalletlessUser(id, email, verifiedAt, createdAt)
+- WalletlessKey(id, walletlessUserId, chain, address, encryptedSecret, createdAt)
+
+CORE FLOWS (must implement)
+1) Admin:
+   - Create Project -> Location -> Drop
+   - Upload image, generate metadata JSON URL (store in `/uploads` local folder in Replit for MVP)
+   - Publish drop
+   - Generate QR URL: `/claim/<locationId>` (it always uses current active drop; or use `/claim?dropId=...`)
+
+2) Visitor claim:
+   - On `/claim/[locationId]`, fetch active drop
+   - Call `POST /api/claims/session` to create claimToken (expires 5 minutes)
+   - User chooses chain (EVM/Solana/Stellar)
+   - User chooses mint method: Wallet or Email
+   - Wallet path:
+       EVM: connect, call `/api/mint/evm/permit` to get EIP-712 signature, then call contract `mintWithSig`
+       Solana: connect, call `/api/mint/solana/tx` to get base64 partially signed tx, wallet signs & submits
+       Stellar: connect (Freighter), call `/api/mint/stellar/xdr` to get XDR, Freighter signs, submit to RPC
+   - Email path:
+       Start email -> verify code -> use custodial address -> mint to that address using same chain endpoints (but server signs/submits where necessary)
+   - Confirm:
+       Call `/api/mints/confirm` with txHash + chain + recipient to log the mint and mark claim consumed
+
+ANTI-FRAUD RULES
+- Each claimToken is one-time use
+- claimToken expires in 5 minutes
+- Rate limit: max N claim sessions per IP per hour per location
+- Supply cap enforced (mintedCount < supply)
+- Prevent replay: server stores tokenHash, consumedAt
+
+EVM CONTRACT REQUIREMENTS (must be fully functional)
+- ERC-1155 with dropId as tokenId
+- Per-drop URI mapping (ipfs/http)
+- Per-drop supply cap and minted counter
+- `mintWithSig(to, dropId, qty, nonce, deadline, signature)`
+  - verifies EIP-712 signature from `SIGNER` (backend signer address)
+  - nonce is per-recipient
+  - deadline must be in future
+- Admin functions:
+  - createDrop(dropId, supply, uri)
+  - setDropURI(dropId, uri)
+  - setSigner(address)
+- Hardhat tests:
+  - valid mint works
+  - invalid signature fails
+  - expired deadline fails
+  - reused nonce fails
+  - supply exceeded fails
+
+SOLANA IMPLEMENTATION DETAILS (MVP)
+- Use Umi on backend to build a mint-into-collection transaction
+- Backend partially signs using collectionAuthority keypair
+- Backend serializes tx to base64 and returns to frontend
+- Frontend deserializes and signs with wallet adapter then submits
+- Store and show explorer link after success
+
+STELLAR IMPLEMENTATION DETAILS (MVP)
+- Include Soroban NFT contract source under `/contracts/stellar-nft`
+- Provide a minimal method to mint:
+  - Frontend builds an invoke transaction (XDR) for `mint(to, tokenId, metadataUri)` or your contract’s mint signature
+  - Uses Freighter `signTransaction` to sign
+  - Submits to Stellar RPC and returns tx hash/status
+- Provide scripts and README steps to:
+  - build wasm (cargo)
+  - deploy to testnet (script or documented manual steps)
+  - set CONTRACT_ID in env
+
+ENV VARS (.env.example)
+- DATABASE_URL="file:./prisma/dev.db"
+- JWT_SECRET="..."
+- APP_URL="http://localhost:3000"
+
+EVM:
+- EVM_CHAIN_ID=... (default a testnet)
+- EVM_RPC_URL="..."
+- EVM_CONTRACT_ADDRESS="..."
+- EVM_BACKEND_SIGNER_PRIVATE_KEY="..." (only for signing permits; NOT for paying gas)
+
+Solana:
+- SOLANA_CLUSTER="devnet"
+- SOLANA_RPC_URL="https://api.devnet.solana.com"
+- SOLANA_COLLECTION_AUTHORITY_KEYPAIR_BASE58="..." (secret)
+- SOLANA_COLLECTION_PUBLIC_KEY="..." (created by setup script)
+
+Stellar:
+- STELLAR_NETWORK="testnet"
+- STELLAR_HORIZON_URL="https://horizon-testnet.stellar.org"
+- STELLAR_RPC_URL="..." (testnet Soroban RPC provider)
+- STELLAR_CONTRACT_ID="..."
+- STELLAR_ADMIN_SECRET="..." (only if needed for admin/setup; NOT for user signing)
+
+DELIVERABLES
+- A running Next.js app with:
+  - Admin dashboard pages
+  - Claim page with full wallet + email flow
+  - Embed page and widget.js
+- EVM contract + tests + deploy script
+- Solana tx build/partial sign endpoint + client submission
+- Stellar XDR build endpoint + Freighter signing flow
+- README with step-by-step “Replit setup”:
+  - where to set secrets
+  - how to run DB migrations
+  - how to deploy EVM contract to a testnet
+  - how to set up Solana collection
+  - how to deploy Stellar contract and set CONTRACT_ID
+
+QUALITY BAR
+- No placeholder TODOs in the EVM flow
+- Solana + Stellar flows must be runnable on devnet/testnet with clear setup steps
+- Provide clean error handling and user feedback UI (loading/success/fail)
+- Provide explorer links for each chain
+
+Now generate the full codebase with these exact paths and files, ensuring it compiles in Replit and `npm run dev` starts the app.

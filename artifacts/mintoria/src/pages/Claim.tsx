@@ -1,0 +1,692 @@
+import { useState, useEffect } from "react";
+import { useRoute } from "wouter";
+import { useActiveDrop } from "@/hooks/use-drops";
+import { useCreateClaimSession, useWalletless } from "@/hooks/use-claim";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ClaimCard } from "@/components/ClaimCard";
+import { LanguageSelector } from "@/components/language-selector";
+import { Loader2, CheckCircle2, Mail, ArrowRight, Layers, ImageDown, Download, ExternalLink, ChevronLeft, Sparkles, AlertTriangle, Share2, Link2 } from "lucide-react";
+import { SiX, SiInstagram, SiWhatsapp } from "react-icons/si";
+import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/lib/i18n/context";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
+import claimBg from "../assets/images/claim-bg.jpg";
+
+function useBlockchainStatus() {
+  return useQuery<{ solana: { serverPublicKey: string; balance: string; network: string; healthy: boolean } }>({
+    queryKey: ["/api/blockchain/status"],
+    staleTime: 30000,
+  });
+}
+
+function getHealthyChain(): "solana" {
+  return "solana";
+}
+
+function ConfettiEffect() {
+  const [particles, setParticles] = useState<Array<{id: number; x: number; y: number; color: string; delay: number; size: number}>>([]);
+  
+  useEffect(() => {
+    const colors = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4"];
+    const items = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: -(Math.random() * 20),
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 0.5,
+      size: Math.random() * 8 + 4,
+    }));
+    setParticles(items);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      {particles.map(p => (
+        <motion.div
+          key={p.id}
+          initial={{ x: `${p.x}vw`, y: `${p.y}vh`, opacity: 1, rotate: 0 }}
+          animate={{ y: "110vh", opacity: 0, rotate: Math.random() * 720 - 360 }}
+          transition={{ duration: 2.5 + Math.random(), delay: p.delay, ease: "easeIn" }}
+          style={{ position: "absolute", width: p.size, height: p.size, backgroundColor: p.color, borderRadius: Math.random() > 0.5 ? "50%" : "2px" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+type ClaimView = "landing" | "email" | "success" | "already_minted";
+
+interface MintResult {
+  txHash: string;
+  address: string;
+  mintAddress?: string;
+  explorerUrl?: string;
+  nftUrl?: string;
+  chain?: string;
+}
+
+function useDropByIdOrActive(locationId: number) {
+  const searchParams = new URLSearchParams(window.location.search);
+  const dropId = searchParams.get("dropId");
+  const accessCode = searchParams.get("accessCode");
+
+  const activeDropQuery = useActiveDrop(locationId);
+
+  const specificDropQuery = useQuery({
+    queryKey: ["/api/drops/by-id", dropId, locationId],
+    queryFn: async () => {
+      const res = await fetch(`/api/drops/${dropId}`);
+      if (!res.ok) return null;
+      const drop = await res.json();
+      if (drop.locationId !== locationId) return null;
+      return drop;
+    },
+    enabled: !!dropId && !accessCode && !!locationId,
+    retry: false,
+  });
+
+  const accessCodeQuery = useQuery({
+    queryKey: ["/api/access-code/lookup", accessCode, locationId],
+    queryFn: async () => {
+      const res = await fetch("/api/access-code/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: accessCode }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.locationId !== locationId) return null;
+      return data.drop;
+    },
+    enabled: !!accessCode && !!locationId,
+    retry: false,
+  });
+
+  if (accessCode) {
+    if (accessCodeQuery.data) return accessCodeQuery;
+    if (accessCodeQuery.isLoading) return accessCodeQuery;
+    return activeDropQuery;
+  }
+  if (dropId) {
+    return specificDropQuery;
+  }
+  return activeDropQuery;
+}
+
+export default function Claim() {
+  const [, params] = useRoute("/claim/:locationId");
+  const locationId = Number(params?.locationId);
+  const { t } = useI18n();
+  const { toast } = useToast();
+  
+  const { data: drop, isLoading, error } = useDropByIdOrActive(locationId);
+  const { mutateAsync: createSession } = useCreateClaimSession();
+  const { data: blockchainStatus } = useBlockchainStatus();
+  
+  const [claimToken, setClaimToken] = useState<string | null>(null);
+  const [view, setView] = useState<ClaimView>("landing");
+  const [mintResult, setMintResult] = useState<MintResult | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+
+  if (isLoading) return (
+    <div className="h-screen w-full flex items-center justify-center bg-background">
+      <Loader2 className="animate-spin text-primary w-8 h-8" />
+    </div>
+  );
+  
+  if (!drop || error) return (
+    <div className="h-screen w-full flex flex-col items-center justify-center p-4 text-center relative">
+      <img src={claimBg} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute top-4 right-4 z-20"><LanguageSelector /></div>
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center mb-5">
+          <Layers className="w-7 h-7 text-white" />
+        </div>
+        <h1 className="text-2xl font-serif font-bold mb-2 text-white" data-testid="text-no-active-drop">{t.claim.noActiveDrop}</h1>
+        <Link href="/">
+          <Button variant="outline" className="mt-4 bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-back-home">{t.common.back}</Button>
+        </Link>
+      </div>
+    </div>
+  );
+  const startClaim = async () => {
+    setIsStarting(true);
+    try {
+      const session = await createSession(locationId);
+      setClaimToken(session.token);
+      setView("email");
+    } catch (e: any) {
+      console.error("[Claim] Start error:", e);
+      toast({
+        title: t.common.error,
+        description: e?.message || t.claim.noActiveDrop,
+        variant: "destructive",
+      });
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const handleMintSuccess = (result: MintResult | "ALREADY_MINTED") => {
+    if (result === "ALREADY_MINTED") {
+      setView("already_minted");
+      return;
+    }
+    setMintResult(result);
+    setView("success");
+  };
+
+  const currentStep = view === "landing" ? 0 : view === "email" ? 1 : view === "success" ? 3 : 1;
+
+  return (
+    <div className="min-h-screen w-full relative flex flex-col items-center overflow-hidden">
+      <img src={claimBg} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
+
+      <div className="relative z-20 w-full max-w-sm sm:max-w-md flex items-center justify-between gap-3 flex-wrap px-4 py-4 sm:px-6 sm:py-5 mx-auto">
+        <Link href="/">
+          <div className="flex items-center gap-2 flex-wrap cursor-pointer" data-testid="link-back-home">
+            <ChevronLeft className="w-4 h-4 text-white/70" />
+            <div className="w-7 h-7 bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center">
+              <Layers className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="font-serif font-bold text-base text-white">Mintoria</span>
+          </div>
+        </Link>
+        <LanguageSelector />
+      </div>
+
+      {view !== "landing" && view !== "success" && (
+        <div className="relative z-20 w-full max-w-sm sm:max-w-md mx-auto px-4 sm:px-6 mb-4">
+          <StepIndicator currentStep={currentStep} />
+        </div>
+      )}
+
+      <div className="relative z-10 w-full max-w-sm sm:max-w-md mx-auto flex-1 flex flex-col justify-center px-4 sm:px-0 pb-8">
+        <AnimatePresence mode="wait">
+          {view === "landing" && (
+            <motion.div key="landing" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, y: -20 }} className="w-full">
+              <ClaimCard className="p-0 overflow-hidden border-0 shadow-2xl" noPadding>
+                <div className="w-full relative">
+                  <img src={drop.imageUrl} alt={drop.title} className="w-full h-auto object-contain" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5 sm:p-6 text-white">
+                    <p className="text-xs sm:text-sm font-medium opacity-75 mb-1">{drop.month} {drop.year}</p>
+                    <h1 className="text-xl sm:text-2xl font-serif font-bold">{drop.title}</h1>
+                    <p className="text-xs sm:text-sm opacity-60 mt-1">{drop.supply - drop.mintedCount} / {drop.supply} {t.claim.supplyRemaining}</p>
+                  </div>
+                </div>
+                <div className="p-5 sm:p-6 bg-card text-center">
+                  {blockchainStatus?.solana && !blockchainStatus.solana.healthy && (
+                    <div className="text-xs text-center text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 rounded-md py-2 px-3 mb-3 flex items-center justify-center gap-1.5" data-testid="text-blockchain-warning">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      {t.admin.unhealthy} — {t.chains.solana}
+                    </div>
+                  )}
+                  <p className="text-muted-foreground text-sm mb-4 sm:mb-5">{t.claim.subtitle}</p>
+                  <Button size="lg" className="w-full font-semibold" onClick={startClaim} disabled={isStarting} data-testid="button-claim-start">
+                    {isStarting ? <Loader2 className="animate-spin mr-2 w-4 h-4" /> : <ArrowRight className="ml-2 w-4 h-4" />}
+                    {t.claim.claimNow}
+                  </Button>
+                </div>
+              </ClaimCard>
+            </motion.div>
+          )}
+
+          {view === "email" && claimToken && (
+            <motion.div key="email" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full">
+              <EmailFlow 
+                claimToken={claimToken} 
+                drop={drop} 
+                blockchainStatus={blockchainStatus}
+                onSuccess={handleMintSuccess} 
+                onBack={() => { setView("landing"); setClaimToken(null); }} 
+              />
+            </motion.div>
+          )}
+
+          {view === "already_minted" && (
+            <motion.div key="already_minted" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center w-full">
+              <AlreadyMintedScreen onBack={() => { setView("landing"); setClaimToken(null); }} />
+            </motion.div>
+          )}
+
+          {view === "success" && mintResult && (
+            <motion.div key="success" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center w-full">
+              <ConfettiEffect />
+              <SuccessScreen drop={drop} mintResult={mintResult} onBack={() => { setView("landing"); setMintResult(null); setClaimToken(null); }} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function StepIndicator({ currentStep }: { currentStep: number }) {
+  const { t } = useI18n();
+  const steps = [
+    { num: 1, label: t.claim.stepVerify },
+    { num: 2, label: t.claim.stepMint },
+  ];
+
+  return (
+    <div className="flex items-center justify-center gap-1" data-testid="step-indicator">
+      {steps.map((step, i) => {
+        const isActive = currentStep >= step.num;
+        const isCurrent = currentStep === step.num;
+        return (
+          <div key={step.num} className="flex items-center gap-1">
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
+              isCurrent ? 'bg-white/20 text-white' : isActive ? 'text-white/70' : 'text-white/30'
+            }`}>
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                isActive ? 'bg-white/30' : 'bg-white/10'
+              }`}>
+                {isActive && currentStep > step.num ? <CheckCircle2 className="w-3 h-3" /> : step.num}
+              </div>
+              <span className="hidden sm:inline">{step.label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <div className={`w-4 h-px ${isActive ? 'bg-white/40' : 'bg-white/15'}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MintingAnimation({ dropTitle }: { dropTitle: string }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center py-8" data-testid="minting-animation">
+      <div className="relative mb-6">
+        <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center">
+          <Sparkles className="w-8 h-8 text-primary animate-pulse" />
+        </div>
+        <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-ping" />
+      </div>
+      <h2 className="text-xl sm:text-2xl font-serif font-bold text-white mb-2">{t.claim.mintingTitle}</h2>
+      <p className="text-white/60 text-sm max-w-xs">{t.claim.mintingDesc}</p>
+      <p className="text-white/40 text-xs mt-3">{dropTitle}</p>
+    </div>
+  );
+}
+
+function SuccessScreen({ drop, mintResult, onBack }: { drop: any; mintResult: MintResult; onBack: () => void }) {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const chainName = mintResult.chain === "solana" ? t.chains.solana : mintResult.chain === "evm" ? t.chains.evm : t.chains.solana;
+  const shortTx = mintResult.txHash.length > 16 ? `${mintResult.txHash.slice(0, 8)}...${mintResult.txHash.slice(-6)}` : mintResult.txHash;
+  const shortAddr = mintResult.address.length > 16 ? `${mintResult.address.slice(0, 8)}...${mintResult.address.slice(-6)}` : mintResult.address;
+
+  return (
+    <>
+      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-5">
+        <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
+      </div>
+      <h2 className="text-2xl sm:text-3xl font-serif font-bold mb-2 text-white" data-testid="text-mint-success">{t.claim.mintSuccess}</h2>
+      <p className="text-white/70 mb-5 max-w-xs mx-auto text-sm" data-testid="text-mint-success-desc">{t.claim.mintSuccessDesc}</p>
+      
+      <div className="bg-card rounded-xl shadow-sm border mb-5 max-w-xs mx-auto overflow-hidden">
+        <img src={drop.imageUrl} alt={`${drop.title} - NFT artwork`} className="w-full aspect-square object-cover" />
+        <div className="p-4 space-y-3">
+          <p className="font-serif font-bold text-sm">{drop.title}</p>
+          
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">{t.claim.chain}</span>
+              <span className="font-medium px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px]" data-testid="text-chain-name">{chainName}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">{t.claim.walletAddress}</span>
+              <span className="font-mono text-foreground" data-testid="text-wallet-address">{shortAddr}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">{t.claim.transaction}</span>
+              <span className="font-mono text-foreground" data-testid="text-tx-hash">{shortTx}</span>
+            </div>
+          </div>
+
+          {mintResult.nftUrl && (
+            <a 
+              href={mintResult.nftUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
+              data-testid="link-view-nft"
+            >
+              <ImageDown className="w-4 h-4" />
+              {t.claim.viewMyNft}
+            </a>
+          )}
+
+          {mintResult.explorerUrl && (
+            <a 
+              href={mintResult.explorerUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 w-full py-2 rounded-md bg-accent/50 text-xs font-medium text-foreground hover-elevate"
+              data-testid="link-explorer"
+            >
+              {t.claim.viewOnExplorer} <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 max-w-xs mx-auto">
+        <div className="flex items-center gap-2 justify-center">
+          <div className="h-px flex-1 bg-white/10" />
+          <p className="text-white/40 text-[10px] uppercase tracking-widest font-medium flex items-center gap-1.5">
+            <Share2 className="w-3 h-3" />
+            {t.claim.shareLabel}
+          </p>
+          <div className="h-px flex-1 bg-white/10" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <Button
+            size="lg"
+            variant="outline"
+            className="bg-black/90 border-white/10 text-white hover:bg-black hover:border-white/25 transition-all h-12"
+            onClick={() => handleShareTwitter(drop.title, mintResult.explorerUrl || '', t.claim.shareText)}
+            data-testid="button-share-twitter"
+            aria-label={`${t.claim.shareLabel} ${t.claim.shareTwitter}`}
+          >
+            <SiX className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">{t.claim.shareTwitter}</span>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="bg-[#25D366] border-transparent text-white hover:bg-[#1ebe5b] transition-all h-12"
+            onClick={() => handleShareWhatsApp(drop.title, mintResult.explorerUrl || '', t.claim.shareText)}
+            data-testid="button-share-whatsapp"
+            aria-label={`${t.claim.shareLabel} ${t.claim.shareWhatsApp}`}
+          >
+            <SiWhatsapp className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">{t.claim.shareWhatsApp}</span>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="bg-gradient-to-r from-purple-600 to-pink-500 border-transparent text-white hover:from-purple-500 hover:to-pink-400 transition-all h-12"
+            onClick={() => handleShareInstagram(drop.imageUrl, drop.title, toast, t.claim.instagramSaved, t.claim.instagramDesktopHint)}
+            data-testid="button-share-instagram"
+            aria-label={`${t.claim.shareLabel} ${t.claim.shareInstagram}`}
+          >
+            <SiInstagram className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">{t.claim.shareInstagram}</span>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/25 transition-all h-12"
+            onClick={() => handleCopyLink(mintResult.explorerUrl || window.location.href, toast, t.claim.copyLinkSuccess)}
+            data-testid="button-share-copy-link"
+            aria-label={t.claim.shareCopyLink}
+          >
+            <Link2 className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">{t.claim.shareCopyLink}</span>
+          </Button>
+        </div>
+
+        <Button
+          size="lg"
+          variant="outline"
+          className="w-full bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white transition-all h-11"
+          onClick={() => handleDownloadImage(drop.imageUrl, drop.title)}
+          data-testid="button-download-image"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          {t.claim.downloadImage}
+        </Button>
+
+        <div className="pt-1">
+          <Button
+            onClick={onBack}
+            variant="ghost"
+            className="w-full text-white/40 hover:text-white/70 hover:bg-white/5 text-sm h-10"
+            data-testid="button-claim-another"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            {t.common.back}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function AlreadyMintedScreen({ onBack }: { onBack: () => void }) {
+  const { t } = useI18n();
+  return (
+    <>
+      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-5">
+        <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
+      </div>
+      <h2 className="text-2xl sm:text-3xl font-serif font-bold mb-2 text-white" data-testid="text-already-minted">{t.claim.alreadyMinted}</h2>
+      <p className="text-white/70 mb-5 max-w-xs mx-auto text-sm" data-testid="text-already-minted-desc">{t.claim.alreadyMintedDesc}</p>
+      <div className="flex flex-col gap-3 max-w-xs mx-auto">
+        <Link href="/my-nfts">
+          <Button size="lg" className="w-full font-semibold" data-testid="button-go-my-nfts">
+            <Layers className="w-5 h-5 mr-2" />
+            {t.myNfts.title}
+          </Button>
+        </Link>
+        <Button onClick={onBack} variant="outline" className="w-full bg-white/10 backdrop-blur-sm border-white/20 text-white" data-testid="button-already-minted-back">{t.common.back}</Button>
+      </div>
+    </>
+  );
+}
+
+function handleDownloadImage(imageUrl: string, title: string) {
+  const link = document.createElement("a");
+  link.href = imageUrl;
+  link.download = `${title.replace(/\s+/g, "-").toLowerCase()}-mintoria.png`;
+  link.target = "_blank";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function handleShareTwitter(dropTitle: string, explorerUrl: string, shareTemplate: string) {
+  const text = shareTemplate.replace("{location}", dropTitle);
+  const url = explorerUrl || "https://mintoria.xyz";
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  window.open(twitterUrl, "_blank", "noopener,noreferrer");
+}
+
+function handleShareWhatsApp(dropTitle: string, explorerUrl: string, shareTemplate: string) {
+  const text = shareTemplate.replace("{location}", dropTitle);
+  const url = explorerUrl || "https://mintoria.xyz";
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`;
+  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+}
+
+async function handleCopyLink(url: string, toastFn: (opts: { title: string; description: string }) => void, successMsg: string) {
+  try {
+    await navigator.clipboard.writeText(url);
+    toastFn({ title: "✓", description: successMsg });
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = url;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+      toastFn({ title: "✓", description: successMsg });
+    } catch {}
+    document.body.removeChild(textarea);
+  }
+}
+
+async function handleShareInstagram(imageUrl: string, title: string, toastFn: (opts: { title: string; description: string }) => void, instagramSavedMsg: string, instagramDesktopHint: string) {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isMobile && navigator.share) {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `${title.replace(/\s+/g, "-").toLowerCase()}-mintoria.png`, { type: blob.type });
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        throw new Error("canShare unsupported");
+      }
+      await navigator.share({
+        title: `${title} - Mintoria`,
+        text: title,
+        files: [file],
+      });
+      return;
+    } catch (e: any) {
+      if (e?.name === "AbortError") return;
+    }
+  }
+
+  handleDownloadImage(imageUrl, title);
+  if (isMobile) {
+    setTimeout(() => {
+      window.location.href = "instagram://app";
+    }, 600);
+    toastFn({ title: "Instagram", description: instagramSavedMsg });
+  } else {
+    toastFn({ title: "Instagram", description: instagramDesktopHint });
+  }
+}
+
+function EmailFlow({ claimToken, drop, blockchainStatus, onSuccess, onBack }: { claimToken: string; drop: any; blockchainStatus: any; onSuccess: (result: MintResult | "ALREADY_MINTED") => void; onBack: () => void }) {
+  const { t, language } = useI18n();
+  const [step, setStep] = useState<"email" | "code" | "minting">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [flowError, setFlowError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const { start, mine } = useWalletless();
+
+  const handleSendCode = async () => {
+    setFlowError(null);
+    setIsSending(true);
+    try {
+      const res = await fetch("/api/walletless/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to send code");
+      }
+      setStep("code");
+    } catch (err: any) {
+      console.error("[EmailFlow] Send code error:", err);
+      setFlowError(err.message || "Failed to send verification code");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleVerifyAndMint = async () => {
+    setFlowError(null);
+    setStep("minting");
+    try {
+      const res = await fetch("/api/walletless/mine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code, chain: "solana", claimToken, locale: language }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.message === "ALREADY_MINTED") {
+          onSuccess("ALREADY_MINTED");
+          return;
+        }
+        if (errData.message === "INSUFFICIENT_SOL") {
+          throw new Error(t.claim.serviceUnavailable || "Minting service temporarily unavailable. Please try again later.");
+        }
+        throw new Error(errData.message || "Mint failed");
+      }
+      const data = await res.json();
+      onSuccess({ ...data, chain: data.chain || "solana" });
+    } catch (err: any) {
+      console.error("[EmailFlow] Mint error:", err);
+      setFlowError(err.message || t.claim.mintFailed);
+      setCode("");
+      setStep("code");
+    }
+  };
+
+  if (step === "minting") {
+    return <MintingAnimation dropTitle={drop.title} />;
+  }
+
+  return (
+    <ClaimCard title={step === "email" ? t.email.enterEmail : t.email.enterCode}>
+      {step === "email" ? (
+        <div className="space-y-4">
+          {flowError && (
+            <div className="text-xs text-center text-destructive bg-destructive/10 rounded-md py-2 px-3" data-testid="text-flow-error">
+              {flowError}
+            </div>
+          )}
+          <div className="space-y-2">
+            <Input 
+              type="email" 
+              placeholder={t.email.emailPlaceholder}
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              onKeyDown={e => e.key === "Enter" && email && handleSendCode()}
+              className="text-center"
+              autoFocus
+              data-testid="input-email"
+            />
+          </div>
+          <Button className="w-full" onClick={handleSendCode} disabled={!email || isSending} data-testid="button-send-code">
+            {isSending ? <Loader2 className="animate-spin mr-2 w-4 h-4" /> : <ArrowRight className="mr-2 w-4 h-4" />}
+            {t.email.sendCode}
+          </Button>
+          <Button variant="ghost" className="w-full" onClick={onBack} data-testid="button-email-back">
+            <ChevronLeft className="w-4 h-4 mr-1" />{t.common.back}
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-xs text-center text-muted-foreground">{t.email.codeSentTo} <strong>{email}</strong></p>
+          {flowError && (
+            <div className="text-xs text-center text-destructive bg-destructive/10 rounded-md py-2 px-3" data-testid="text-mint-error">
+              {flowError}
+            </div>
+          )}
+          <div className="space-y-2">
+            <Input 
+              type="text" 
+              placeholder={t.email.codePlaceholder}
+              value={code} 
+              onChange={e => setCode(e.target.value)} 
+              onKeyDown={e => e.key === "Enter" && code && handleVerifyAndMint()}
+              className="text-center tracking-[0.3em] font-mono text-lg"
+              maxLength={6}
+              autoFocus
+              data-testid="input-code"
+            />
+            <p className="text-[10px] text-center text-muted-foreground/60">{t.email.devNote}</p>
+          </div>
+          <Button className="w-full" onClick={handleVerifyAndMint} disabled={!code || code.length < 6} data-testid="button-verify-mint">
+            <Sparkles className="mr-2 w-4 h-4" />
+            {t.claim.mintNow}
+          </Button>
+          <Button variant="ghost" className="w-full" onClick={() => { setStep("email"); setFlowError(null); }} data-testid="button-code-back">
+            <ChevronLeft className="w-4 h-4 mr-1" />{t.common.back}
+          </Button>
+        </div>
+      )}
+    </ClaimCard>
+  );
+}
+

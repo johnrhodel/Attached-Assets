@@ -1,44 +1,65 @@
-# Mintoria - Commemorative NFT Minting Platform
+# Mintoria
 
-## Overview
-Mintoria is a multi-tenant SaaS platform enabling the minting of commemorative NFTs at tourist locations and events. Built on the Solana blockchain, it allows visitors to claim NFTs by scanning QR codes and entering their email, eliminating the need for a crypto wallet. The platform supports self-service organizer registration with a freemium model (Free/Starter/Professional/Enterprise), plan-based limits on mints and locations, and comprehensive admin oversight. It features full internationalization (EN/PT/ES), PWA functionality, and social sharing capabilities. Mintoria aims to revolutionize how physical experiences are commemorated with digital assets, offering a seamless and accessible entry point to NFTs for a broad audience.
+Plataforma SaaS multi-tenant para mintagem de NFTs comemorativos na Solana devnet. Os usuários escaneiam QR codes em eventos, shows e atrações turísticas para mintar NFTs digitais únicos. Disponível em EN/PT/ES. Live em https://mintoria.xyz.
 
-## User Preferences
-Preferred communication style: Simple, everyday language. User speaks Portuguese.
+## Run & Operate
 
-## System Architecture
-Mintoria employs a client-server architecture. The frontend is built with React, TypeScript, Tailwind CSS, and `shadcn/ui`, utilizing Wouter for routing, TanStack React Query for state management, and Framer Motion for animations. It includes PWA features and supports i18n (EN/PT/ES) with a professional blue-based color scheme. The backend is a Node.js Express application in TypeScript, providing RESTful APIs for claim sessions, anti-fraud, blockchain interactions, multi-tenant CRUD, and organizer management. PostgreSQL, managed by Drizzle ORM, serves as the primary database.
+- `pnpm --filter @workspace/api-server run dev` — rodar o servidor API (porta 8080)
+- `pnpm --filter @workspace/mintoria run dev` — rodar o frontend (porta 24783)
+- `pnpm run typecheck` — typecheck completo em todos os pacotes
+- `pnpm run build` — typecheck + build de todos os pacotes
+- `pnpm --filter @workspace/db run push` — push de mudanças no schema do DB (dev only)
+- Required env: `DATABASE_URL` — Postgres connection string
 
-The platform supports two main user roles: Admin and Organizer. Admins have full platform control, managing all aspects, while Organizers can self-register, manage their own projects, locations, and NFT drops within plan-based limits, with data isolation enforced by middleware.
+## Stack
 
-NFTs are minted on the Solana devnet using Metaplex Core. The system uses a persistent server keypair loaded from `SOLANA_KEYPAIR_JSON` (preferred — accepts a JSON array of 64 integers), with `SOLANA_SERVER_SECRET_KEY` (base58 string) as fallback. Dynamic NFT metadata is served via a dedicated API endpoint to ensure proper display in Solana explorers and wallets. Custodial wallets use AES-256-CBC encryption.
+- pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React + Vite + Tailwind CSS v3 + Wouter
+- API: Express 5 + pino logging
+- DB: PostgreSQL + Drizzle ORM
+- Validation: Zod (`zod/v4`), `drizzle-zod`
+- Blockchain: Solana devnet + Metaplex MPL Core, EVM (Sepolia), Stellar testnet
+- i18n: EN / PT / ES (client/src/lib/i18n/)
+- Build: esbuild (CJS bundle) for server, Vite for frontend
 
-The JSON-array format is preferred because it is immune to invisible-character corruption that can happen when pasting base58 strings into Secrets panels — any tampering breaks JSON parse explicitly instead of silently producing a wrong key.
+## Where things live
 
-**Stellar legacy code**: Mintoria originally supported multi-chain (Ethereum/Solana/Stellar) but migrated fully to Solana. The Stellar mint endpoint (`/api/mint/stellar/xdr`) returns HTTP 503 (disabled). The `server/services/stellar.ts` file remains as dead code (not invoked by any active route) and no longer requires `STELLAR_SERVER_SECRET_KEY` to boot — if absent in production, Stellar uses an ephemeral keypair (harmless because no real Stellar mints occur). The secret can be safely deleted from both Workspace and Deployment Secrets panels.
+- `artifacts/mintoria/` — frontend React app (previewPath: `/`)
+- `artifacts/api-server/` — backend Express API (previewPath: `/api`)
+- `lib/db/src/schema/schema.ts` — Drizzle schema (source of truth)
+- `artifacts/api-server/src/routes/routes.ts` — all API routes (~1800 lines)
+- `artifacts/api-server/src/storage.ts` — database storage layer
+- `artifacts/api-server/src/services/` — solana, evm, stellar, wallet, email services
+- `artifacts/mintoria/src/lib/shared-routes.ts` — frontend-safe copy of API route definitions
 
-**Deployment Secrets requirement (operational rule)**: `SOLANA_SERVER_SECRET_KEY` must be configured in the **Deployment's Secrets pane**, which is **separate from workspace Secrets** — workspace secrets do **not** automatically propagate to the deployed runtime. In `NODE_ENV=production`, the server **fails fast on startup with `process.exit(1)`** if the secret is missing or fails to parse, with no silent fallback to an ephemeral keypair (this prevents minting against a throwaway wallet that would lose all SOL on every redeploy). In development, an ephemeral keypair is generated with a warning so local work continues. The `/api/blockchain/status` endpoint exposes `isEphemeral: boolean`, and the admin dashboard renders a prominent red banner whenever an ephemeral wallet is detected. The secret loader sanitizes the env value (trim, BOM strip, single matching wrapping-quote removal) before parsing, so common copy-paste accidents in the Secrets panel do not break boot.
+## Architecture decisions
 
-**Wallet policy (devnet)**: dev and production currently share the **same Solana wallet** — the same `SOLANA_SERVER_SECRET_KEY` value lives in both the workspace Secrets panel and the Deployment Secrets panel. This keeps a single saldo and a single public key visible across environments while running in devnet (where SOL has no monetary value). Before migrating to mainnet, split into two distinct wallets (separate keypairs, separate funding) so that test mints in dev cannot drain real-money SOL from production.
+- Routes use `registerRoutes(httpServer, app)` pattern (NOT Express Router) — complex session/auth middleware requires direct app access
+- Frontend `@shared/routes` resolves to `artifacts/mintoria/src/lib/shared-routes.ts` via Vite alias — frontend-safe version without drizzle imports
+- Tailwind v3 (not v4) — uses postcss plugins, not `@tailwindcss/vite`
+- No OpenAPI codegen — legacy app uses existing fetch layer in hooks (use-auth, use-drops, etc.)
+- Session stored in PostgreSQL via `connect-pg-simple`
 
-**Wallet rotation procedure**: when a wallet must be replaced (e.g. compromised secret, or current secret value got corrupted in the Secrets panel), follow these steps:
-1. Generate a new Solana keypair locally and verify the secret is clean base58 (87–88 chars, alphabet `[1-9A-HJ-NP-Za-km-z]`).
-2. From the existing wallet, transfer the full balance (minus the network fee, ~5000 lamports) to the new wallet's public address. Confirm the tx on the devnet explorer.
-3. Replace `SOLANA_SERVER_SECRET_KEY` with the new secret value in **both** the workspace Secrets panel **and** the Deployment Secrets panel (same name, same value).
-4. Click **Republish** on the deployment.
-5. Verify in the deployment logs: `[SOLANA] Loaded persistent keypair. Public key: <new address>`, balance > 0, and the admin ephemeral-wallet banner is hidden.
+## Product
 
-Core features include public claim pages, an NFT gallery, user NFT lookup by email, comprehensive admin and organizer dashboards, self-service organizer registration, and a password recovery flow. The system also integrates an email service for verification codes and mint confirmations, full internationalization, and robust security measures including Helmet middleware, secure session management, and rate limiting. Plan-based limits are enforced server-side, with structured error codes.
+- **Homepage**: landing com slides de localizações, estatísticas de NFTs mintados
+- **Claim flow**: usuário escaneia QR → acessa `/claim/:locationId` → escolhe chain → minta NFT
+- **Walletless**: mint via email + OTP (sem carteira própria) na Solana
+- **Admin dashboard**: gerencia projetos, localizações, drops, organizadores
+- **Organizer dashboard**: painel do organizador com suas localizações
+- **i18n**: EN/PT/ES com troca dinâmica
 
-## External Dependencies
-- PostgreSQL
-- Drizzle ORM
-- `@solana/web3.js`
-- `shadcn/ui`
-- Lucide React
-- react-icons
-- Embla Carousel
-- Recharts
-- Framer Motion
-- `helmet`
-- Resend (Email Service)
+## User preferences
+
+_Populate as you build — explicit user instructions worth remembering across sessions._
+
+## Gotchas
+
+- `@workspace/db` exports `db` (drizzle instance) AND all schema tables/types — use `@workspace/db` for both in server code
+- `api-server/src/db.ts` is a local wrapper around `@workspace/db` schema (needed for `registerRoutes` imports)
+- Run `pnpm approve-builds` if packages with native modules (bufferutil, utf-8-validate) warn about build scripts
+- The seed function in routes.ts runs on startup — duplicate key errors on re-start are expected and harmless
+
+## Pointers
+
+- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
