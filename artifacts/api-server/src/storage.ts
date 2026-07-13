@@ -70,6 +70,13 @@ export interface IStorage {
   getMintsByLocation(locationId: number): Promise<Mint[]>;
   deleteAllMints(): Promise<void>;
 
+  // Stuck mints (admin recovery)
+  getStuckMints(): Promise<Array<Mint & { dropTitle: string }>>;
+  getDropSlotStats(): Promise<Array<{ dropId: number; dropTitle: string; supply: number; reserved: number; confirmed: number; pending: number }>>;
+  confirmMintIfPending(id: number, txHash: string): Promise<Mint | undefined>;
+  confirmFailedMint(id: number, txHash: string): Promise<Mint | undefined>;
+  discardMintIfPending(id: number): Promise<Mint | undefined>;
+
   // Drops by access code
   getDropByAccessCode(code: string): Promise<Drop | undefined>;
 
@@ -422,6 +429,81 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
     return results;
   }
+  // Stuck mints (admin recovery)
+  async getStuckMints(): Promise<Array<Mint & { dropTitle: string }>> {
+    const results = await db.select({
+      id: mints.id,
+      dropId: mints.dropId,
+      chain: mints.chain,
+      recipient: mints.recipient,
+      mintAddress: mints.mintAddress,
+      txHash: mints.txHash,
+      status: mints.status,
+      email: mints.email,
+      createdAt: mints.createdAt,
+      dropTitle: drops.title,
+    }).from(mints)
+      .innerJoin(drops, eq(mints.dropId, drops.id))
+      .where(inArray(mints.status, ["pending", "failed"]))
+      .orderBy(desc(mints.createdAt));
+    return results;
+  }
+  async getDropSlotStats(): Promise<Array<{ dropId: number; dropTitle: string; supply: number; reserved: number; confirmed: number; pending: number }>> {
+    const results = await db.select({
+      dropId: drops.id,
+      dropTitle: drops.title,
+      supply: drops.supply,
+      reserved: drops.mintedCount,
+      confirmed: sql<number>`COALESCE(SUM(CASE WHEN ${mints.status} = 'confirmed' THEN 1 ELSE 0 END), 0)::int`,
+      pending: sql<number>`COALESCE(SUM(CASE WHEN ${mints.status} = 'pending' THEN 1 ELSE 0 END), 0)::int`,
+    }).from(drops)
+      .leftJoin(mints, eq(mints.dropId, drops.id))
+      .groupBy(drops.id, drops.title, drops.supply, drops.mintedCount)
+      .orderBy(desc(drops.createdAt));
+    return results;
+  }
+  async confirmMintIfPending(id: number, txHash: string): Promise<Mint | undefined> {
+    const [mint] = await db.update(mints)
+      .set({ status: "confirmed", txHash })
+      .where(and(eq(mints.id, id), eq(mints.status, "pending")))
+      .returning();
+    return mint;
+  }
+  async confirmFailedMint(id: number, txHash: string): Promise<Mint | undefined> {
+    return await db.transaction(async (tx) => {
+      const [target] = await tx.select().from(mints)
+        .where(and(eq(mints.id, id), eq(mints.status, "failed")))
+        .for("update");
+      if (!target) return undefined;
+      const reserved = await tx.update(drops)
+        .set({ mintedCount: sql`${drops.mintedCount} + 1` })
+        .where(and(
+          eq(drops.id, target.dropId),
+          sql`(${drops.supply} <= 0 OR ${drops.mintedCount} < ${drops.supply})`,
+        ))
+        .returning({ id: drops.id });
+      if (reserved.length === 0) return undefined;
+      const [mint] = await tx.update(mints)
+        .set({ status: "confirmed", txHash })
+        .where(and(eq(mints.id, id), eq(mints.status, "failed")))
+        .returning();
+      return mint;
+    });
+  }
+  async discardMintIfPending(id: number): Promise<Mint | undefined> {
+    return await db.transaction(async (tx) => {
+      const [mint] = await tx.update(mints)
+        .set({ status: "failed" })
+        .where(and(eq(mints.id, id), eq(mints.status, "pending")))
+        .returning();
+      if (!mint) return undefined;
+      await tx.update(drops)
+        .set({ mintedCount: sql`GREATEST(${drops.mintedCount} - 1, 0)` })
+        .where(eq(drops.id, mint.dropId));
+      return mint;
+    });
+  }
+
   async deleteAllMints(): Promise<void> {
     await db.delete(mints);
     await db.delete(walletlessKeys);

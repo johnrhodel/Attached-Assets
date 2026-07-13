@@ -21,6 +21,7 @@ import Dashboard from "@/pages/admin/Dashboard";
 import Projects from "@/pages/admin/Projects";
 import Drops from "@/pages/admin/Drops";
 import Activity from "@/pages/admin/Activity";
+import StuckMints from "@/pages/admin/StuckMints";
 import Settings from "@/pages/admin/Settings";
 import Notifications from "@/pages/admin/Notifications";
 import Organizers from "@/pages/admin/Organizers";
@@ -84,6 +85,9 @@ function Router() {
       </Route>
       <Route path="/admin/activity">
         {() => <ProtectedRoute component={Activity} requiredRole="admin" />}
+      </Route>
+      <Route path="/admin/stuck-mints">
+        {() => <ProtectedRoute component={StuckMints} requiredRole="admin" />}
       </Route>
       <Route path="/admin/settings">
         {() => <ProtectedRoute component={Settings} requiredRole="admin" />}

@@ -1287,6 +1287,68 @@ export async function registerRoutes(
     }
   });
 
+  // === STUCK MINTS (Admin recovery) ===
+  app.get("/api/admin/stuck-mints", requireAdmin, async (_req, res) => {
+    try {
+      const [stuckMints, slotStats] = await Promise.all([
+        storage.getStuckMints(),
+        storage.getDropSlotStats(),
+      ]);
+      return res.json({ mints: stuckMints, slotStats });
+    } catch (err: any) {
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+    }
+  });
+
+  const confirmMintSchema = z.object({
+    txHash: z.string().trim().min(1).max(200),
+  });
+
+  app.post("/api/admin/mints/:id/confirm", requireAdmin, async (req, res) => {
+    const mintId = Number(req.params.id);
+    if (!Number.isInteger(mintId) || mintId <= 0) {
+      return res.status(400).json({ message: "Invalid mint id" });
+    }
+    const parsed = confirmMintSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "txHash is required" });
+    }
+    try {
+      let mint = await storage.confirmMintIfPending(mintId, parsed.data.txHash);
+      if (!mint) {
+        // Not pending — maybe it was marked failed but actually landed on-chain.
+        // Confirming a failed mint must re-reserve a supply slot atomically.
+        mint = await storage.confirmFailedMint(mintId, parsed.data.txHash);
+      }
+      if (!mint) {
+        return res.status(409).json({ message: "Mint is not pending/failed, or no supply slot is available to confirm it" });
+      }
+      const userId = (req.session as any).userId;
+      await storage.createActivityLog({ userId, action: "update", entity: "mint", entityId: mint.id, details: `Manually confirmed mint #${mint.id} (drop #${mint.dropId}) with tx ${parsed.data.txHash}` }).catch(() => {});
+      return res.json({ mint });
+    } catch (err: any) {
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+    }
+  });
+
+  app.post("/api/admin/mints/:id/discard", requireAdmin, async (req, res) => {
+    const mintId = Number(req.params.id);
+    if (!Number.isInteger(mintId) || mintId <= 0) {
+      return res.status(400).json({ message: "Invalid mint id" });
+    }
+    try {
+      const mint = await storage.discardMintIfPending(mintId);
+      if (!mint) {
+        return res.status(409).json({ message: "Mint is not pending — only pending mints can be discarded" });
+      }
+      const userId = (req.session as any).userId;
+      await storage.createActivityLog({ userId, action: "update", entity: "mint", entityId: mint.id, details: `Discarded stuck mint #${mint.id} (drop #${mint.dropId}) and released supply slot` }).catch(() => {});
+      return res.json({ mint });
+    } catch (err: any) {
+      return res.status(500).json({ message: safeErrorMessage(err, "SERVER") });
+    }
+  });
+
   // === ORGANIZER DASHBOARD ===
   async function requireOrganizerOrAdmin(req: any, res: any, next: any) {
     const userId = (req.session as any).userId;
